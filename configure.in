@@ -1,6 +1,10 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT(C/QWKToSpool.c)
-
+AC_CANONICAL_BUILD
+AC_CANONICAL_HOST
+AC_SUBST(build)
+AC_CANONICAL_TARGET
+AC_SUBST(target)
 AM_INIT_AUTOMAKE([TkNewsIII],0.0.0)
 PACKAGE_NAME="TkNewsIII"
 
@@ -62,6 +66,17 @@ AX_NCGI
 AX_FILEUTIL
 AX_CMDLINE
 
+AC_MSG_CHECKING([Checking target Img])
+case $target_cpu in 
+    x86_64)
+        AC_SUBST(IMG_TARBZ, Img1.4_x86_64.tar.bz2)
+        ;;
+    i*86)
+        AC_SUBST(IMG_TARBZ, Img1.4_ix86.tar.bz2)
+        ;;
+esac
+AC_MSG_RESULT([IMG_TARBZ is $IMG_TARBZ])
+
 dnl for GPG ME library tcl interface 
 AC_LIBTOOL_DLOPEN
 AM_PROG_LIBTOOL
@@ -79,5 +94,5 @@ AC_STRUCT_TM
 dnl Checks for library functions.
 AC_CHECK_FUNCS(mkdir regcomp)
 
-AC_OUTPUT(Makefile C/Makefile Scripts/Makefile Docs/Makefile \
-	  BuildScripts/Makefile GpgME/Makefile BUILDSYMBOLS.tcl)
+AC_OUTPUT(Makefile C/Makefile Scripts/Makefile BuildData/Makefile \
+          Docs/Makefile BuildScripts/Makefile GpgME/Makefile BUILDSYMBOLS.tcl)

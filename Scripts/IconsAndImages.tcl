@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 16 13:48:41 2013
-#  Last Modified : <130516.1415>
+#  Last Modified : <130517.1459>
 #
 #  Description	
 #
@@ -86,6 +86,41 @@ snit::type IconImage {
         } else {
             $type $name
             return $imagemap($name)
+        }
+    }
+}
+
+snit::type IconBitmap {
+    typevariable icondir
+    typevariable unknownbm
+    typevariable bitmapmap -array {}
+    typeconstructor {
+        set icondir [file dirname [info script]]
+        set unknownbm error
+        foreach stockbm {error gray75 gray50 gray25 gray12 hourglass info questhead question warning} {
+            set bitmapmap($stockbm) $stockbm
+        }
+        if {$::tcl_platform(platform) eq "macintosh"} {
+            foreach macbm {document stationery edition application accessory folder pfolder trash floppy ramdisk cdrom preferences querydoc stop note caution} {
+                set bitmapmap($macbm) $macbm
+            }
+        }
+    }
+    constructor {} {
+        set name [namespace tail $self]
+        set xbmfile [file join $icondir $name.xbm]
+        if {[file exists $xbmfile]} {
+            set bitmapmap($name) @$xbmfile
+        } else {
+            set bitmapmap($name) $unknownbm
+        }
+    }
+    typemethod bitmap {name} {
+        if {[info exists bitmapmap($name)]} {
+            return $bitmapmap($name)
+        } else {
+            $type $name
+            return $bitmapmap($name)
         }
     }
 }

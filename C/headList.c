@@ -159,6 +159,14 @@ void GetRFC822Name(char *from_line,char *from_buffer,int from_buffer_size)
 	from_buffer[plen] = '\0';
 }
 	
+void print_bracequoted(const char *string)
+{
+    const char *p = string;
+    while (*p != '\0') {
+        if (*p == '{' || *p == '}') putchar('\\');
+        putchar(*p++);
+    }
+}
 
 /******************************************************************
  *                                                                *
@@ -306,9 +314,19 @@ void LoadArticleHead(char *spooldir, char *grouppath, int artnumber,
     /* Check subject against supplied pattern.*/
     if (regexec(compPattern,matchsubj,0,NULL,0) != 0) return;
     /* Spit out header line. */
-    printf("%d {%s} {%s} {%s} {%s} %d %d {%s} {%s}\n",
-           artnumber, nread, subject, from, date, lines, size, messageid, 
-           inreplyto);
+    printf("%d {", artnumber);
+    print_bracequoted(nread);
+    printf("} {");
+    print_bracequoted(subject);
+    printf("} {");
+    print_bracequoted(from);
+    printf("} {");
+    print_bracequoted(date);
+    printf("} %d %d {",lines,size);
+    print_bracequoted(messageid);
+    printf("} {");
+    print_bracequoted(inreplyto);
+    printf("}\n");
 }
 
 /******************************************************************

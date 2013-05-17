@@ -45,61 +45,64 @@ execbindir = $(libdir)/$(PACKAGE)-$(VERSION)/execbin
 scriptlibdir = $(datadir)/$(PACKAGE)-$(VERSION)/scriptlib
 docdir = $(datadir)/$(PACKAGE)-$(VERSION)/documentation
 
-bin_SCRIPTS = TkNewsII$(EXEEXT) Split_flatmessagefile$(EXEEXT)
-SUBDIRS = BuildScripts C Scripts Docs GpgME
+bin_SCRIPTS = TkNewsIII$(EXEEXT) Split_flatmessagefile$(EXEEXT)
+SUBDIRS = BuildScripts BuildData C Scripts Docs GpgME
 
-LibraryScripts = Scripts/BWHelp.tcl Scripts/labelselectcolor.tcl \
-		Scripts/panedw.tcl Scripts/fileentry.tcl \
-		Scripts/labelspinbox.tcl Scripts/splash.tcl \
-		Scripts/labelcombobox.tcl Scripts/mainwindow.tcl \
-                Scripts/BWStdMenuBar.tcl Scripts/CommonFunctions.tcl \
-		Scripts/SpoolFunction.tcl Scripts/GroupFunctions.tcl \
-                Scripts/ArticleFunctions.tcl Scripts/QWKFunctions.tcl \
-		Scripts/AddressBook.tcl \
-		BUILDSYMBOLS.tcl
-LibraryGIFS = Scripts/close.gif Scripts/new.gif Scripts/open.gif \
-		Scripts/print.gif Scripts/save.gif Scripts/DeepwoodsBanner.gif \
-		Scripts/TkNewsIIicon.gif
-LibraryXBMS = Scripts/TkNewsIIicon.xbm  Scripts/TkNewsIIicon_mask.xbm
-TkNewsIIDATA = $(LibraryScripts) $(LibraryGIFS) $(LibraryXBMS)
-Split_flatmessagefileDATA = Scripts/CommonFunctions.tcl
+LibraryScripts = BUILDSYMBOLS.tcl \
+            Scripts/DynamicHelp.tcl Scripts/IconsAndImages.tcl \
+            Scripts/snitmainframe.tcl Scripts/snitscrollw.tcl
 
-EXTRA_DIST = Rules.make $(PACKAGE).spec.in $(PACKAGE).spec BUILDSYMBOLS.tcl.in \
-            bootstrap
-CLEANFILES = TkNewsII Split_flatmessagefile
-TkNewsII$(EXEEXT): Scripts/TkNewsII.src $(TkNewsIIDATA) $(LibraryScripts) \
+#                Scripts/BWHelp.tcl Scripts/labelselectcolor.tcl \
+#		Scripts/panedw.tcl Scripts/fileentry.tcl \
+#		Scripts/labelspinbox.tcl Scripts/splash.tcl \
+#		Scripts/labelcombobox.tcl Scripts/mainwindow.tcl \
+#                Scripts/BWStdMenuBar.tcl Scripts/CommonFunctions.tcl \
+#		Scripts/SpoolFunction.tcl Scripts/GroupFunctions.tcl \
+#                Scripts/ArticleFunctions.tcl Scripts/QWKFunctions.tcl \
+#		Scripts/AddressBook.tcl 
+		
+LibraryImages = Scripts/unknown.xpm Scripts/DeepwoodsBanner.png
+
+#                Scripts/close.gif Scripts/new.gif Scripts/open.gif \
+#		Scripts/print.gif Scripts/save.gif Scripts/DeepwoodsBanner.gif \
+#		Scripts/TkNewsIIIicon.gif
+LibraryXBMS = 
+#                Scripts/TkNewsIIIicon.xbm  Scripts/TkNewsIIIicon_mask.xbm
+TkNewsIIIDATA = $(LibraryScripts) $(LibraryImages) $(LibraryXBMS)
+Split_flatmessagefileDATA = 
+
+#               Scripts/CommonFunctions.tcl
+
+EXTRA_DIST = Rules.make  BUILDSYMBOLS.tcl.in bootstrap
+CLEANFILES = TkNewsIII Split_flatmessagefile
+TkNewsIII$(EXEEXT): Scripts/TkNewsIII.src $(TkNewsIIIDATA) \
 			$(LibraryGIFS) $(LibraryXBMS) \
-			Help/index.hh Help/*.gif Help/hh.index \
 			GpgME/gpgme.la GpgME/pkgIndex.tcl
-	-rm -f  TkNewsII.kit
-	-rm -f  TkNewsII$(EXEEXT)
-	-rm -rf TkNewsII.vfs
-	$(TCLKIT) $(SDX) qwrap $(srcdir)/Scripts/TkNewsII.src
-	$(TCLKIT) $(SDX) unwrap TkNewsII.kit
-	-rm -f  TkNewsII.kit
-	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsII \
-		lib $(BWLIB)
-	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsII \
+	-rm -f  TkNewsIII.kit
+	-rm -f  TkNewsIII$(EXEEXT)
+	-rm -rf TkNewsIII.vfs
+	$(TCLKIT) $(SDX) qwrap $(srcdir)/Scripts/TkNewsIII.src
+	$(TCLKIT) $(SDX) unwrap TkNewsIII.kit
+	-rm -f  TkNewsIII.kit
+	tar xjvf $(IMG_TARBZ) -C TkNewsIII.vfs/lib
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsIII \
 		lib $(SNITLIB)
-	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsII \
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsIII \
 		lib $(URILIB)
-	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsII \
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsIII \
 		lib $(NCGILIB)
-	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsII \
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsIII \
 		lib $(FILEUTILLIB)
-	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsII \
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsIII \
 		lib $(CMDLINELIB)
-	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit TkNewsII \
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit TkNewsIII \
 	        lib/GpgME GpgME/.libs/gpgme.so GpgME/pkgIndex.tcl
-	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) TkNewsII \
-		lib/Common $(TkNewsIIDATA)
-	$(TCLKIT) $(top_srcdir)/BuildScripts/MakePkgIndex.kit TkNewsII \
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) TkNewsIII \
+		lib/Common $(TkNewsIIIDATA)
+	$(TCLKIT) $(top_srcdir)/BuildScripts/MakePkgIndex.kit TkNewsIII \
 		Common
-	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit TkNewsII \
-		Help $(top_builddir)/Help/*.hh $(top_builddir)/Help/*.gif \
-		     $(top_builddir)/Help/hh.index
-	$(TCLKIT) $(SDX) wrap TkNewsII$(EXEEXT) -runtime $(TCLKITRUN)
-	-rm -rf  TkNewsII.vfs
+	$(TCLKIT) $(SDX) wrap TkNewsIII$(EXEEXT) -runtime $(TCLKITRUN)
+	-rm -rf  TkNewsIII.vfs
 
 $(top_builddir)/Help/hh.index : \
 	$(top_builddir)/Help/*.hh
