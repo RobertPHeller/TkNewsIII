@@ -1,8 +1,8 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT(C/QWKToSpool.c)
 
-AM_INIT_AUTOMAKE([TkNewsII],1.0.15)
-PACKAGE_NAME="TkNewsII"
+AM_INIT_AUTOMAKE([TkNewsIII],0.0.0)
+PACKAGE_NAME="TkNewsIII"
 
 if test "x${prefix}" = "xNONE"; then
     prefix=/usr/local
@@ -56,7 +56,6 @@ AC_CHECK_PROGS(HTLATEX, htlatex htlatex.sh)
 dnl Checks for libraries.
 
 dnl Check for external Tcl/Tk libraries
-AX_BWIDGET
 AX_SNIT
 AX_URI
 AX_NCGI
@@ -80,5 +79,5 @@ AC_STRUCT_TM
 dnl Checks for library functions.
 AC_CHECK_FUNCS(mkdir regcomp)
 
-AC_OUTPUT(Makefile C/Makefile Scripts/Makefile Help/Makefile Docs/Makefile \
-	  BuildScripts/Makefile GpgME/Makefile BUILDSYMBOLS.tcl TkNewsII.spec)
+AC_OUTPUT(Makefile C/Makefile Scripts/Makefile Docs/Makefile \
+	  BuildScripts/Makefile GpgME/Makefile BUILDSYMBOLS.tcl)

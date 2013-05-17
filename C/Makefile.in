@@ -132,7 +132,6 @@ AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
 BIBTEX = @BIBTEX@
 BUILD_DIR = @BUILD_DIR@
-BWLIB = @BWLIB@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CELIB_DIR = @CELIB_DIR@
@@ -570,9 +569,6 @@ uninstall-am: uninstall-execbinPROGRAMS uninstall-info-am
 	mostlyclean-libtool pdf pdf-am ps ps-am tags uninstall \
 	uninstall-am uninstall-execbinPROGRAMS uninstall-info-am
 
-$(top_builddir)/config_tcl.sed: $(top_builddir)/config.status \
-				$(top_builddir)/config_tcl.sed.in
-	cd $(top_builddir) && CONFIG_FILES=$(@F) CONFIG_HEADERS= $(SHELL) ./config.status
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:
