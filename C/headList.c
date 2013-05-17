@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/types.h>
 #include <regex.h>
 #include <string.h>
 #include <ctype.h>
@@ -56,7 +57,8 @@ void GetRFC822Name(char *from_line,char *from_buffer,int from_buffer_size)
 	/* Initialize compiled regular expressions */
 	if (!rxinit)
 	{
-		status = regcomp(&rxcorner,"^(.*)(<.+>)(.*)$",REG_NEWLINE|REG_EXTENDED);
+            status = regcomp(&rxcorner,"^(.*)(<.+>)(.*)$",
+                             REG_NEWLINE|REG_EXTENDED);
 		if (status != 0)
 		{
 			regerror(status,&rxcorner,errbuffer,512);
@@ -169,80 +171,144 @@ void GetRFC822Name(char *from_line,char *from_buffer,int from_buffer_size)
 void LoadArticleHead(char *spooldir, char *grouppath, int artnumber,
 		     regex_t *compPattern, char *nread)
 {
-	static char filename[512], linebuffer[4096];
-	FILE *file;
-	static char subject[256], fromline[256], from[22], date[256],
-		    matchsubj[256];
-	char *p, *q;
-	int lines;
-
-	/* Form article file name. */	
-	sprintf(filename,"%s/%s/%d",spooldir,grouppath,artnumber);
-	/* Exists and readable? If not, skip it. */
-	if (access(filename,R_OK) != 0) return;
-	/* Open file.  */
-	file = fopen(filename,"r");
-	/* Initially, no header info. */
-	subject[0] = '\0';
-	from[0] = '\0';
-	date[0] = '\0';
-	lines = 0;
-	/* Read lines, until end of header (empty line). */
-	while ((p = fgets(linebuffer,4096,file)) != NULL)
-	{
-		if (*p == '\n') break;
-		q = strchr(p,'\n');
-		if (q != NULL) *q = '\0';
-		/* Look for headers: QWK Subject, RFC Subject, QWK From, From,
-		   QWK Date, Date, and Lines.*/
-		if (strncmp(p,"X-QWK-Subject: ",15) == 0)
-		{
-			strncpy(subject,p+15,256);
-			subject[255] = '\0';
-		} else if (strncmp(p,"Subject: ",9) == 0)
-		{
-			strncpy(subject,p+9,256);
-			subject[255] = '\0';
-		} else if (strncmp(p,"X-QWK-From: ",12) == 0)
-		{
-			strncpy(fromline,p+12,256);
-			fromline[255] = '\0';
-		} else if (strncmp(p,"From: ",6) == 0)
-		{
-			strncpy(fromline,p+6,256);
-			fromline[255] = '\0';
-		} else if (strncmp(p,"X-QWK-Date: ",12) == 0)
-		{
-			strncpy(date,p+12,256);
-			date[255] = '\0';
-		} else if (strncmp(p,"Date: ",6) == 0)
-		{
-			strncpy(date,p+6,256);
-			date[255] = '\0';
-		} else if (strncmp(p,"Lines: ",7) == 0)
-		{
-			lines = atoi(p+7);
-		} else continue;
-	}
-	/* Make sure subject is nonzero length. */
-	if (strlen(subject) == 0) strcpy(subject," ");
-	/* Close file. */
-	fclose(file);
-	/* Extract author's real name. */
-	GetRFC822Name(fromline,from,20);
-	for (p = subject, q = matchsubj; *p != '\0';p++,q++)
+    static regex_t rxheader;
+    static int rxinit = FALSE;
+    static char filename[512], linebuffer[4096], hbuffer[16384];
+    static char errbuffer[512];
+    FILE *file;
+    
+    static char subject[256], fromline[256], from[22], date[256],
+          matchsubj[256], messageid[256], inreplyto[256], key[64];
+    int plen;
+    char *pmatch1, *pmatch2, *p, *q;
+    int lines;
+    long size;
+    int status,i;
+    
+    /* Initialize compiled regular expressions */
+    if (!rxinit)
+    {
+        status = regcomp(&rxheader,"^[^[:space:]]+:[[:space:]]+.*$",
+                         REG_NEWLINE|REG_EXTENDED);
+        if (status != 0)
         {
-       		if (isalpha(*p)) *q = tolower(*p);
-       		else *q = *p;
-       	}
-       	/* Check subject against supplied pattern.*/
-	if (regexec(compPattern,matchsubj,0,NULL,0) != 0) return;
-	/* Truncate subject and date. */
-	subject[35] = '\0';
-	date[24] = '\0';
-	/* Spit out header line. */
-	printf("%6d %s%-36s %-20s %-25s %5d\n", artnumber, nread, subject,
-		from, date, lines);
+            regerror(status,&rxheader,errbuffer,512);
+            fprintf(stderr,"LoadArticleHead: regcomp(rxheader): %s\n",errbuffer);
+            exit(status);
+        }
+        rxinit = TRUE;
+    }
+    /* Form article file name. */	
+    sprintf(filename,"%s/%s/%d",spooldir,grouppath,artnumber);
+    /*fprintf(stderr,"*** LoadArticleHead: filename is |%s|\n",filename);*/
+    /* Exists and readable? If not, skip it. */
+    /*fprintf(stderr,"*** LoadArticleHead: access(filename,R_OK) = %d\n",access(filename,R_OK));*/
+    if (access(filename,R_OK) != 0) return;
+    /* Open file.  */
+    file = fopen(filename,"r");
+    /* Initially, no header info. */
+    subject[0] = '\0';
+    from[0] = '\0';
+    date[0] = '\0';
+    lines = 0;
+    hbuffer[0] = '\n';
+    hbuffer[1] = '\0';
+    /* Read lines, until end of header (empty line). */
+    while ((p = fgets(linebuffer,4096,file)) != NULL)
+    {
+        if (*p == ' ' || *p == '\t') {
+            q = strchr(hbuffer,'\n');
+            strcpy(q,p);
+            continue;
+        } else if (hbuffer[0] != '\n') {
+            q = strchr(hbuffer,'\n');
+            /**q = '\0';*/
+            /*fprintf(stderr,"*** LoadArticleHead: hbuffer = |%s|\n",hbuffer);*/
+            status = regexec(&rxheader,hbuffer,0,NULL,0);
+            /*fprintf(stderr,"*** LoadArticleHead: regexec status is %d\n",status);*/
+            if (status == 0)
+            {
+                pmatch1 = hbuffer;
+                for (pmatch2 = pmatch1; *pmatch2 != ':'; pmatch2++) ;
+                plen = pmatch2 - pmatch1;
+                if (plen > 64) plen = 64;
+                strncpy(key,pmatch1,plen);
+                key[plen] = '\0';
+                /*fprintf(stderr,"*** LoadArticleHead: key = |%s|\n",key);*/
+                pmatch1 = pmatch2+1;
+                while (isspace(*pmatch1)) pmatch1++;
+                pmatch2 = strchr(pmatch1,'\n');
+                plen = pmatch2 - pmatch1;
+                /*fprintf(stderr,"*** LoadArticleHead: value is |%s|\n",pmatch1);*/
+                if (strcasecmp(key,"x-qwk-subject") == 0)
+                {
+                    if (plen > 256) plen = 256;
+                    strncpy(subject,pmatch1,plen);
+                    subject[plen] = '\0';
+                } else if (strcasecmp(key,"subject") == 0)
+                {
+                    if (plen > 256) plen = 256;
+                    strncpy(subject,pmatch1,plen);
+                    subject[plen] = '\0';
+                } else if (strcasecmp(key,"x-qwk-from") == 0)
+                {
+                    if (plen > 256) plen = 256;
+                    strncpy(fromline,pmatch1,plen);
+                    fromline[plen] = '\0';
+                } else if (strcasecmp(key,"from") == 0)
+                {
+                    if (plen > 256) plen = 256;
+                    strncpy(fromline,pmatch1,plen);
+                    fromline[plen] = '\0';
+                } else if (strcasecmp(key,"x-qwk-date") == 0)
+                {
+                    if (plen > 256) plen = 256;
+                    strncpy(date,pmatch1,plen);
+                    date[plen] = '\0';
+                } else if (strcasecmp(key,"date") == 0)
+                {
+                    if (plen > 256) plen = 256;
+                    strncpy(date,pmatch1,plen);
+                    date[plen] = '\0';
+                } else if (strcasecmp(key,"lines") == 0)
+                {
+                    lines = atoi(pmatch1);
+                } else if (strcasecmp(key,"message-id") == 0)
+                {
+                    if (plen > 256) plen = 256;
+                    strncpy(messageid,pmatch1,plen);
+                    messageid[plen] = '\0';
+                } else if (strcasecmp(key,"in-reply-to") == 0)
+                {
+                    if (plen > 256) plen = 256;
+                    strncpy(inreplyto,pmatch1,plen);
+                    inreplyto[plen] = '\0';
+                } 
+            }
+        }
+        strcpy(hbuffer,p);
+        /*fprintf(stderr,"*** LoadArticleHead: p = |%s|\n",p);*/
+        if (*p == '\n') break;
+    }
+    fseek(file,0L,SEEK_END);
+    size = ftell(file);
+    /* Close file. */
+    fclose(file);
+    /* Extract author's real name. */
+    GetRFC822Name(fromline,from,20);
+    for (p = subject, q = matchsubj; *p != '\0';p++,q++)
+    {
+        if (isalpha(*p)) *q = tolower(*p);
+        else *q = *p;
+    }
+    /*fprintf(stderr,"*** LoadArticleHead: artnumber = %d, nread = |%s|, subject = |%s|, from = |%s|, date = |%s|, lines = %d, size = %d, messageid = |%s|, inreplyto = |%s|\n",
+            artnumber,nread,subject,from,date,lines,size,messageid,inreplyto);*/
+    /* Check subject against supplied pattern.*/
+    if (regexec(compPattern,matchsubj,0,NULL,0) != 0) return;
+    /* Spit out header line. */
+    printf("%d {%s} {%s} {%s} {%s} %d %d {%s} {%s}\n",
+           artnumber, nread, subject, from, date, lines, size, messageid, 
+           inreplyto);
 }
 
 /******************************************************************
@@ -254,7 +320,7 @@ void LoadArticleHead(char *spooldir, char *grouppath, int artnumber,
 void InsertArticleList (char *spoolDir, char *groupPath, char *pattern, int unreadp, int firstMessage, int lastMessage, int Nranges, char *rangeList[])
 {
 	
-	static char unreadFlag[4];
+	static char unreadFlag[2];
 	int nextload = 1;
 	int irange;
 	regex_t patt;
@@ -273,8 +339,7 @@ void InsertArticleList (char *spoolDir, char *groupPath, char *pattern, int unre
 	if (unreadp)
 	{
 		unreadFlag[0] = 'U';
-		unreadFlag[1] = ' ';
-		unreadFlag[2] = '\0';
+		unreadFlag[1] = '\0';
 	} else unreadFlag[0] = '\0';
 	/* Process selected ranges of messages. */
 	for (irange = 0; irange < Nranges; irange++)
@@ -310,6 +375,8 @@ void InsertArticleList (char *spoolDir, char *groupPath, char *pattern, int unre
 			 }
 		} else nextload = last + 1;
 	}
+/*        fprintf(stderr,"*** InsertArticleList: nextload = %d, lastMessage = %d\n",
+            nextload,lastMessage); */
 	/* Trailing unread messages. */
 	while (nextload <= lastMessage)
 	{
@@ -353,6 +420,8 @@ int main(int argc,char *argv[])
 	unreadp = atoi(argv[4]);
 	firstMessage = atoi(argv[5]);
 	lastMessage = atoi(argv[6]);
-	InsertArticleList(spoolDir,groupPath,pattern,unreadp,firstMessage,lastMessage,argc-7,&(argv[7]));
+/*        fprintf(stderr,"*** main(): spoolDir = %s, groupPath = %s, pattern = %s, unreadp = %d, firstMessage = %d, lastMessage = %d, argc = %d\n",
+            spoolDir,groupPath,pattern,unreadp,firstMessage,lastMessage,argc);*/
+        InsertArticleList(spoolDir,groupPath,pattern,unreadp,firstMessage,lastMessage,argc-7,&(argv[7]));
 	exit(0);
 }
