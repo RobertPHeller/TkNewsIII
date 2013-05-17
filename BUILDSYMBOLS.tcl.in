@@ -1,0 +1,10 @@
+namespace eval BUILDSYMBOLS {
+  variable PACKAGE @PACKAGE@
+  variable VERSION @VERSION@
+  variable exec_prefix @exec_prefix@
+  variable libdir @libdir@
+  variable execbindir $libdir/$PACKAGE-$VERSION/execbin
+}
+
+package provide BUILDSYMBOLS 1.0
+
