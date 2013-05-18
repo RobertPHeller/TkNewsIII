@@ -11,6 +11,8 @@ if {[file exists "$execbindirINSTALLED"] &&
 } else {
   set execbindir "$execbindirBUILD"
 }
+
+#puts stderr "*** execbindir = $execbindir"
         
 package require Tk;#                    Base GUI Toolkit
 package require tile;#                  Themed widgets
@@ -99,21 +101,6 @@ if {$iconval} {
   set IconicP 0
 }
 
-if {!$IconicP} {
-#  splash .tknewsIISplash \
-#	-title {TkNews II 1.0, Copyright (C) 2006 Robert Heller D/B/A Deepwoods Software. TkNews II comes with ABSOLUTELY NO WARRANTY; for details select 'Warranty...' under the Help menu.  This is free software, and you are welcome to redistribute it under certain conditions; select 'Copying...' under the Help menu.} \
-#        -image DeepwoodsBanner -background {#2ba2bf} \
-#        -titleforeground white -statusforeground {black}
-}
-
-proc SplashWorkMessage {message percent} {
-  global IconicP
-  if {!$IconicP} {
-#    .tknewsIISplash update "$message" $percent
-#    update idle
-  }
-}
-
 global argv
 global argc
 global argv0
@@ -142,10 +129,8 @@ set PrintCommand "[option get . printCommand PrintCommand]"
 global MimeCommand
 set MimeCommand "[option get . mimeCommand MimeCommand]"
 
-AddressBook::LoadAddressBookFile "[option get . addressBookFile AddressBookFile]"
+#AddressBook::LoadAddressBookFile "[option get . addressBookFile AddressBookFile]"
 #  puts "*** IconicP = $IconicP"
-
-QWK::RescanQWKSpool
 
 if {$IconicP == 1} {
   wm iconify .
@@ -153,12 +138,10 @@ if {$IconicP == 1} {
 }
 
 #update
-foreach asp [option get . autoSpools AutoSpools] {
-  Spool::ReviewSpool $asp $IconicP
+#foreach asp [option get . autoSpools AutoSpools] {
+#  Spool::ReviewSpool $asp $IconicP
 #  update idle
-}
-
-catch {SplashWorkMessage {Done} 100}
+#}
 
 if {$argc > 0} {
   if {[catch {eval [list Spool::SpoolWindow processURL] $argv} result]} {

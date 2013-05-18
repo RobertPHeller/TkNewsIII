@@ -51,7 +51,7 @@ SUBDIRS = BuildScripts BuildData C Scripts Docs GpgME
 LibraryScripts = BUILDSYMBOLS.tcl \
             Scripts/DynamicHelp.tcl Scripts/IconsAndImages.tcl \
             Scripts/snitmainframe.tcl Scripts/snitscrollw.tcl \
-            Scripts/QWKFunctions.tcl 
+            Scripts/QWKFunctions.tcl Scripts/TopWindow.tcl
 
 #                Scripts/BWHelp.tcl Scripts/labelselectcolor.tcl \
 #		Scripts/panedw.tcl Scripts/fileentry.tcl \

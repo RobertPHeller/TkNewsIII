@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon May 13 14:24:47 2013
-#  Last Modified : <130516.1020>
+#  Last Modified : <130518.1007>
 #
 #  Description	
 #
@@ -37,8 +37,8 @@ snit::widget MainFrame {
     widgetclass MainFrame
     hulltype ttk::frame
     
-    delegate option -width to frame
-    delegate option -height to frame
+    delegate option -width to hull
+    delegate option -height to hull
     option -textvariable -default ""
     option -menu -default "" -readonly yes
     option -separator -type {snit::enum -values {none top bottom both}} -default both -readonly yes
