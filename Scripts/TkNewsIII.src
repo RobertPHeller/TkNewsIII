@@ -1,0 +1,191 @@
+set argv0 [info nameofexecutable]
+package require BUILDSYMBOLS
+global execbindir
+set execbindirBUILD "[file join [file dirname [info nameofexecutable]] C]"
+set execbindirINSTALLED $::BUILDSYMBOLS::execbindir
+#puts stderr "*** execbindirBUILD = $execbindirBUILD"
+#puts stderr "*** execbindirINSTALLED = $execbindirINSTALLED"
+if {[file exists "$execbindirINSTALLED"] && 
+    [file isdirectory "$execbindirINSTALLED"]} {
+  set execbindir "$execbindirINSTALLED"
+} else {
+  set execbindir "$execbindirBUILD"
+}
+        
+package require Tk;#                    Base GUI Toolkit
+package require tile;#                  Themed widgets
+package require snit
+package require MainWindow
+package require IconImage
+
+global HeadListProg
+set HeadListProg [auto_execok [file join $execbindir headList]]
+global QWKToSpoolProg
+set QWKToSpoolProg [auto_execok [file join $execbindir QWKToSpool]]
+global SpoolToReplyProg
+set SpoolToReplyProg [auto_execok [file join $execbindir SpoolToReply]]
+global QWKReplyProg
+set QWKReplyProg [auto_execok [file join $execbindir qwkReply]]
+
+catch [list source ~/.wishrc]
+option add {*serverName} {localhost} widgetDefault
+option add {*useServer} {no} widgetDefault
+option add {*externalEditor} {/usr/local/bin/emacs} widgetDefault
+option add {*activeFile} {/var/lib/news/active} widgetDefault
+option add {*spoolDirectory} {/var/spool/news} widgetDefault
+option add {*injectProgram} {/usr/bin/inews -h} widgetDefault
+option add {*emailProgram} {/usr/lib/sendmail -em -i -t} widgetDefault
+option add {*spellChecker} {/usr/bin/X11/xterm -e ispell} widgetDefault
+option add {*newsRc} {~/.newsrc} widgetDefault
+option add {*savedNews} {~/News} widgetDefault
+option add {*drafts} {~/Drafts} widgetDefault
+option add {*cleanFunction} {no} widgetDefault
+option add {*isEmail} {no} widgetDefault
+option add {*ccSelf} {yes} widgetDefault
+option add {*followupWithXCommentTo} {no} widgetDefault
+option add {*followupEmailTo} {} widgetDefault
+option add {*signatureFile} {} widgetDefault
+option add {*qwkInSpool} {~/spool} widgetDefault
+option add {*qwkOutSpool} {~/spool} widgetDefault
+option add {*qwkWorkDir} {~/TkNewsWork} widgetDefault
+option add {*qwkArchiver} {zip -j} widgetDefault
+option add {*qwkUnarchiver} {unzip -jo} widgetDefault
+option add {*qwkGetMailCommand} {} widgetDefault
+option add {*spoolList} {} widgetDefault
+option add {*autoSpools} {} widgetDefault
+option add {*printCommand} {lpr -} widgetDefault
+option add {*mimeCommand} {metamail -d -m TkNews -q -x %f} widgetDefault
+option add {*tocGeometry} {} widgetDefault
+option add {*spoolGeometry} {} widgetDefault
+option add {*articleGeometry} {} widgetDefault
+option add {*addressBookGeometry} {} widgetDefault
+option add {*postGeometry} {} widgetDefault
+option add {*iconic} {0} widgetDefault
+option add {*BackgroundShellProcessWindow.width} {600} 21;#widgetDefault
+option add {*ServerMessageDialog.width} 600 21;#widgetDefault
+option add {*SpoolWindow.width} 610 21;#widgetDefault
+option add *Listbox*font {fixed} 21 ;#widgetDefault
+option add *ListBox.font {fixed} 21 ;# widgetDefault
+option add *Tree*font {fixed} 21;#widgetDefault
+option add *tocHeight 20 widgetDefault
+option add *spoolNumGroups 20 widgetDefault
+option add *spoolNumArticles 10 widgetDefault  
+option add *from {John Bigbooty} widgetDefault
+option add *organization {Yoyodyne} widgetDefault
+option add *killFile {} widgetDefault
+option add *addressBookFile {~/.TkNewsAddresses} widgetDefault
+option readfile ~/.TkNewsRc
+
+IconImage image DeepwoodsBanner
+
+set iconval "[option get . iconic Iconic]"
+
+global argc argv
+set argv_ {}
+for {set counter 0} {$counter < $argc} {incr counter 1} {
+  case [string tolower [lindex $argv $counter]] in { 
+    {-iconic} {
+      set iconval 1
+    }
+    {default} {
+      lappend argv_ [lindex $argv $counter]
+    }
+  }
+}
+
+set argv $argv_
+set argc [llength $argv]
+
+global IconicP
+if {$iconval} {
+  set IconicP 1
+} else {
+  set IconicP 0
+}
+
+if {!$IconicP} {
+#  splash .tknewsIISplash \
+#	-title {TkNews II 1.0, Copyright (C) 2006 Robert Heller D/B/A Deepwoods Software. TkNews II comes with ABSOLUTELY NO WARRANTY; for details select 'Warranty...' under the Help menu.  This is free software, and you are welcome to redistribute it under certain conditions; select 'Copying...' under the Help menu.} \
+#        -image DeepwoodsBanner -background {#2ba2bf} \
+#        -titleforeground white -statusforeground {black}
+}
+
+proc SplashWorkMessage {message percent} {
+  global IconicP
+  if {!$IconicP} {
+#    .tknewsIISplash update "$message" $percent
+#    update idle
+  }
+}
+
+global argv
+global argc
+global argv0
+
+if {$argc > 0} {
+  if {[regsub {[[:space:]]+#[0-9]+} [tk appname] {} app] > 0} {
+#    puts stderr "*** argc = $argc, argv = $argv"
+    if {[catch {eval [list send "$app" Spool::SpoolWindow processURL] $argv} result]} {
+      puts stderr "$result"
+    } else {
+      puts "$result"
+    }
+    exit
+  }
+}
+
+wm iconbitmap . [IconBitmap bitmap TkNewsIIIicon]
+wm iconmask . [IconBitmap bitmap TkNewsIIIicon_mask]
+
+package require TopWindow
+
+pack [TopWindow .main] -expand yes -fill both
+
+global QWKInSpool
+global QWKOutSpool
+global QWKWorkDir 
+set QWKInSpool "[option get . qwkInSpool QWKInSpool]"
+set QWKOutSpool "[option get . qwkOutSpool QWKOutSpool]"
+set QWKWorkDir "[option get . qwkWorkDir QWKWorkDir]"
+if {[package vcompare [package provide Tcl] 8.4] < 0} {
+  set QWKInSpool [glob -nocomplain "$QWKInSpool"]
+  set QWKOutSpool [glob -nocomplain "$QWKOutSpool"]
+  set QWKWorkDir [glob -nocomplain "$QWKWorkDir"]
+} else {
+  set QWKInSpool [file normalize "$QWKInSpool"]
+  set QWKOutSpool [file normalize "$QWKOutSpool"]
+  set QWKWorkDir [file normalize "$QWKWorkDir"]
+}
+global QWKArchiver
+set QWKArchiver "[option get . qwkArchiver QWKArchiver]"
+global QWKUnarchiver
+set QWKUnarchiver "[option get . qwkUnarchiver QWKUnarchiver]"
+global PrintCommand 
+set PrintCommand "[option get . printCommand PrintCommand]"
+global MimeCommand
+set MimeCommand "[option get . mimeCommand MimeCommand]"
+
+AddressBook::LoadAddressBookFile "[option get . addressBookFile AddressBookFile]"
+#  puts "*** IconicP = $IconicP"
+
+QWK::RescanQWKSpool
+
+if {$IconicP == 1} {
+  wm iconify .
+#    puts "*** wm iconify ."
+}
+
+#update
+foreach asp [option get . autoSpools AutoSpools] {
+  Spool::ReviewSpool $asp $IconicP
+#  update idle
+}
+
+catch {SplashWorkMessage {Done} 100}
+
+if {$argc > 0} {
+  if {[catch {eval [list Spool::SpoolWindow processURL] $argv} result]} {
+    tk_messageBox -type ok -icon error -message "$result"
+  }
+}
+
