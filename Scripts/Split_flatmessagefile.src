@@ -1,0 +1,92 @@
+#!=TCLSH=
+global prefix libdir datadir exec_prefix execbindir scriptlibdir helpdir
+global PACKAGE VERSION
+set prefix "=prefix="
+set exec_prefix "=exec_prefix="
+set libdir "=libdir="
+set datadir "=datadir="
+set PACKAGE "=PACKAGE="
+set VERSION "=VERSION="
+set execbindir "[file join $libdir $PACKAGE-$VERSION execbin]"
+set scriptlibdir "[file join $datadir $PACKAGE-$VERSION scriptlib]"
+set helpdir "[file join $datadir $PACKAGE-$VERSION Help]"
+
+set scriptdir [file dirname [info script]]
+if {![string equal [file dirname $scriptdir] "$exec_prefix"]} {
+  set execbindir [file join [file dirname $scriptdir] C]
+  set scriptlibdir $scriptdir
+  set helpdir [file join [file dirname $scriptdir] Help]
+}
+
+lappend auto_path $scriptlibdir =BWLIB= =SNITLIB=
+
+package require snit
+proc SplashWorkMessage {args} {}
+
+package require CommonFunctions
+
+proc usage {{ message {} }} {
+  global argv0
+  if {[string length "$message"] > 0} {
+    puts stderr "$argv0: $message"
+  }
+  puts stderr "usage: $argv0 flatmessagefile savedmessagedirectory"
+  exit 99
+}
+
+global argc argv
+
+if {$argc != 2} {usage}
+
+set flatmessagefile "[lindex $argv 0]"
+if {![file readable "$flatmessagefile"]} {
+  usage "Message file does not exist: $flatmessagefile!"
+}
+
+if {[catch [list open "$flatmessagefile" r] infp]} {
+  usage "open: $flatmessagefile r: $infp"
+}
+
+set savedmessagedirectory "[lindex $argv 1]"
+
+if {[file exists "$savedmessagedirectory"] && 
+    ![file isdirectory "$savedmessagedirectory"]} {
+  usage "$savedmessagedirectory, exists but is not a directory!"
+}
+
+if {![file exists "$savedmessagedirectory"]} {
+  if {[catch [list file mkdir "$savedmessagedirectory"] message]} {
+    usage "Could not make directory $savedmessagedirectory: $message"
+  }
+}
+
+if {![file writable "$savedmessagedirectory"]} {
+  usage "$savedmessagedirectory is not writable!"
+}
+
+set highestmessage [Common::Highestnumber \
+			[glob -nocomplain \
+				[file join "$savedmessagedirectory" *]]]
+
+
+
+set outfp {}
+
+set count 0
+
+while {[gets $infp line] >= 0} {
+  if {[regexp {^From ([a-zA-Z@._-]+) (.+)$} "$line" => email date] > 0} {
+    if {[string length "$outfp"] > 0} {close $outfp;set outfp {}}
+    incr highestmessage
+    incr count
+    set outfp [open [file join "$savedmessagedirectory" $highestmessage] w]
+    puts $outfp "$line"
+    puts "[format {%5d %-30s %s} $highestmessage $email $date]"
+  } elseif {[string length "$outfp"] > 0} {puts $outfp "$line"}
+}
+
+if {[string length "$outfp"] > 0} {close $outfp}
+
+puts "[format {%5d messages} $count]"
+close $infp
+
