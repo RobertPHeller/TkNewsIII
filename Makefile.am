@@ -50,7 +50,8 @@ SUBDIRS = BuildScripts BuildData C Scripts Docs GpgME
 
 LibraryScripts = BUILDSYMBOLS.tcl \
             Scripts/DynamicHelp.tcl Scripts/IconsAndImages.tcl \
-            Scripts/snitmainframe.tcl Scripts/snitscrollw.tcl
+            Scripts/snitmainframe.tcl Scripts/snitscrollw.tcl \
+            Scripts/QWKFunctions.tcl 
 
 #                Scripts/BWHelp.tcl Scripts/labelselectcolor.tcl \
 #		Scripts/panedw.tcl Scripts/fileentry.tcl \
@@ -58,7 +59,7 @@ LibraryScripts = BUILDSYMBOLS.tcl \
 #		Scripts/labelcombobox.tcl Scripts/mainwindow.tcl \
 #                Scripts/BWStdMenuBar.tcl Scripts/CommonFunctions.tcl \
 #		Scripts/SpoolFunction.tcl Scripts/GroupFunctions.tcl \
-#                Scripts/ArticleFunctions.tcl Scripts/QWKFunctions.tcl \
+#                Scripts/ArticleFunctions.tcl 
 #		Scripts/AddressBook.tcl 
 		
 LibraryImages = Scripts/unknown.xpm Scripts/DeepwoodsBanner.png
@@ -66,8 +67,7 @@ LibraryImages = Scripts/unknown.xpm Scripts/DeepwoodsBanner.png
 #                Scripts/close.gif Scripts/new.gif Scripts/open.gif \
 #		Scripts/print.gif Scripts/save.gif Scripts/DeepwoodsBanner.gif \
 #		Scripts/TkNewsIIIicon.gif
-LibraryXBMS = 
-#                Scripts/TkNewsIIIicon.xbm  Scripts/TkNewsIIIicon_mask.xbm
+LibraryXBMS =  Scripts/TkNewsIIIicon.xbm  Scripts/TkNewsIIIicon_mask.xbm
 TkNewsIIIDATA = $(LibraryScripts) $(LibraryImages) $(LibraryXBMS)
 Split_flatmessagefileDATA = 
 
@@ -84,7 +84,7 @@ TkNewsIII$(EXEEXT): Scripts/TkNewsIII.src $(TkNewsIIIDATA) \
 	$(TCLKIT) $(SDX) qwrap $(srcdir)/Scripts/TkNewsIII.src
 	$(TCLKIT) $(SDX) unwrap TkNewsIII.kit
 	-rm -f  TkNewsIII.kit
-	tar xjvf $(IMG_TARBZ) -C TkNewsIII.vfs/lib
+	tar xjf $(top_srcdir)/BuildData/$(IMG_TARBZ) -C TkNewsIII.vfs/lib
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsIII \
 		lib $(SNITLIB)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsIII \

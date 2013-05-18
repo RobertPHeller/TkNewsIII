@@ -15,15 +15,11 @@ if {[file exists "$execbindirINSTALLED"] &&
 package require Tk;#                    Base GUI Toolkit
 package require tile;#                  Themed widgets
 package require snit
-package require MainWindow
+package require MainFrame
 package require IconImage
 
 global HeadListProg
 set HeadListProg [auto_execok [file join $execbindir headList]]
-global QWKToSpoolProg
-set QWKToSpoolProg [auto_execok [file join $execbindir QWKToSpool]]
-global SpoolToReplyProg
-set SpoolToReplyProg [auto_execok [file join $execbindir SpoolToReply]]
 global QWKReplyProg
 set QWKReplyProg [auto_execok [file join $execbindir qwkReply]]
 
@@ -141,25 +137,6 @@ package require TopWindow
 
 pack [TopWindow .main] -expand yes -fill both
 
-global QWKInSpool
-global QWKOutSpool
-global QWKWorkDir 
-set QWKInSpool "[option get . qwkInSpool QWKInSpool]"
-set QWKOutSpool "[option get . qwkOutSpool QWKOutSpool]"
-set QWKWorkDir "[option get . qwkWorkDir QWKWorkDir]"
-if {[package vcompare [package provide Tcl] 8.4] < 0} {
-  set QWKInSpool [glob -nocomplain "$QWKInSpool"]
-  set QWKOutSpool [glob -nocomplain "$QWKOutSpool"]
-  set QWKWorkDir [glob -nocomplain "$QWKWorkDir"]
-} else {
-  set QWKInSpool [file normalize "$QWKInSpool"]
-  set QWKOutSpool [file normalize "$QWKOutSpool"]
-  set QWKWorkDir [file normalize "$QWKWorkDir"]
-}
-global QWKArchiver
-set QWKArchiver "[option get . qwkArchiver QWKArchiver]"
-global QWKUnarchiver
-set QWKUnarchiver "[option get . qwkUnarchiver QWKUnarchiver]"
 global PrintCommand 
 set PrintCommand "[option get . printCommand PrintCommand]"
 global MimeCommand
