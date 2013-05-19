@@ -43,9 +43,9 @@
 #*  
 #* 
 
-package require Tk;#                 GUI Toolkit                                
-package require tile;#               Themed Widgets                             
-package require snit;#               OO Framework                               
+package require Tk;#                 GUI Toolkit
+package require tile;#               Themed Widgets
+package require snit;#               OO Framework
 #package require SpoolFunctions
 #package require CommonFunctions
 

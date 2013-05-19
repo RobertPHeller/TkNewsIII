@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon May 13 14:24:47 2013
-#  Last Modified : <130518.1007>
+#  Last Modified : <130519.1707>
 #
 #  Description	
 #
@@ -45,8 +45,8 @@ snit::widget MainFrame {
     option -menubarfont -default ""
     option -menuentryfont -default ""
     delegate option -statusbarfont to statusLabel as -font
-    delegate option -progressmax to progressbar as -maximum
-    delegate option -progressvar to progressbar as -variable
+    delegate option -progressmax to progress as -maximum
+    delegate option -progressvar to progress as -variable
     
     component userframe
     component topframe
@@ -310,6 +310,84 @@ snit::widget MainFrame {
         }
         return ""
     }
+    method {menu activate} {_menuid index} {
+        if {![info exists menuid($_menuid)] } {return}
+        set menu $menuid($_menuid)
+        return [eval [list $menu activate $index]]
+    }
+    method {menu add} {_menuid entrytype args} {
+        if {![info exists menuid($_menuid)] } {return}
+        set menu $menuid($_menuid)
+        set dynhelp [from args -dynamichelp]
+        set res [eval [list $menu add $entrytype] $args]
+        if {[string length "$dynhelp"]} {
+            DynamicHelp add $menu -index [$menu index end] \
+                  -variable $options(-textvariable) \
+                  -text "$dynhelp"
+        }
+        return $res
+    }
+    method {menu delete} {_menuid index1 args} {
+        if {![info exists menuid($_menuid)] } {return}
+        set menu $menuid($_menuid)
+        return [eval [list $menu delete $index1] [list $args]]
+    }
+    
+    method {menu entrycget} {menuid index option} {
+        if {![info exists menuid($_menuid)] } {return}
+        set menu $menuid($_menuid)
+        return [eval [list $menu entrycget $index $option]]
+    }
+    
+    method {menu entryconfigure} {_menuid index args} {
+        if {![info exists menuid($_menuid)] } {return}
+        set menu $menuid($_menuid)
+        set dynhelp [from args -dynamichelp]
+        if {[string length "$dynhelp"]} {
+            DynamicHelp add $menu -index [$menu index end] \
+                  -variable $options(-textvariable) \
+                  -text "$dynhelp"
+        }
+        return [eval [list $menu entryconfigure $index] $args]
+    }
+    method {menu sethelpvar} {menuid} {
+        if {![info exists menuid($_menuid)] } {return}
+        set menu $menuid($_menuid)
+        DynamicHelp add $menu -variable $options(-textvariable)
+    }
+    
+    method {menu index} {menuid index} {
+        if {![info exists menuid($_menuid)] } {return}
+        set menu $menuid($_menuid)
+        return [eval [list $menu index $index]]
+    }
+    
+    method {menu insert} {menuid index entrytype args} {
+        if {![info exists menuid($_menuid)] } {return}
+        set menu $menuid($_menuid)
+        set dynhelp [from args -dynamichelp]
+        set index [$menu index $index]
+        set res [eval [list $menu insert $index $entrytype] $args]
+        if {[string length "$dynhelp"]} {
+            DynamicHelp  add $menu -index $index \
+                  -variable $options(-textvariable) \
+                  -text "$dynhelp"
+        }
+        return $res
+    }
+    
+    method {menu invoke} {menuid index} {
+        if {![info exists menuid($_menuid)] } {return}
+        set menu $menuid($_menuid)
+        return [eval [list $menu invoke $index]]
+    }
+    
+    method {menu type} {menuid index} {
+        if {![info exists menuid($_menuid)] } {return}
+        set menu $menuid($_menuid)
+        return [eval [list $menu type $index]]
+    }
+    
     method setmenustate { tag state } {
         # We need a more sophisticated state system.
         # The original model was this:  each menu item has a list of tags;

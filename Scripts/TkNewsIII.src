@@ -138,10 +138,10 @@ if {$IconicP == 1} {
 }
 
 #update
-#foreach asp [option get . autoSpools AutoSpools] {
-#  SpoolWindow ReviewSpool $asp $IconicP
-#  update idle
-#}
+foreach asp [option get . autoSpools AutoSpools] {
+  SpoolWindow ReviewSpool $asp $IconicP
+  update idle
+}
 
 if {$argc > 0} {
   if {[catch {eval [list SpoolWindow processURL] $argv} result]} {

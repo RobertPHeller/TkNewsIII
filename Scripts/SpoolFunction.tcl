@@ -55,13 +55,28 @@ package require IconImage
 package require MainFrame
 package require ScrollWindow
 package require GroupFunctions
+#package require ArticleFuntions
+#package require Dialog
 #package require AddressBook                                                    
+
+# Temporary...
+namespace eval Common {#dummy}
+proc Common::CountMessages {list} {
+    set count 0
+    foreach m $list {
+        if {[file isdirectory "$m"]} {continue}
+        set m [file tail $m]
+        if {[catch [list expr int($m)] i]} {continue}
+        if {[string compare "$i" "$m"] == 0} {incr count}
+    }
+    return $count
+}
 
 
 
 snit::widget SpoolWindow {
     widgetclass SpoolWindow
-    hulltype ttk::toplevel
+    hulltype tk::toplevel
     
     typevariable _menu {
         "&File" {file:menu} {file} 0 {
@@ -76,7 +91,7 @@ snit::widget SpoolWindow {
         "&Edit" {edit:menu} {edit} 0 { 
             {command "&Undo" {edit:undo} "Undo last change" {Ctrl z} -state disabled}
             {command "Cu&t" {edit:cut edit:havesel} "Cut selection to the paste buffer" {Ctrl x}  -state disabled}
-            {command "&Copy" {edit:copy edit:havesel} "Copy selection to the paste buffer" {Ctrl c}  -state disableed}
+            {command "&Copy" {edit:copy edit:havesel} "Copy selection to the paste buffer" {Ctrl c}  -state disabled}
             {command "&Paste" {edit:paste edit:havesel} "Paste in the paste buffer" {Ctrl v}  -state disabled}
             {command "C&lear" {edit:clear edit:havesel} "Clear selection" {}  -state disabled}
             {command "&Delete" {edit:delete edit:havesel} "Delete selection" {Ctrl d} -state disabled}
@@ -157,7 +172,7 @@ snit::widget SpoolWindow {
                    -reload yes -fromQWK $qwkFile]
     }
     
-    typemethod { {default ""} {LoadedP 1} } {
+    typemethod GetSpoolName { {default ""} {LoadedP 1} } {
         return [GetSpoolNameDialog draw -defaultSpool "$default" -loaded $LoadedP -parent .]
     }
     typemethod ReviewSpool {{spool {}} {iconic 0}} {
@@ -171,7 +186,7 @@ snit::widget SpoolWindow {
     component   groupTreeSW
     component     groupTree
     component   groupNameLabel
-    component   groupButtonFrame
+    component   groupButtonBox
     typevariable groupButtons -array {
         unread {-text "Unread\nGroup" -state {disabled} \
                   -command "[mymethod _UnreadGroup]"}
@@ -192,15 +207,31 @@ snit::widget SpoolWindow {
     typevariable groupButtonsList {unread read close catchup unsubscribe 
         groupdir refresh}
     component artlistPane
-    component    artlistButtons
+    component    artlistButtonBox
+    typevariable artlistButtons -array {
+        post {ttk::button -text {Post}  -command "[mymethod _PostToGroup] no"}
+        list {ttk::button -text "List/Search\nArticles" -command "[mymethod _ListSearchArticles]"}
+        read {ttk::button -text "Read\nArticle" -command "[mymethod _ReadSelectedArticle]"}
+        refresh {ttk::button -text "Refresh Article\nList" -command "[mymethod _RefereshArticles]"}
+        manage {ttk::menubutton -text "Manage Saved\nArticles" -state disabled}
+    }
+    typevariable artlistButtonsList {post list read refresh manage}
     component      manageSavedArticlesMenu
     component    articleListSW
     component      articleList
-    component    articleButtons
+    component    articleButtonBox
+    typevariable articleButtons -array {
+        followup {-text {Followup} -command "[mymethod _FollowupArticle] no"}
+        mailreply {-text {Mail Reply To Sender} -command "[mymethod _MailReply]"}
+        forwardto {-text {Forward To} -command "[mymethod _ForwardTo]"}
+        save {-text {Save} -command "[mymethod _SaveArticle]"}
+        file {-text {File} -command "[mymethod _FileArticle]"}
+        print {-text {Print} -command "[mymethod _PrintArticle]"}
+    }
+    typevariable articleButtonsList {followup mailreply forwardto save file print}
     
     option -spoolname -readonly yes
     
-    component grouplist
     component newslist
 
     component articleViewWindow
@@ -212,9 +243,10 @@ snit::widget SpoolWindow {
     variable userName {}
     variable savedDirectories
     variable status {}
+    variable progress 0
 
     option {-activefile activeFile ActiveFile} -validatemethod _CheckFile -default {}
-    option {-cleanfunction cleanFunction CleanFunction} -readonly yes -validatemethod _CheckBoolean -default no
+    option {-cleanfunction cleanFunction CleanFunction} -readonly yes -type snit::boolean -default no
     option {-newsrc newsRc NewsRc} -readonly yes -validatemethod _CheckFile -default {}
     option {-savednews savedNews SavedNews} -readonly yes -validatemethod _CheckDirectory -default {}
     option -drafts -readonly yes -validatemethod _CheckDirectory -default {}
@@ -222,9 +254,9 @@ snit::widget SpoolWindow {
     option {-spellchecker spellChecker SpellChecker} -readonly yes -default {}
     option {-externaleditor externalEditor ExternalEditor} -readonly yes -default {}
     option {-spooldirectory spoolDirectory SpoolDirectory} -readonly yes -validatemethod _CheckDirectory -default {}
-    option {-useserver useServer UseServer} -readonly yes -validatemethod _CheckBoolean -default no
+    option {-useserver useServer UseServer} -readonly yes -type snit::boolean -default no
     option {-geometry spoolGeometry SpoolGeometry} -readonly yes -default {}
-    option {-iconic iconic Iconic} -readonly yes -default 0 -validatemethod _CheckBoolean
+    option {-iconic iconic Iconic} -readonly yes -default 0 -type snit::boolean
     option {-killfile killFile KillFile} -readonly yes -default {} -validatemethod _CheckFile
     
     method _CheckFile {option value} {
@@ -232,13 +264,6 @@ snit::widget SpoolWindow {
         return $value
       } else {
         error "Expected an existing, readable file for $option, got $value"
-      }
-    }
-    method _CheckBoolean {option value} {
-      if {[string is boolean -strict "$value"]} {
-        return $value"
-      } else {
-        error "Expected a boolean value for $option, got $value"
       }
     }
     method _CheckDirectory {option value} {
@@ -263,6 +288,8 @@ snit::widget SpoolWindow {
     }
     delegate option * to hull
     delegate method {main *} to main
+    method setstatus {string} {set string $string}
+    method setprogress {n} {set progress $n}
     constructor {args} {
         wm iconbitmap $win [IconBitmap bitmap TkNewsIIIicon]
         wm iconmask   $win [IconBitmap bitmap TkNewsIIIicon_mask]
@@ -344,7 +371,7 @@ snit::widget SpoolWindow {
 
         # Main window
         install main using MainFrame $win.main -menu $menu \
-              -textvariable [myvar status]
+              -textvariable [myvar status] -progressvar [myvar progress] -progressmax 100
         pack $main -expand yes -fill both
         install panes using ttk::panedwindow [$main getframe].panes \
               -orient vertical 
@@ -355,46 +382,41 @@ snit::widget SpoolWindow {
               -scrollbar vertical -auto vertical
         pack $groupTreeSW -expand yes -fill both
         # Group tree
-        install groupTree using GroupTree [$groupTreeSW getframe].groupTree \ \
+        if {$options(-useserver)} {
+            set method NNTP
+        } else {
+            set method File
+        }
+        install groupTree using GroupTree [$groupTreeSW getframe].groupTree \
               -selectcommand "[mymethod _EnableGroupButtons]" \
               -command "[mymethod _ReadGroup]" \
               -height [option get $win spoolNumGroups SpoolNumGroups] \
-              -takefocus 1
+              -takefocus 1 -spool $self -method File
         $groupTreeSW setwidget $groupTree
         install groupNameLabel using ttk::label  $groupPane.groupNameLabel
         pack $groupNameLabel -fill x
         # Group buttons 
-        install groupButtonFrame using ttk::frame $groupPane.groupButtonFrame
-        pack $groupButtonFrame -expand yes -fill x
+        install groupButtonBox using ttk::frame $groupPane.groupButtonBox
+        pack $groupButtonBox -expand yes -fill x
         foreach b $groupButtonsList {
-            pack [eval [list ttk::button $groupButtonFrame.$b] \
-                  [subst $groupButtons($b)] -side left
+            pack [eval [list ttk::button $groupButtonBox.$b] \
+                  [subst $groupButtons($b)]] -side left
         }
         install artlistPane using ttk::frame $panes.artlistPane
         $panes add $artlistPane -weight 1
-        #### Here
-        install artlistButtons using ButtonBox $alsframe.artlistButtons \
-              -orient horizontal
-        pack $artlistButtons -fill x
-        $artlistButtons add -name post \
-              -text {Post}  \
-              -command "[mymethod _PostToGroup] no"
-        $artlistButtons add -name list  \
-              -text "List/Search\nArticles"  \
-              -command [mymethod _ListSearchArticles]
-        $artlistButtons add -name read  \
-              -text "Read\nArticle"  \
-              -command [mymethod _ReadSelectedArticle]
-        $artlistButtons add -name refresh  \
-              -text "Refresh Article\nList"  \
-              -command [mymethod _RefereshArticles]
-        $artlistButtons add -name manage \
-              -text "Manage Saved\nArticles" \
-              -state disabled
-        install manageSavedArticlesMenu using menu $artlistButtons.manage_menu \
-              -title {Manage Saved Articles}
-        $artlistButtons itemconfigure manage \
-              -command "Common::PostMenuOnPointer $manageSavedArticlesMenu $win"
+        install artlistButtonBox using ttk::frame $artlistPane.artlistButtonBox
+        pack $artlistButtonBox -expand yes -fill x
+        foreach ab $artlistButtonsList {
+            set opts $artlistButtons($ab)
+            set command [lindex $opts 0]
+            set opts [subst [lrange $opts 1 end]]
+            set button [eval [list $command $artlistButtonBox.$ab] $opts]
+            pack $button -side left
+            if {$command eq "ttk::menubutton"} {
+                install manageSavedArticlesMenu using menu $button.manageSavedArticlesMenu
+                $button configure -menu $manageSavedArticlesMenu
+            }
+        }
         $manageSavedArticlesMenu add command \
               -label {Print All Articles} \
               -command [mymethod _PrintAllSavedArticles]
@@ -413,52 +435,32 @@ snit::widget SpoolWindow {
         $manageSavedArticlesMenu add command \
               -label {Flatfile Articles} \
               -command [mymethod _FlatfileArticles]
-        bind $manageSavedArticlesMenu <Escape> {Common::UnPostMenu %W;break}
+        #bind $manageSavedArticlesMenu <Escape> {Common::UnPostMenu %W;break}
         # Article list
-        install articleListSW using ScrolledWindow $alsframe.articleListSW \
-              -scrollbar both -auto both
+        install articleListSW using ScrolledWindow $artlistPane.articleListSW \
+              -scrollbar vertical -auto vertical
         pack $articleListSW -fill both -expand yes
         #      puts stderr "*** $type create $self: option get $win spoolNumArticles SpoolNumArticles = [option get $win spoolNumArticles SpoolNumArticles]"
-        install articleList using ListBox [$articleListSW getframe].articleList \
-              -selectmode single -selectfill yes -takefocus 1 \
-              -height [option get $win spoolNumArticles SpoolNumArticles]
-        pack $articleList -fill both -expand yes
+        install articleList using ArticleList [$articleListSW getframe].articleList \
+              -takefocus 1 \
+              -height [option get $win spoolNumArticles SpoolNumArticles] \
+              -command [mymethod _ReadArticle]
         $articleListSW setwidget $articleList
-        $articleList bindText <Double-Button-1> "[mymethod _ReadArticle] $articleList"
-        $articleList bindText <KeyPress-Return> "[mymethod _ReadArticle] $articleList"
-        $articleList bindText <KeyPress-R> "[mymethod _ReadArticle] $articleList"
-        $articleList bindText <KeyPress-r> "[mymethod _ReadArticle] $articleList"
-        $articleList bindText <KeyPress-space> "$articleList selection set"
         #      puts stderr "*** ${type}::constructor: winfo class $articleList = [winfo class $articleList]"
         # Article buttons
-        install articleButtons using ButtonBox $alsframe.articleButtons \
-              -orient horizontal -homogeneous no
-        pack $articleButtons -fill x
-        $articleButtons add -name followup  \
-              -text {Followup} \
-              -command "[mymethod _FollowupArticle] no"
-        $articleButtons add -name mailreply  \
-              -text {Mail Reply To Sender} \
-              -command [mymethod _MailReply]
-        $articleButtons add -name forwardto \
-              -text {Forward To} \
-              -command [mymethod _ForwardTo]
-        $articleButtons add -name save  \
-              -text {Save}  \
-              -command [mymethod _SaveArticle]
-        $articleButtons add -name file  \
-              -text {File}  \
-              -command [mymethod _FileArticle]
-        $articleButtons add -name print  \
-              -text {Print} \
-              -command [mymethod _PrintArticle]
-        $articleButtons configure -state disabled
+        install articleButtonBox using ttk::frame $artlistPane.articleButtonBox
+        pack $articleButtonBox -expand yes -fill x
+        foreach ab $articleButtonsList {
+            set opts [subst $articleButtons($ab)]
+            set button [eval [list ttk::button $articleButtonBox.$ab -state disabled] $opts]
+            pack $button -side left
+        }
         #      puts stderr "*** ${type}::constructor: before configurelist: args = $args"
         $self configurelist $args
         set _LoadedSpools($options(-spoolname)) $self
         set qfile [from args -fromQWK {}]
         if {[string length "$qfile"] > 0} {
-            set loaded [QWK::LoadQWKFile %AUTO% \
+            set loaded [LoadQWKFile %AUTO% \
                         -file "$qfile" \
                         -activefile "$options(-activefile)" \
                         -spooldirectory "$options(-spooldirectory)" \
@@ -473,7 +475,7 @@ snit::widget SpoolWindow {
         }
         $self _LoadActiveList
         $self _LoadNewsRc
-        $self _LoadGroupTree $groupTree {.} 0 Brief
+        $self _LoadGroupTree {.} 0 Brief
         set currentGroup {}
         
         if {$options(-iconic)} {
@@ -486,19 +488,17 @@ snit::widget SpoolWindow {
         set command [option get $win qwkGetMailCommand QwkGetMailCommand]
         if {[string length "$command"] > 0} {
             bind $win <Control-f> [mymethod _FetchMyQWKFile]
-            $main mainframe setmenustate file:fetch normal
+            $main setmenustate file:fetch normal
         }
         focus $groupTree
         if {$options(-cleanfunction)} {
-            $main mainframe setmenustate file:cleanall normal
+            $main setmenustate file:cleanall normal
         }
     }
     destructor {
         #      puts stderr "*** ${type}::destructor"
         catch {$self _WriteNewsRc} message
         #      puts stderr "*** ${type}::destructor: $self _WriteNewsRc done: $message"
-        catch {$grouplist destroy} message
-        #      puts stderr "*** ${type}::destructor: $grouplist destroy done: $message"
         catch {$newslist destroy}
         #      puts stderr "*** ${type}::destructor: $newslist destroy done: $message"
         if {$options(-useserver)} {catch {$self _Srv_NetClose}}
@@ -506,14 +506,14 @@ snit::widget SpoolWindow {
         #      puts stderr "*** ${type}::destructor: unset _LoadedSpools($options(-spoolname)) done: $message"
     }
     method _FetchMyQWKFile {args} {
-        eval [list QWK::GetQWKFile "$options(-spoolname)"] $args
+        eval [list QWKFileProcess GetQWKFile "$options(-spoolname)"] $args
     }
     method reload {args} {
         set qfile [from args -fromQWK {}]
         set recycleprocesswindow [from args -recycleprocesswindow {}]
         if {[string length "$qfile"] > 0} {
             #	puts stderr "*** $self reload: Loading '$qfile'"
-            set loaded [QWK::LoadQWKFile %AUTO% \
+            set loaded [LoadQWKFile %AUTO% \
 			-file "$qfile" \
 			-activefile "$options(-activefile)" \
 			-spooldirectory "$options(-spooldirectory)" \
@@ -526,8 +526,8 @@ snit::widget SpoolWindow {
         }
         #      puts stderr "*** $self reload: $self _ReLoadActiveList"
         $self _ReLoadActiveList
-        #      puts stderr "*** $self reload: $self _LoadGroupTree $groupTree {.} 0 Brief"
-        $self _LoadGroupTree $groupTree {.} 0 Brief
+        #      puts stderr "*** $self reload: $self _LoadGroupTree {.} 0 Brief"
+        $self _LoadGroupTree {.} 0 Brief
     }
     method user {} {return "$userName"}
     method _CloseSpool {} {
@@ -664,36 +664,25 @@ snit::widget SpoolWindow {
         return 0
     }
     
-    method _LoadActiveList {} {
-        if {$options(-useserver)} {
-            install grouplist using Groups::groupList \
-                  "${options(-spoolname)}_groups" \
-                  -spool $self -method NNTP
-        } else {
-            install grouplist using Groups::groupList  \
-                  "${options(-spoolname)}_groups" \
-                  -spool $self -method File
-        }
-    }
     method _ReLoadActiveList {} {
-        $grouplist reloadActiveFile
+        $groupTree reloadActiveFile
     }
     method _LoadNewsRc {} {
-        install newslist using Groups::newsList \
+        install newslist using NewsList \
               "${options(-spoolname)}_news" \
               -file $options(-newsrc) \
-              -grouplist $grouplist
+              -grouptree $groupTree
     }
     method _WriteNewsRc {} {
         $newslist write
     }
-    method _LoadGroupTree {tree pattern unsubscribed format} {
+    method _LoadGroupTree {pattern unsubscribed format} {
         if {[string length "$options(-savednews)"] > 0} {
             set saved 1
         } else {
             set saved 0
         }
-        $grouplist loadGroupTree $tree $pattern $unsubscribed $format $saved
+        $groupTree loadGroupTree $pattern $unsubscribed $format $saved
     }
     method _ReadAGroup {} {
         #      puts stderr "*** ${type}::_ReadAGroup: selectedGroup = $selectedGroup, currentGroup = $currentGroup"
@@ -708,51 +697,51 @@ snit::widget SpoolWindow {
         #      puts stderr "*** ${type}::_ReadAGroup: notsaved = $notsaved"
         #      puts stderr "*** ${type}::_ReadAGroup: options(-cleanfunction) = $options(-cleanfunction)"
         if {$notsaved && $options(-cleanfunction)} {
-            $main mainframe setmenustate file:clean normal
+            $main setmenustate file:clean normal
             bind $win <Control-l> [mymethod _CleanGroup]
         } else {
-            $main mainframe setmenustate file:clean disabled
+            $main setmenustate file:clean disabled
             bind $win <Control-l> {}
         }
-        $main buttons itemconfigure close -state normal
+        $groupButtonBox.close configure -state normal
         if {$notsaved} {
-            $main buttons itemconfigure unread -state normal
-            $main buttons itemconfigure catchup -state normal
-            $main buttons itemconfigure unsubscribe -state normal
-            $artlistButtons itemconfigure manage -state disabled
+            $groupButtonBox.unread configure -state normal
+            $groupButtonBox.catchup configure -state normal
+            $groupButtonBox.unsubscribe configure -state normal
+            $artlistButtonBox.manage configure -state disabled
         } else {
-            $main buttons itemconfigure unread -state disabled
-            $main buttons itemconfigure catchup -state disabled
-            $main buttons itemconfigure unsubscribe -state disabled
-            $artlistButtons itemconfigure manage -state normal
+            $groupButtonBox.unread configure -state disabled
+            $groupButtonBox.catchup configure -state disabled
+            $groupButtonBox.unsubscribe configure -state disabled
+            $artlistButtonBox.manage configure -state normal
         }
         # ReadGroup1
         set currentGroup "$selectedGroup"
         set groupWindow $win.[Common::GroupToWindowName $currentGroup]
-        set groupClass [Common::Capitialize [lindex [split $currentGroup {.}] 0]]
+        set groupClass [string totitle [lindex [split $currentGroup {.}] 0]]
         catch {destroy $groupWindow}
         frame $groupWindow -class $groupClass
         set IsEmail [option get $groupWindow isEmail IsEmail]
         destroy $groupWindow
+        ### Here
         if {$IsEmail} {
             $main menu entryconfigure file 1 -command "[mymethod _PostToGroup] yes"
-            $artlistButtons itemconfigure post \
+            $artlistButtonBox.post configure \
                   -text {Compose} -command "[mymethod _PostToGroup] yes"
-            $articleButtons itemconfigure followup \
+            $articleButtonBox.followup configure \
                   -text {Reply To All} \
                   -command "[mymethod _FollowupArticle] yes"
         } else {
             $main menu entryconfigure file 1 -command "[mymethod _PostToGroup] no"
-            $artlistButtons itemconfigure post \
+            $artlistButtonBox.post configure \
                   -text {Post} -command "[mymethod _PostToGroup] no"
-            $articleButtons itemconfigure followup \
+            $articleButtonBox.followup configure \
                   -text {Followup} \
                   -command "[mymethod _FollowupArticle] no"
         }
-        $articleList delete [$articleList items]
-        $grouplist insertArticleList $articleList $currentGroup
+        $articleList deleteall
+        $groupTree insertArticleList $articleList $currentGroup
         $groupNameLabel configure -text "$currentGroup"
-        $main slideout show articles
         focus $articleList
     }
     method _EnableGroupButtons {gt selection} {
@@ -761,41 +750,49 @@ snit::widget SpoolWindow {
         set selectedGroup [$gt itemcget $selection -data]
         #      puts stderr "*** ${type}::_EnableGroupButtons: selectedGroup = $selectedGroup"
         #      puts stderr "*** ${type}::_EnableGroupButtons: currentGroup = $currentGroup"
-        $main mainframe setmenustate file:read normal
-        $main buttons itemconfigure read -state normal
+        $main setmenustate file:read normal
+        $groupButtonBox.read configure -state normal
+        $groupButtonBox.unread configure -state normal
+        $groupButtonBox.close configure -state normal
+        $groupButtonBox.catchup configure -state normal
+        $groupButtonBox.unsubscribe configure -state normal
         bind $win <Control-r> [mymethod _ReadAGroup]
     }
     method _ReadGroup {gt selection} {
         #      puts stderr "*** ${type}::_ReadGroup: gt = $gt, selection = $selection"
         set selectedGroup [$gt itemcget $selection -data]
         #      puts stderr "*** ${type}::_ReadGroup:  selectedGroup = $selectedGroup"
-        $main mainframe setmenustate file:read normal
-        $main buttons itemconfigure read -state normal
+        $main setmenustate file:read normal
+        $groupButtonBox.read configure -state normal
+        $groupButtonBox.unread configure -state normal
+        $groupButtonBox.close configure -state normal
+        $groupButtonBox.catchup configure -state normal
+        $groupButtonBox.unsubscribe configure -state normal
         bind $win <Control-r> [mymethod _ReadAGroup]
         $self _ReadAGroup
     }
     method _CloseGroup {{disableButtons 1}} {
         if {$disableButtons} {
-            $main mainframe setmenustate file:read disabled
+            $main setmenustate file:read disabled
             bind $win <Control-r> {}
-            $main mainframe setmenustate file:post disabled
+            $main setmenustate file:post disabled
             bind $win <Control-p> {}
-            $main mainframe setmenustate file:clean disabled
+            $main setmenustate file:clean disabled
             bind $win <Control-l> {}
-            $main buttons itemconfigure unread -state disabled
-            $main buttons itemconfigure catchup -state disabled
-            $main buttons itemconfigure unsubscribe -state disabled
-            $main buttons itemconfigure close -state disabled
+            $groupButtonBox.unread configure -state disabled
+            $groupButtonBox.catchup configure -state disabled
+            $groupButtonBox.unsubscribe configure -state disabled
+            $groupButtonBox.close configure -state disabled
         }
         if {[string equal "$currentGroup" {}]} {return}
         # Really close the group.
-        $main slideout hide articles
         catch {$articleViewWindow close}
         catch {$self _WriteNewsRc}
         set currentGroup {}
     }
+    #### Art List API...
     method _ReadSelectedArticle {} {
-        set selection [$articleList selection get]
+        set selection [$articleList selection]
         if {[llength $selection] < 1} {return}
         $self _ReadArticle $articleList [lindex $selection 0]
     }
@@ -811,7 +808,7 @@ snit::widget SpoolWindow {
             set currentArticle $artNumber
             set useFile yes
         } elseif {$options(-useserver)} {
-            if {![$grouplist articleExists $currentGroup $artNumber]} {return}
+            if {![$groupTree articleExists $currentGroup $artNumber]} {return}
             set currentArticle $artNumber
             set useFile no
         } else {
@@ -821,8 +818,8 @@ snit::widget SpoolWindow {
             set currentArticle $artNumber
             set useFile yes
         }
-        set nextArticle [$grouplist findNextArticle $currentGroup $currentArticle $unread]
-        set previousArticle [$grouplist findPreviousArticle $currentGroup $currentArticle $unread]
+        set nextArticle [$groupTree findNextArticle $currentGroup $currentArticle $unread]
+        set previousArticle [$groupTree findPreviousArticle $currentGroup $currentArticle $unread]
         if {[string equal $articleViewWindow {}]} {
             install articleViewWindow \
                   using Articles::Viewer $win.articleViewWindow \
@@ -849,8 +846,8 @@ snit::widget SpoolWindow {
         } else {
             $articleViewWindow readArticleFromFile $filename
         }
-        $grouplist findRange $currentGroup $currentArticle yes
-        $grouplist updateGroupLineInTree $groupTree $currentGroup
+        $groupTree findRange $currentGroup $currentArticle yes
+        $groupTree updateGroupLineInTree $currentGroup
         $articleButtons configure -state normal
         $articleViewWindow draw      
         $newslist write
@@ -859,9 +856,9 @@ snit::widget SpoolWindow {
         $articleButtons configure -state disabled
     }
     method _UnreadGroup {} {
-        $grouplist groupsetranges $currentGroup {}
+        $groupTree groupsetranges $currentGroup {}
         $articleList delete [$articleList items]
-        $grouplist insertArticleList $articleList $currentGroup
+        $groupTree insertArticleList $articleList $currentGroup
         $newslist write
     }
     method _SaveArticle {} {
@@ -871,26 +868,26 @@ snit::widget SpoolWindow {
         $articleViewWindow buttons invoke file
     }
     method addSavedGroupLine {group newsaved} {
-        $grouplist addSavedGroupLineInTree $groupTree $group $newsaved
+        $groupTree addSavedGroupLineInTree $group $newsaved
     }
     method updateGroupTreeLine {name} {
-        $grouplist updateGroupLineInTree $groupTree $name
+        $groupTree updateGroupLineInTree $name
     }
     method _PrintArticle {} {
         $articleViewWindow buttons invoke print
     }
     method _RefreshGroupList {} {
         $self _ReLoadActiveList
-        $self _LoadGroupTree $groupTree {.} 0 Brief
+        $self _LoadGroupTree {.} 0 Brief
     }
     method _RefereshArticles {} {
         $articleList delete [$articleList items]
-        $grouplist insertArticleList $articleList $currentGroup
+        $groupTree insertArticleList $articleList $currentGroup
     }
     # Misc additional group functions
     method _CatchUpGroup {} {
         if {[catch "set savedDirectories($currentGroup)" mdir] == 0} {return}
-        $grouplist catchUpGroup $groupTree $articleList $currentGroup
+        $groupTree catchUpGroup $articleList $currentGroup
         $newslist write
     }
     method _CleanGroup {} {
@@ -902,7 +899,7 @@ snit::widget SpoolWindow {
                     -message "Really clean group $currentGroup?" \
                     -parent $win]
         if {[string equal "$answer" no]} {return}
-        $grouplist cleanGroup $groupTree $articleList $currentGroup
+        $groupTree cleanGroup $articleList $currentGroup
         $self _CloseGroup
     }
     method _CleanAllGroups {} {
@@ -914,22 +911,22 @@ snit::widget SpoolWindow {
                     -parent $win]
         if {[string equal "$answer" no]} {return}
         $self _CloseGroup
-        foreach group [$grouplist activeGroups] {
+        foreach group [$groupTree activeGroups] {
             if {[catch "set savedDirectories($group)" mdir] == 0} {continue}
             if {[string equal -nocase "$group" reply]} {continue}
-            $grouplist cleanGroup $groupTree {} $group
+            $groupTree cleanGroup {} $group
         }
     }
     method _UnSubscribeGroup {} {
         if {[catch "set savedDirectories($currentGroup)" mdir]} {
-            $grouplist unSubscribeGroup $groupTree $currentGroup
+            $groupTree unSubscribeGroup $currentGroup
         }
         $self _CloseGroup
     }
     method _DirectoryOfGroups {} {
         Groups::DirectoryOfAllGroupsDialog draw \
               -parent $win \
-              -grouplist $grouplist \
+              -grouptree $groupTree \
               -subscribecallback [mymethod _SubscribeToGroup]
     }
     method _SubscribeToGroup {newgroup} {
@@ -938,12 +935,12 @@ snit::widget SpoolWindow {
         } else {
             set saved 0
         }
-        $grouplist subscribeGroup $groupTree $newgroup $saved
+        $groupTree subscribeGroup $newgroup $saved
         $newslist write
     }
     method _ListSearchArticles {} {
         Articles::SearchArticlesDialog draw \
-              -parent $win -grouplist $grouplist \
+              -parent $win -grouptree $groupTree \
               -group $currentGroup -readarticle [mymethod _ReadArticleN]
     }
     # Saved articles management menu
@@ -996,15 +993,15 @@ snit::widget SpoolWindow {
                 file delete $mfile
             }
         }
-        $grouplist updateGroupLineInTree $groupTree $currentGroup
+        $groupTree updateGroupLineInTree $currentGroup
         $articleList delete [$articleList items]
-        $grouplist insertArticleList $articleList $currentGroup
+        $groupTree insertArticleList $articleList $currentGroup
     }
     method _DeleteSelectedArticles {} {
         if {[catch "set savedDirectories($currentGroup)" mdir]} {return}
         # -- Delete selected articles. (Needs a Dialog w/ListBox)
         set artList [Articles::SelectArticlesDialog draw \
-                     -parent $win -grouplist $grouplist \
+                     -parent $win -grouptree $groupTree \
                      -group $currentGroup -selectmode multiple \
                      -title "Articles to delete" -geometry 750x400]
         foreach a $artList {
@@ -1013,9 +1010,9 @@ snit::widget SpoolWindow {
                 file delete $mfile
             }
         }
-        $grouplist updateGroupLineInTree $groupTree $currentGroup
+        $groupTree updateGroupLineInTree $currentGroup
         $articleList delete [$articleList items]
-        $grouplist insertArticleList $articleList $currentGroup
+        $groupTree insertArticleList $articleList $currentGroup
     }
     method _RenumberArticles {} {
         if {[catch "set savedDirectories($currentGroup)" mdir]} {return}
@@ -1038,14 +1035,14 @@ snit::widget SpoolWindow {
                 if {[catch [list file rename $orgfile $newfile]] == 0} {incr n}
             }
         }      
-        $grouplist updateGroupLineInTree $groupTree $currentGroup
+        $groupTree updateGroupLineInTree $currentGroup
         $articleList delete [$articleList items]
-        $grouplist insertArticleList $articleList $currentGroup
+        $groupTree insertArticleList $articleList $currentGroup
     }
     method _RecodeArticle {} {
         if {[catch "set savedDirectories($currentGroup)" mdir]} {return}
         set articleList [Articles::SelectArticlesDialog draw \
-                         -parent $win -grouplist $grouplist \
+                         -parent $win -grouptree $groupTree \
                          -group $currentGroup -selectmode single]
         if {[llength $articleList] == 0} {return}
         
@@ -1089,7 +1086,7 @@ snit::widget SpoolWindow {
         set emailAddress {}	
         catch {set emailAddress "$components(user)@$components(host)"}
         set haveEmailGroup no
-        foreach postGroup [$grouplist activeGroups] {
+        foreach postGroup [$groupTree activeGroups] {
             set groupWindow $win.[Common::GroupToWindowName $postGroup]
             set groupClass [Common::Capitialize [lindex [split $postGroup {.}] 0]]
             catch {destroy $groupWindow}
@@ -1771,24 +1768,24 @@ snit::type GetSpoolNameDialog {
     typecomponent spoolNameLE
     
     typeconstructor {
-        set dialog [Dialog::create .getSpoolNameDialog \
-                    -class GetSpoolNameDialog -bitmap questhead \
-                    -default 0 -cancel 1 -modal local -transient yes \
-                    -parent . -side bottom -title {Select a spool}]
-        $dialog add -name ok -text OK -command [mytypemethod _OK]
-        $dialog add -name cancel -text Cancel -command [mytypemethod _Cancel]
-        $dialog add -name help -text Help -command [list BWHelp::HelpTopic GetSpoolNameDialog]
-        set frame [$dialog getframe]
-        set spoolListBox $frame.spoolListBox
-        set spoolNameLE $frame.spoolNameLE
-        pack [ListBox::create $spoolListBox -selectmode single] \
-              -expand yes -fill both
-        $spoolListBox bindText <1> [mytypemethod _SelectFromList]
-        $spoolListBox bindText <space> [mytypemethod _SelectFromList]
-        $spoolListBox bindText <Double-Button-1> [mytypemethod _ReturnFromList]
-        $spoolListBox bindText <Return> [mytypemethod _ReturnFromList]
-        pack [LabelEntry::create $spoolNameLE -label "Spool:" -side left] -fill x
-        $spoolNameLE bind <Return> [mytypemethod _OK]
+#        set dialog [Dialog::create .getSpoolNameDialog \
+#                    -class GetSpoolNameDialog -bitmap questhead \
+#                    -default 0 -cancel 1 -modal local -transient yes \
+#                    -parent . -side bottom -title {Select a spool}]
+#        $dialog add -name ok -text OK -command [mytypemethod _OK]
+#        $dialog add -name cancel -text Cancel -command [mytypemethod _Cancel]
+#        $dialog add -name help -text Help -command [list BWHelp::HelpTopic GetSpoolNameDialog]
+#        set frame [$dialog getframe]
+#        set spoolListBox $frame.spoolListBox
+#        set spoolNameLE $frame.spoolNameLE
+#        pack [ListBox::create $spoolListBox -selectmode single] \
+#              -expand yes -fill both
+#        $spoolListBox bindText <1> [mytypemethod _SelectFromList]
+#        $spoolListBox bindText <space> [mytypemethod _SelectFromList]
+#        $spoolListBox bindText <Double-Button-1> [mytypemethod _ReturnFromList]
+#        $spoolListBox bindText <Return> [mytypemethod _ReturnFromList]
+#        pack [LabelEntry::create $spoolNameLE -label "Spool:" -side left] -fill x
+#        $spoolNameLE bind <Return> [mytypemethod _OK]
     }
     typemethod _OK {} {
         set answer "[$spoolNameLE cget -text]"
@@ -2327,54 +2324,54 @@ snit::type GetAttachment {
     typevariable  _labelWidth 15
     
     typeconstructor {
-        set dialog [Dialog::create .getAttachment \
-                    -class GetAttachment -bitmap questhead \
-                    -default 0 -cancel 1 -modal local -transient yes \
-                    -parent . -side bottom -title {Attach a file}]
-        $dialog add -name attach -text Attach -command [mytypemethod _Attach]
-        $dialog add -name cancel -text Cancel -command [mytypemethod _Cancel]
-        $dialog add -name help -text Help -command [list BWHelp::HelpTopic GetAttachment]
-        set frame [$dialog getframe]
-        set filenameLF [LabelFrame::create $frame.filenameLF \
-                        -width $_labelWidth \
-                        -text "Filename:" \
-                        -side left]
-        pack $filenameLF -fill x
-        set fnfr [$filenameLF getframe]
-        set filenameE [Entry::create $fnfr.filenameE]
-        pack $filenameE -expand yes -fill x -side left
-        set filenameB [Button::create $fnfr.filenameB \
-                       -text Browse \
-                       -command [mytypemethod _BrowseFile]]
-        pack $filenameB -side right
-        set encodingLF [LabelFrame::create $frame.encodingLF \
-                        -width $_labelWidth \
-                        -text "Encoding:" \
-                        -side left]
-        pack $encodingLF -fill x
-        set enfr [$encodingLF getframe]
-        set encodingCB [ComboBox::create $enfr.encodingCB \
-                        -values {7bit quoted-printable base64} \
-                        -editable no]
-        $encodingCB setvalue first
-        pack $encodingCB -expand yes -fill x
-        set descrLE [LabelEntry::create $frame.descrLE \
-                     -labelwidth $_labelWidth \
-                     -label "Description:" \
-                     -side left]
-        pack $descrLE -fill x
-        set contentTypeLF [LabelFrame::create $frame.contentTypeLF \
-                           -width $_labelWidth \
-                           -text "Content Type:" \
-                           -side left]
-        pack $contentTypeLF -fill x
-        set ctfr [$contentTypeLF getframe]
-        set contentTypeE [Entry::create $ctfr.contentTypeE]
-        pack $contentTypeE -expand yes -fill x -side left
-        set contentTypeB [Button::create $ctfr.contentTypeB \
-                          -text "Get Type" \
-                          -command [mytypemethod _GetType]]
-        pack $contentTypeB -side right
+#        set dialog [Dialog::create .getAttachment \
+#                    -class GetAttachment -bitmap questhead \
+#                    -default 0 -cancel 1 -modal local -transient yes \
+#                    -parent . -side bottom -title {Attach a file}]
+#        $dialog add -name attach -text Attach -command [mytypemethod _Attach]
+#        $dialog add -name cancel -text Cancel -command [mytypemethod _Cancel]
+#        $dialog add -name help -text Help -command [list BWHelp::HelpTopic GetAttachment]
+#        set frame [$dialog getframe]
+#        set filenameLF [LabelFrame::create $frame.filenameLF \
+#                        -width $_labelWidth \
+#                        -text "Filename:" \
+#                        -side left]
+#        pack $filenameLF -fill x
+#        set fnfr [$filenameLF getframe]
+#        set filenameE [Entry::create $fnfr.filenameE]
+#        pack $filenameE -expand yes -fill x -side left
+#        set filenameB [Button::create $fnfr.filenameB \
+#                       -text Browse \
+#                       -command [mytypemethod _BrowseFile]]
+#        pack $filenameB -side right
+#        set encodingLF [LabelFrame::create $frame.encodingLF \
+#                        -width $_labelWidth \
+#                        -text "Encoding:" \
+#                        -side left]
+#        pack $encodingLF -fill x
+#        set enfr [$encodingLF getframe]
+#        set encodingCB [ComboBox::create $enfr.encodingCB \
+#                        -values {7bit quoted-printable base64} \
+#                        -editable no]
+#        $encodingCB setvalue first
+#        pack $encodingCB -expand yes -fill x
+#        set descrLE [LabelEntry::create $frame.descrLE \
+#                     -labelwidth $_labelWidth \
+#                     -label "Description:" \
+#                     -side left]
+#        pack $descrLE -fill x
+#        set contentTypeLF [LabelFrame::create $frame.contentTypeLF \
+#                           -width $_labelWidth \
+#                           -text "Content Type:" \
+#                           -side left]
+#        pack $contentTypeLF -fill x
+#        set ctfr [$contentTypeLF getframe]
+#        set contentTypeE [Entry::create $ctfr.contentTypeE]
+#        pack $contentTypeE -expand yes -fill x -side left
+#        set contentTypeB [Button::create $ctfr.contentTypeB \
+#                          -text "Get Type" \
+#                          -command [mytypemethod _GetType]]
+#        pack $contentTypeB -side right
     }
     typemethod _Attach {} {
         Dialog::withdraw $dialog
@@ -2418,4 +2415,5 @@ snit::type GetAttachment {
 
 
 package provide SpoolFunctions 1.0
+
 
