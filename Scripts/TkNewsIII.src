@@ -108,7 +108,7 @@ global argv0
 if {$argc > 0} {
   if {[regsub {[[:space:]]+#[0-9]+} [tk appname] {} app] > 0} {
 #    puts stderr "*** argc = $argc, argv = $argv"
-    if {[catch {eval [list send "$app" Spool::SpoolWindow processURL] $argv} result]} {
+    if {[catch {eval [list send "$app" SpoolWindow processURL] $argv} result]} {
       puts stderr "$result"
     } else {
       puts "$result"
@@ -139,12 +139,12 @@ if {$IconicP == 1} {
 
 #update
 #foreach asp [option get . autoSpools AutoSpools] {
-#  Spool::ReviewSpool $asp $IconicP
+#  SpoolWindow ReviewSpool $asp $IconicP
 #  update idle
 #}
 
 if {$argc > 0} {
-  if {[catch {eval [list Spool::SpoolWindow processURL] $argv} result]} {
+  if {[catch {eval [list SpoolWindow processURL] $argv} result]} {
     tk_messageBox -type ok -icon error -message "$result"
   }
 }

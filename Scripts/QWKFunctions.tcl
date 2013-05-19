@@ -91,7 +91,7 @@ snit::type QWKFileProcess {
             set busyFlag no
             error "-spool is a required option!"
         }
-        set spoolWindow [Spool::SpoolWindow getSpoolByName $options(-spool)]
+        set spoolWindow [SpoolWindow getSpoolByName $options(-spool)]
         if {[string length "$spoolWindow"] == 0} {
             set toplevel .[string tolower $options(-spool)]
             toplevel $toplevel -class SpoolWindow
@@ -109,7 +109,7 @@ snit::type QWKFileProcess {
             }
             return
         }
-        set spoolWindow [Spool::SpoolWindow getOrMakeSpoolByName $options(-spool)]
+        set spoolWindow [SpoolWindow getOrMakeSpoolByName $options(-spool)]
         #      puts stderr "*** $self constructor: spoolWindow = $spoolWindow"
         set options(-recycleprocesswindow) [from args -recycleprocesswindow {}]
         #      puts stderr "*** $self constructor: options(-recycleprocesswindow) = $options(-recycleprocesswindow)"
@@ -214,7 +214,7 @@ snit::type QWKFileProcess {
                   -message "Busy fetching a spool.  Try again later"
             return
         }
-        if {[string length "$spool"] == 0} {set spool [Spool::GetSpoolName local no]}
+        if {[string length "$spool"] == 0} {set spool [SpoolWindow GetSpoolName local no]}
         if {[string length "$spool"] == 0} {return}
         set process [eval [list $type $spool%AUTO% \
                            -spool $spool -doreply yes] $args]
@@ -447,7 +447,7 @@ snit::type QWKReplyProcess {
         if {![QWKList MakeWorkDir]} {return}
         QWKList CleanWorkDir
         set msgFile [QWKList MessageFile "$options(-spool)"]
-        set spoolWindow [Spool::SpoolWindow getOrMakeSpoolByName $options(-spool)]
+        set spoolWindow [SpoolWindow getOrMakeSpoolByName $options(-spool)]
         set options(-recycleprocesswindow) [from args -recycleprocesswindow {}]
         if {[string length $options(-recycleprocesswindow)] > 0 &&
             [winfo exists  $options(-recycleprocesswindow)]} {
@@ -526,7 +526,7 @@ snit::type QWKReplyProcess {
         update idle
     }
     typemethod MakeQWKReply {{spool {}} args} {
-        if {[string length "$spool"] == 0} {set spool [Spool::GetSpoolName local no]}
+        if {[string length "$spool"] == 0} {set spool [SpoolWindow GetSpoolName local no]}
         if {[string length "$spool"] == 0} {return}
         set process [eval [list $type $spool%AUTO% \
                            -spool $spool] $args]

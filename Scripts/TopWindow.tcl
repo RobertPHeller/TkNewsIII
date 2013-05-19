@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat May 18 09:51:58 2013
-#  Last Modified : <130518.1135>
+#  Last Modified : <130518.1259>
 #
 #  Description	
 #
@@ -32,6 +32,8 @@
 package require MainFrame
 package require ScrollWindow
 package require QWKFunctions
+package require SpoolFunctions
+#package require AddressBook
 
 snit::widgetadaptor TopWindow {
     typevariable _menu {
@@ -39,7 +41,7 @@ snit::widgetadaptor TopWindow {
             {command "&Open QWK File" {file:open} "Open QWK file" {Ctrl o} -command "[mymethod LoadTheSelectedSpool]"}
             {command "&Get QWK File" {file:getq} "Get QWK file" {Ctrl g} -command {QWKFileProcess GetQWKFile}}
             {command "Get &All QWK Files" {file:getaq} "Get All QWK Files" {Ctrl a} -command {QWKFileProcess GetAllQWKFiles}}
-            {command "&Review Spool" {file:review} "Review Spool File" {Ctrl r} -command Spool::ReviewSpool}
+            {command "&Review Spool" {file:review} "Review Spool File" {Ctrl r} -command {SpoolWindow ReviewSpool}}
             {command "Re&scan" {file:rescan} "Rescan spool directory" {Ctrl s} -command "[mymethod RescanQWKSpool]"}
             {command "Ma&ke QWK Reply" {file:make} "Make QWK Reply" {Ctrl k} -command {QWKReplyProcess MakeQWKReply}}
             {command "&Export Address Book" {file:exportab} "Export Address Book as CSV" {Ctrl e} -command AddressBook::Export}
@@ -99,7 +101,7 @@ snit::widgetadaptor TopWindow {
         bind [winfo toplevel $win] <Control-c> [mymethod LoadTheSelectedSpool]
         bind [winfo toplevel $win] <Control-g> {QWKFileProcess GetQWKFile}
         bind [winfo toplevel $win] <Control-a> {QWKFileProcess GetAllQWKFiles}
-        bind [winfo toplevel $win] <Control-r> Spool::ReviewSpool
+        bind [winfo toplevel $win] <Control-r> {SpoolWindow ReviewSpool}
         bind [winfo toplevel $win] <Control-s> [mymethod RescanQWKSpool]
         bind [winfo toplevel $win] <Control-k> {QWKReplyProcess MakeQWKReply}
         bind [winfo toplevel $win] <Control-q> [mymethod CarefulExit]
@@ -115,26 +117,26 @@ snit::widgetadaptor TopWindow {
         #puts stderr "*** $self LoadSelectedQWKFile $selection"
         set file [$qwkList filename "$selection"]
         #puts stderr "*** $self LoadSelectedQWKFile: file is $file"
-        Spool::LoadQWKToSpool $file
+        SpoolWindow LoadQWKToSpool $file
     }
     method CarefulExit {{dontask no}} {
-        #set loadedSpools [Spool::SpoolWindow loadedSpools]
-        #if {[llength $loadedSpools] > 0} {
-        #    set ans yes
-        #    if {!$dontask} {
-        #        set ans [tk_messageBox \
-        #                 -icon question \
-        #                 -type yesno \
-        #                 -message {There are loaded spools -- Close them and exit?}]
-        #    }
-        #    if {$ans eq "yes"} {
-        #        foreach spoolname $loadedSpools {
-        #            set spool [Spool::SpoolWindow getSpoolByName $spoolname]
-        #            destroy $spool
-        #        }
-        #        set dontask yes
-        #    }
-        #}
+        set loadedSpools [SpoolWindow loadedSpools]
+        if {[llength $loadedSpools] > 0} {
+            set ans yes
+            if {!$dontask} {
+                set ans [tk_messageBox \
+                         -icon question \
+                         -type yesno \
+                         -message {There are loaded spools -- Close them and exit?}]
+            }
+            if {$ans eq "yes"} {
+                foreach spoolname $loadedSpools {
+                    set spool [SpoolWindow getSpoolByName $spoolname]
+                    destroy $spool
+                }
+                set dontask yes
+            }
+        }
         if {$dontask} {
             set ans yes
         } else {
