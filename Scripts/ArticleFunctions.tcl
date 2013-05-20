@@ -57,23 +57,23 @@ snit::widgetadaptor ArticleList {
         subject,stretch yes
         subject,anchor w
         subject,text Subject
-        subject,width 300
+        subject,width 200
         from,stretch yes
         from,anchor w
         from,text From
-        from,width 200
+        from,width 100
         date,stretch yes
         date,anchor w
         date,text Date
-        date,width 150
+        date,width 75
         lines,stretch yes
         lines,anchor e
         lines,text Lines
-        lines,width 75
+        lines,width 50
         size,stretch yes
         size,anchor e
         size,text Size
-        size,width 75
+        size,width 50
         menu,stretch no
         menu,width 18
         menu,text V

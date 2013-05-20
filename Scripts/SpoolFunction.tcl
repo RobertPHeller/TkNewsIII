@@ -54,6 +54,7 @@ package require snit
 package require IconImage
 package require MainFrame
 package require ScrollWindow
+package require ButtonBox
 package require GroupFunctions
 package require ArticleFunctions
 #package require Dialog
@@ -185,8 +186,9 @@ snit::widget SpoolWindow {
     component groupPane
     component   groupTreeSW
     component     groupTree
-    component   groupNameLabel
-    component   groupButtonBox
+    component   groupLabelFrame
+    component     groupNameLabel
+    component     groupButtonBox
     typevariable groupButtons -array {
         unread {-text "Unread\nGroup" -state {disabled} \
                   -command "[mymethod _UnreadGroup]"}
@@ -393,30 +395,32 @@ snit::widget SpoolWindow {
               -height [option get $win spoolNumGroups SpoolNumGroups] \
               -takefocus 1 -spool $self -method File
         $groupTreeSW setwidget $groupTree
-        install groupNameLabel using ttk::label  $groupPane.groupNameLabel
-        pack $groupNameLabel -fill x
+        install groupLabelFrame using ttk::labelframe $groupPane.groupLabelFrame
+        pack $groupLabelFrame -fill x
+        install groupNameLabel using ttk::label $groupLabelFrame.groupNameLabel 
+        $groupLabelFrame configure -labelwidget $groupNameLabel -labelanchor n
         # Group buttons 
-        install groupButtonBox using ttk::frame $groupPane.groupButtonBox
-        pack $groupButtonBox -expand yes -fill x
+        install groupButtonBox using ButtonBox $groupLabelFrame.groupButtonBox
+        pack $groupButtonBox -fill x
         foreach b $groupButtonsList {
-            pack [eval [list ttk::button $groupButtonBox.$b] \
-                  [subst $groupButtons($b)]] -side left
+            eval [list $groupButtonBox add ttk::button $b] [subst $groupButtons($b)]
         }
+        bind $groupLabelFrame <Configure> [myproc _adjustTree %W %h $groupTree]
         install artlistPane using ttk::frame $panes.artlistPane
         $panes add $artlistPane -weight 1
-        install artlistButtonBox using ttk::frame $artlistPane.artlistButtonBox
-        pack $artlistButtonBox -expand yes -fill x
+        install artlistButtonBox using ButtonBox $artlistPane.artlistButtonBox
+        pack $artlistButtonBox -fill x
         foreach ab $artlistButtonsList {
             set opts $artlistButtons($ab)
             set command [lindex $opts 0]
             set opts [subst [lrange $opts 1 end]]
-            set button [eval [list $command $artlistButtonBox.$ab] $opts]
-            pack $button -side left
+            eval [list $artlistButtonBox add $command $ab] $opts
             if {$command eq "ttk::menubutton"} {
-                install manageSavedArticlesMenu using menu $button.manageSavedArticlesMenu
-                $button configure -menu $manageSavedArticlesMenu
+                install manageSavedArticlesMenu using menu $artlistButtonBox.$ab.manageSavedArticlesMenu
+                $artlistButtonBox itemconfigure $ab -menu $manageSavedArticlesMenu
             }
         }
+        $artlistButtonBox configure -state disabled
         $manageSavedArticlesMenu add command \
               -label {Print All Articles} \
               -command [mymethod _PrintAllSavedArticles]
@@ -448,14 +452,15 @@ snit::widget SpoolWindow {
         $articleListSW setwidget $articleList
         #      puts stderr "*** ${type}::constructor: winfo class $articleList = [winfo class $articleList]"
         # Article buttons
-        install articleButtonBox using ttk::frame $artlistPane.articleButtonBox
-        pack $articleButtonBox -expand yes -fill x
+        install articleButtonBox using ButtonBox $artlistPane.articleButtonBox
+        pack $articleButtonBox -fill x
         foreach ab $articleButtonsList {
             set opts [subst $articleButtons($ab)]
-            set button [eval [list ttk::button $articleButtonBox.$ab -state disabled] $opts]
-            pack $button -side left
+            eval [list $articleButtonBox add ttk::button $ab] $opts
         }
         #      puts stderr "*** ${type}::constructor: before configurelist: args = $args"
+        $articleButtonBox configure -state disabled
+        bind $articleButtonBox <Configure> [myproc _adjustTree %W %h $articleList]
         $self configurelist $args
         set _LoadedSpools($options(-spoolname)) $self
         set qfile [from args -fromQWK {}]
@@ -492,6 +497,13 @@ snit::widget SpoolWindow {
         focus $groupTree
         if {$options(-cleanfunction)} {
             $main setmenustate file:cleanall normal
+        }
+    }
+    proc _adjustTree {w h tree} {
+        if {$h < [winfo reqheight $w]} {
+            set th [$tree cget -height]
+            incr th -1
+            if {$th > 0} {$tree configure -height $th}
         }
     }
     destructor {

@@ -434,7 +434,7 @@ snit::widgetadaptor GroupTree {
         range,stretch yes
         range,text Messages
         range,anchor w
-        range,width 150
+        range,width 75
         unread,stretch no
         unread,text Unread
         unread,anchor e
@@ -507,7 +507,7 @@ snit::widgetadaptor GroupTree {
     }
     typemethod _ToggleFocus {w} {
         ttk::treeview::ToggleFocus $_hulls($w)
-    }    
+    }
     delegate option -height to hull
     delegate option -xscrollcommand to hull
     delegate option -yscrollcommand to hull
@@ -566,7 +566,7 @@ snit::widgetadaptor GroupTree {
             if {[info exists columnheadings($c,anchor)]} {
                 lappend copts -anchor $columnheadings($c,anchor)
             }
-            puts stderr "*** $type create $self: copts = $copts"
+            #puts stderr "*** $type create $self: copts = $copts"
             if {[llength $copts] > 0} {
                 eval [list $hull column $c] $copts
             }
@@ -580,7 +580,7 @@ snit::widgetadaptor GroupTree {
             if {[info exists columnheadings($c,anchor)]} {
                 lappend hopts -anchor $columnheadings($c,anchor)
             }
-            puts stderr "*** $type create $self: hopts = $hopts"
+            #puts stderr "*** $type create $self: hopts = $hopts"
             if {[llength $hopts] > 0} {
                 eval [list $hull heading $c] $hopts
             }

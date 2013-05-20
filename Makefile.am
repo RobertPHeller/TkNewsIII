@@ -53,7 +53,7 @@ LibraryScripts = BUILDSYMBOLS.tcl \
             Scripts/snitmainframe.tcl Scripts/snitscrollw.tcl \
             Scripts/QWKFunctions.tcl Scripts/TopWindow.tcl \
             Scripts/SpoolFunction.tcl Scripts/GroupFunctions.tcl \
-            Scripts/ArticleFunctions.tcl
+            Scripts/ArticleFunctions.tcl Scripts/snitbuttonbox.tcl
 
 #                Scripts/BWHelp.tcl Scripts/labelselectcolor.tcl \
 #		Scripts/panedw.tcl Scripts/fileentry.tcl \
