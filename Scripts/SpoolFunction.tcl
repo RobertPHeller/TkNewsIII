@@ -55,7 +55,7 @@ package require IconImage
 package require MainFrame
 package require ScrollWindow
 package require GroupFunctions
-#package require ArticleFuntions
+package require ArticleFunctions
 #package require Dialog
 #package require AddressBook                                                    
 
@@ -473,7 +473,6 @@ snit::widget SpoolWindow {
             global env
             set userName $env(USER)
         }
-        $self _LoadActiveList
         $self _LoadNewsRc
         $self _LoadGroupTree {.} 0 Brief
         set currentGroup {}
@@ -668,10 +667,10 @@ snit::widget SpoolWindow {
         $groupTree reloadActiveFile
     }
     method _LoadNewsRc {} {
-        install newslist using NewsList \
-              "${options(-spoolname)}_news" \
-              -file $options(-newsrc) \
-              -grouptree $groupTree
+#        install newslist using NewsList \
+#              "${options(-spoolname)}_news" \
+#              -file $options(-newsrc) \
+#              -grouptree $groupTree
     }
     method _WriteNewsRc {} {
         $newslist write
@@ -744,7 +743,8 @@ snit::widget SpoolWindow {
         $groupNameLabel configure -text "$currentGroup"
         focus $articleList
     }
-    method _EnableGroupButtons {gt selection} {
+    method _EnableGroupButtons {selection} {
+        return
         if {[string length "$selection"] == 0} {return}
         #      puts stderr "*** ${type}::_EnableGroupButtons: gt = $gt, selection = $selection"
         set selectedGroup [$gt itemcget $selection -data]
@@ -857,7 +857,7 @@ snit::widget SpoolWindow {
     }
     method _UnreadGroup {} {
         $groupTree groupsetranges $currentGroup {}
-        $articleList delete [$articleList items]
+        $articleList deleteall
         $groupTree insertArticleList $articleList $currentGroup
         $newslist write
     }
@@ -881,7 +881,7 @@ snit::widget SpoolWindow {
         $self _LoadGroupTree {.} 0 Brief
     }
     method _RefereshArticles {} {
-        $articleList delete [$articleList items]
+        $articleList deleteall
         $groupTree insertArticleList $articleList $currentGroup
     }
     # Misc additional group functions
@@ -994,7 +994,7 @@ snit::widget SpoolWindow {
             }
         }
         $groupTree updateGroupLineInTree $currentGroup
-        $articleList delete [$articleList items]
+        $articleList deleteall
         $groupTree insertArticleList $articleList $currentGroup
     }
     method _DeleteSelectedArticles {} {
@@ -1011,7 +1011,7 @@ snit::widget SpoolWindow {
             }
         }
         $groupTree updateGroupLineInTree $currentGroup
-        $articleList delete [$articleList items]
+        $articleList deleteall
         $groupTree insertArticleList $articleList $currentGroup
     }
     method _RenumberArticles {} {
@@ -1036,15 +1036,15 @@ snit::widget SpoolWindow {
             }
         }      
         $groupTree updateGroupLineInTree $currentGroup
-        $articleList delete [$articleList items]
+        $articleList deleteall
         $groupTree insertArticleList $articleList $currentGroup
     }
     method _RecodeArticle {} {
         if {[catch "set savedDirectories($currentGroup)" mdir]} {return}
-        set articleList [Articles::SelectArticlesDialog draw \
+        set artList [Articles::SelectArticlesDialog draw \
                          -parent $win -grouptree $groupTree \
                          -group $currentGroup -selectmode single]
-        if {[llength $articleList] == 0} {return}
+        if {[llength $artList] == 0} {return}
         
     }
     method _FlatfileArticles {} {
@@ -1669,11 +1669,14 @@ snit::widget SpoolWindow {
     method savedDirectory {name} {
         return $savedDirectories($name)
     }
-    method NNTP_LoadArticleHead {group artnumber listbox {pattern {.}} {nread {}}} {
+    method NNTP_LoadArticleHead {group artnumber articleList {pattern {.}} {nread {}}} {
         set subject {}
         set from {}
         set date {}
         set lines 0
+        set size 0
+        set messageid {}
+        set intrplyto {}
         
         if {[$self srv_cmd "group $group" buff] < 0} {
             error "NNTP_LoadArticleHead: Error sending group command"
@@ -1705,6 +1708,14 @@ snit::widget SpoolWindow {
                 set lines [string range $line 7 end]
                 continue
             }
+            if {[string first "Message-ID: " $line] == 0} {
+                set messageid [string range $line 12 end]
+                continue
+            }
+            if {[string first "In-Reply-To: " $line] == 0} {
+                set inreplyto [string range $line 13 end]
+                continue
+            }
         }
         set from [Common::GetRFC822Name $from]
         if {[regexp -nocase -- "$pattern" "$subject"] && 
@@ -1715,7 +1726,7 @@ snit::widget SpoolWindow {
             set line "[format  {%6d %s%-36s %-20s %-25s %5d} $artnumber $nread $subject $from $date $lines]"
             #	set font [option get $listbox font Font]
             #        puts stderr "*** ${type}::NNTP_LoadArticleHead: listbox = $listbox, font = $font"
-            $listbox insert end $artnumber -data $artnumber -text "$line"
+            $articleList insertArticleHeader $artnumber $nread $from $date $lines $size $messageid $inreplyto
             return 1
         }
         return 0

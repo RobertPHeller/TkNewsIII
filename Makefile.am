@@ -52,7 +52,8 @@ LibraryScripts = BUILDSYMBOLS.tcl \
             Scripts/DynamicHelp.tcl Scripts/IconsAndImages.tcl \
             Scripts/snitmainframe.tcl Scripts/snitscrollw.tcl \
             Scripts/QWKFunctions.tcl Scripts/TopWindow.tcl \
-            Scripts/SpoolFunction.tcl Scripts/GroupFunctions.tcl
+            Scripts/SpoolFunction.tcl Scripts/GroupFunctions.tcl \
+            Scripts/ArticleFunctions.tcl
 
 #                Scripts/BWHelp.tcl Scripts/labelselectcolor.tcl \
 #		Scripts/panedw.tcl Scripts/fileentry.tcl \

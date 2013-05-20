@@ -44,6 +44,13 @@
 #* 
 
 snit::type group {
+    typevariable HeadListProg
+    typeconstructor {
+        global execbindir
+        set HeadListProg [auto_execok [file join $execbindir headList]]
+                bind $type <Motion>                [mytypemethod _Motion %W %x %y]
+    }
+
     option -first -type snit::integer -default 1
     option -last  -type snit::integer -default 0
     option -postable -type snit::boolean -default yes
@@ -136,7 +143,8 @@ snit::type group {
                 continue
             }
             while {$nextload < $first} {
-                if {[$spool NNTP_LoadArticleHead $options(-name) $nextload $articleList  "$pattern" "$unreadFlag"]} {
+                if {[$spool NNTP_LoadArticleHead $options(-name) $nextload \
+                     $articleList  "$pattern" "$unreadFlag"]} {
                     incr imsg
                     if {$imsg == 10} {
                         set mnum [expr $nextload - 1]
@@ -202,7 +210,6 @@ snit::type group {
         #      puts stderr "*** ${type}::insertArticleListFromSpoolDir: firstMessage = $firstMessage, lastMessage = $lastMessage"
         #      puts stderr "*** ${type}::insertArticleListFromSpoolDir: numMessages = $numMessages, spoolDirectory = $spoolDirectory"
         #      puts stderr "*** ${type}::insertArticleListFromSpoolDir: groupPath = $groupPath"
-        global HeadListProg
         set command [join [concat $HeadListProg $spoolDirectory $groupPath "$pattern" $unreadp $firstMessage $lastMessage $ranges] { }]
         #      puts stderr "*** ${type}::insertArticleListFromSpoolDir: command = $command"
         set pipeCmd "|$command"
@@ -219,7 +226,7 @@ snit::type group {
                 #	  puts stderr "*** ${type}::insertArticleListFromSpoolDir: line = '$line'"
                 scan "$line" {%6d } artNumber
                 #	  puts stderr "*** ${type}::insertArticleListFromSpoolDir: artNumber = $artNumber"
-                $articleList insert end $artNumber -text "$line" -data $artNumber
+                eval [list $articleList insertArticleHeader] $line
                 incr imsg
                 if {$imsg == 10} {
                     set line [string trim "$line"]
@@ -423,18 +430,18 @@ snit::widgetadaptor GroupTree {
         #0,stretch yes
         #0,text Name
         #0,anchor w
-        #0,width 200
+        #0,width 100
         range,stretch yes
         range,text Messages
         range,anchor w
-        range,width 300
+        range,width 150
         unread,stretch no
         unread,text Unread
         unread,anchor e
-        unread,width 100
+        unread,width 75
     }
+    typevariable columns {range unread}
     typevariable HeadListProg
-    typevariable columns {ranges unread}
     typeconstructor {
         global execbindir
         set HeadListProg [auto_execok [file join $execbindir headList]]
@@ -546,7 +553,8 @@ snit::widgetadaptor GroupTree {
         set _hulls($self) $hull
         $self configurelist $args
         #parray columnheadings
-        foreach c $columns {
+        set cols [concat #0 $columns]
+        foreach c $cols {
             #puts stderr "*** $type create $self: c = $c"
             set copts [list]
             if {[info exists columnheadings($c,stretch)]} {
@@ -558,7 +566,7 @@ snit::widgetadaptor GroupTree {
             if {[info exists columnheadings($c,anchor)]} {
                 lappend copts -anchor $columnheadings($c,anchor)
             }
-            #puts stderr "*** $type create $self: copts = $copts"
+            puts stderr "*** $type create $self: copts = $copts"
             if {[llength $copts] > 0} {
                 eval [list $hull column $c] $copts
             }
@@ -572,7 +580,7 @@ snit::widgetadaptor GroupTree {
             if {[info exists columnheadings($c,anchor)]} {
                 lappend hopts -anchor $columnheadings($c,anchor)
             }
-            #puts stderr "*** $type create $self: hopts = $hopts"
+            puts stderr "*** $type create $self: hopts = $hopts"
             if {[llength $hopts] > 0} {
                 eval [list $hull heading $c] $hopts
             }
@@ -718,8 +726,6 @@ snit::widgetadaptor GroupTree {
         set activeGroups [$self activeGroups]
         set savedSpoolDirectory [$options(-spool) cget -savednews]
         if {[string equal "$pattern" {}]} {return}
-        set font [option get $tree font Font]
-        #      puts stderr "*** ${type}::loadGroupTree: font = $font"
         foreach name $activeGroups {
             if {[regexp -nocase -- "$pattern" $name]} {
                 if {$unsubscribedP || [$self groupcget $name -subscribed]} {
@@ -782,12 +788,14 @@ snit::widgetadaptor GroupTree {
     method catchUpGroup {groupTree artList group} {
         $groups($group) setAllRead
         $self updateGroupLineInTree $groupTree $group
+        $artList deleteall
         $self insertArticleList $artList $group
     }
     method cleanGroup {groupTree artList group} {
         $groups($group) cleanGroup
         $self updateGroupLineInTree $groupTree $group
         if {![string equal "$artList" {}]} {
+            $artList deleteall
             $self insertArticleList $artList $group
         }
         if {[string equal "$options(-method)" File]} {
@@ -873,7 +881,7 @@ snit::widgetadaptor GroupTree {
         return "[format {%-40s %d saved messages} $subname $mcount]"
     }
     method insertArticleList {articleList group {pattern "."} {unreadp "0"}} {
-        if {[catch "$options(-spool) savedDirectory $group" mdir] == 0} {
+        if {[catch {$options(-spool) savedDirectory $group} mdir] == 0} {
             #	puts stderr "*** ${type}::insertArticleList: group = $group, mdir = $mdir"
             $self insertArticleListAllDir $articleList $mdir $pattern $unreadp
             return
@@ -916,7 +924,6 @@ snit::widgetadaptor GroupTree {
         set firstMessage [Common::Lowestnumber $mlist]
         set lastMessage  [Common::Highestnumber $mlist]
         #      puts stderr "*** ${type}::insertArticleListAllDir: firstMessage = $firstMessage, lastMessage = $lastMessage"
-        global HeadListProg
         set command [list $HeadListProg $a $b "$pattern" $unreadp $firstMessage $lastMessage]
         set pipeCmd "|$command"
         if {[catch [list open "$pipeCmd" r] pipe]} {
@@ -935,7 +942,7 @@ snit::widgetadaptor GroupTree {
             set done 0
             while {[gets $pipe line] != -1} {
                 scan "$line" {%6d } artNumber
-                $articleList insert end $artNumber -text "$line" -data $artNumber
+                eval [list $articleList insertArticleHeader] $line
                 incr imsg
                 if {$imsg == 10} {
                     incr done 10

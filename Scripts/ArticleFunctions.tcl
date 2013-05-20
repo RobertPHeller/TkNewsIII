@@ -45,6 +45,303 @@
 
 namespace eval AddressBook {#dummy}
 
+
+snit::widgetadaptor ArticleList {
+    typevariable columnheadings -array {
+        #0,stretch yes
+        #0,anchor w
+        articlenumber,stretch yes
+        articlenumber,anchor e
+        articlenumber,text #
+        articlenumber,width 50
+        subject,stretch yes
+        subject,anchor w
+        subject,text Subject
+        subject,width 300
+        from,stretch yes
+        from,anchor w
+        from,text From
+        from,width 200
+        date,stretch yes
+        date,anchor w
+        date,text Date
+        date,width 150
+        lines,stretch yes
+        lines,anchor e
+        lines,text Lines
+        lines,width 75
+        size,stretch yes
+        size,anchor e
+        size,text Size
+        size,width 75
+        menu,stretch no
+        menu,width 18
+        menu,text V
+    }
+    typevariable columns {articlenumber subject from date lines size menu}
+    typeconstructor {
+        global execbindir
+        bind $type <B1-Leave>              { #nothing }
+        bind $type <Leave>                 [mytypemethod _ActivateHeading {} {}]
+        bind $type <ButtonPress-1>         [mytypemethod _Press %W %x %y]
+        bind $type <Double-ButtonPress-1>  [mytypemethod _DoubleClick %W %x %y]
+        bind $type <ButtonRelease-1>       [mytypemethod _Release %W %x %y]
+        bind $type <B1-Motion>             [mytypemethod _Drag %W %x %y]
+        bind $type <KeyPress-Up>           [mytypemethod _Keynav %W up]
+        bind $type <KeyPress-Down>         [mytypemethod _Keynav %W down]
+        bind $type <KeyPress-Right>        [mytypemethod _Keynav %W right]
+        bind $type <KeyPress-Left>         [mytypemethod _Keynav %W left]
+        bind $type <KeyPress-Prior>        { %W yview scroll -1 pages }
+        bind $type <KeyPress-Next>         { %W yview scroll  1 pages }
+        bind $type <KeyPress-Return>       [mytypemethod _ToggleFocus %W]
+        bind $type <KeyPress-space>        [mytypemethod _ToggleFocus %W]
+        bind $type <Shift-ButtonPress-1>   [mytypemethod _Select %W %x %y extend]
+        bind $type <Control-ButtonPress-1> [mytypemethod _Select %W %x %y toggle]
+        ttk::copyBindings TtkScrollable $type
+        ttk::style layout $type [ttk::style layout Treeview]
+    }
+    typevariable _hulls -array {}
+    typemethod _Keynav {w dir} {
+        ttk::treeview::Keynav $_hulls($w) dir
+    }
+    typemethod _Motion {w x y} {
+        ttk::treeview::Motion $_hulls($w) $x $y
+    }
+    typemethod _ActivateHeading {w heading} {
+        if {$w ne {}} {set w $_hulls($w)}
+        ttk::treeview::ActivateHeading $w $heading
+    }
+    typemethod _Select {w x y op} {
+        ttk::treeview::Select $_hulls($w) $x $y $op
+    }
+    typemethod _DoubleClick {w x y} {
+        $w _invoke $x $y
+    }
+    typemethod _Press {w x y} {
+        lassign [$_hulls($w) identify $x $y] what where detail
+        focus $w	;# or: ClickToFocus?
+        
+        switch -- $what {
+            nothing { }
+            heading { ttk::treeview::heading.press $_hulls($w) $where }
+            separator { ttk::treeview::resize.press $_hulls($w) $x $where }
+            cell -
+            row  -
+            item { ttk::treeview::SelectOp $_hulls($w) $where choose }
+        }
+        if {$what eq "item" && [string match *indicator $detail]} {
+            ttk::treeview::Toggle $_hulls($w) $where
+        }
+        $w _invokeselect $x $y
+    }
+    typemethod _Drag {w x y} {
+        ttk::treeview::Drag $_hulls($w) $x $y
+    }
+    typemethod _Release {w x y} {
+        ttk::treeview::Release $_hulls($w) $x $y
+    }
+    typemethod _ToggleFocus {w} {
+        ttk::treeview::ToggleFocus $_hulls($w)
+    }    
+    delegate option -height to hull
+    delegate option -xscrollcommand to hull
+    delegate option -yscrollcommand to hull
+    delegate option -takefocus to hull
+    delegate method xview to hull
+    delegate method yview to hull
+    delegate method selection to hull
+    component columnMenu
+    option -command -default ""
+    method _invoke {x y} {
+        #puts stderr "*** $self _invoke $x $y"
+        #puts stderr "*** $self _invoke: items are [$hull children {}]"
+        #puts stderr "*** $self _invoke: selection is [$hull selection]"
+        #puts stderr "*** $self _invoke: identify is [$hull identify $x $y]"
+        lassign [$hull identify $x $y] what where detail
+        if {$options(-command) ne ""} {
+            uplevel #0 "$options(-command) $where"
+        }
+    }
+    option -selectcommand -default ""
+    method _invokeselect {x y} {
+        lassign [$hull identify $x $y] what where detail
+        if {$options(-selectcommand) ne ""} {
+            uplevel #0 "$options(-selectcommand) $where"
+        }
+    }
+    variable inreplyto -array {}
+    variable messageid -array {}
+    variable subjects -array {}
+    variable froms -array {}
+    variable dates -array {}
+    variable nreads -array {}
+    method deleteall {} {
+        $hull delete [$hull children {}]
+        array unset inreplyto
+        array unset messageid
+        array unset subjects
+        array unset froms
+        array unset dates
+        array unset nreads
+    }
+    method insertArticleHeader {artnumber nread subject from date lines size 
+        _messageid _inreplyto} {
+        set messageid($_artnumber) $_messageid
+        set inreplyto($_messageid) $_inreplyto
+        set nreads($_messageid) $nread
+        lappend subjects($subject) $messageid
+        lappend froms($from) $messageid
+        lappend dates([clock scan $date]) $messageid
+        $hull insert {} end -id $messageid -text {} \
+              -values [list $articlenumber $subject $from $date $lines $size {}]
+    }
+    constructor {args} {
+        installhull using ttk::treeview -columns $columns \
+              -displaycolumns $columns -show {headings} \
+              -style $type -class $type
+        set _hulls($self) $hull
+        $self configurelist $args
+        #parray columnheadings
+        foreach c $columns {
+            #puts stderr "*** $type create $self: c = $c"
+            set copts [list]
+            if {[info exists columnheadings($c,stretch)]} {
+                lappend copts -stretch $columnheadings($c,stretch)
+            }
+            if {[info exists columnheadings($c,width)]} {
+                lappend copts -width $columnheadings($c,width)
+            }
+            if {[info exists columnheadings($c,anchor)]} {
+                lappend copts -anchor $columnheadings($c,anchor)
+            }
+            #puts stderr "*** $type create $self: copts = $copts"
+            if {[llength $copts] > 0} {
+                eval [list $hull column $c] $copts
+            }
+            set hopts [list]
+            if {[info exists columnheadings($c,text)]} {
+                lappend hopts -text $columnheadings($c,text)
+            }
+            if {[info exists columnheadings($c,image)]} {
+                lappend hopts -image $columnheadings($c,image)
+            }
+            if {[info exists columnheadings($c,anchor)]} {
+                lappend hopts -anchor $columnheadings($c,anchor)
+            }
+            #puts stderr "*** $type create $self: hopts = $hopts"
+            if {[llength $hopts] > 0} {
+                eval [list $hull heading $c] $hopts
+            }
+        }
+        install columnMenu using menu $win.columnMenu -tearoff no
+        $columnMenu add command -label "Show Threaded" \
+              -command [mymethod _threadArticleList]
+        $columnMenu add command -label "Sort by article number" \
+              -command [mymethod _sortByArtNumber]
+        $columnMenu add command -label "Sort by Date" \
+              -command [mymethod _sortByDate]
+        $columnMenu add command -label "Sort by Sender" \
+              -command [mymethod _sortBySender]
+        $columnMenu add command -label "Sort by Subject" \
+              -command [mymethod _sortBySubject]
+        $hull heading menu -command [mymethod _postColumnMenu]
+    }
+    method _postColumnMenu {} {
+        set y [winfo pointery $win]
+        set x [winfo pointerx $win]
+        $columnMenu post $x $y
+    }
+    method _threadArticleList {} {
+        $hull detach [$hull children {}]
+        foreach an [lsort -integer [array names messageid]] {
+            set parent $inreplyto($messageid($an))
+            if {![$hull exists $parent]} {set parent {}}
+            $hull move messageid($an) $parent end
+        }
+        if {[lsearch -exact [$hull cget -show] tree] < 0} {
+            $hull configure -show {tree headings}
+            adjustHeadWidth $hull [winfo width [winfo parent $win]]
+        }
+    }
+    method _sortByArtNumber {} {
+        $hull detach [$hull children {}]
+        foreach an [lsort -integer [array names messageid]] {
+            $hull move messageid($an) {} end
+        }
+        if {[lsearch -exact [$hull cget -show] tree] >= 0} {
+            $hull configure -show {headings}
+            adjustHeadWidth $hull [winfo width [winfo parent $win]]
+        }
+    }
+    method _sortByDate {} {
+        $hull detach [$hull children {}]
+        foreach date [lsort -integer [array names dates]] {
+            foreach m $dates($date) {
+                $hull move $m {} end
+            }
+        }
+        if {[lsearch -exact [$hull cget -show] tree] >= 0} {
+            $hull configure -show {headings}
+            adjustHeadWidth $hull [winfo width [winfo parent $win]]
+        }
+    }
+    method _sortBySender {} {
+        $hull detach [$hull children {}]
+        foreach from [lsort -dictionary [array names $froms]] {
+            foreach m $froms($from) {
+                $hull move $m {} end
+            }
+        }
+        if {[lsearch -exact [$hull cget -show] tree] >= 0} {
+            $hull configure -show {headings}
+            adjustHeadWidth $hull [winfo width [winfo parent $win]]
+        }
+    }
+    method _sortBySubject {} {
+        $hull detach [$hull children {}]
+        foreach subj [lsort -dictionary [array names $subjects]] {
+            foreach m $subjects($subj) {
+                $hull move $m {} end
+            }
+        }
+        if {[lsearch -exact [$hull cget -show] tree] >= 0} {
+            $hull configure -show {headings}
+            adjustHeadWidth $hull [winfo width [winfo parent $win]]
+        }
+    }
+    proc computeHeadWidth {artlist} {
+        set width 0
+        foreach c [$artlist cget -displaycolumns] {
+            set cw [$artlist column $c -width]
+            incr width $cw
+        }
+        return $width
+    }
+    proc adjustHeadWidth {artlist widthneeded} {
+        #puts stderr "*** MainWindow::adjustHeadWidth $artlist $widthneeded"
+        set reqwidth [computeHeadWidth $artlist]
+        #puts stderr "*** -: reqwidth = $reqwidth"
+        set diff [expr {$widthneeded - $reqwidth}]
+        #puts stderr "*** -: diff = $diff"
+        set stretchablecols [list]
+        foreach c [$artlist cget -displaycolumns] {
+            if {[$artlist column $c -stretch]} {
+                lappend stretchablecols $c
+            }
+        }
+        if {[llength $stretchablecols] == 0} {return}
+        set stretch [expr {$diff / [llength $stretchablecols]}]
+        #puts stderr "*** -: stretch = $stretch"
+        foreach c $stretchablecols {
+            set cw [expr {[$artlist column $c -width] + $stretch}]
+            #puts stderr "*** -: ($c) cw = $cw"
+            $artlist column $c -width $cw
+        }
+    }
+        
+}
+
+        
 namespace eval Articles {
 
   snit::widget Viewer {
@@ -803,7 +1100,5 @@ namespace eval Articles {
 }
 
 
-
-SplashWorkMessage "Loaded Article Functions" [expr 4 * 16.66]
 
 package provide ArticleFunctions 1.0
