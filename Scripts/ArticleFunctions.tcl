@@ -48,12 +48,14 @@ namespace eval AddressBook {#dummy}
 
 snit::widgetadaptor ArticleList {
     typevariable columnheadings -array {
-        #0,stretch yes
+        #0,stretch no
         #0,anchor w
+        #0,text Threads
+        #0,width 80
         articlenumber,stretch yes
         articlenumber,anchor e
         articlenumber,text #
-        articlenumber,width 50
+        articlenumber,width 30
         subject,stretch yes
         subject,anchor w
         subject,text Subject
@@ -66,19 +68,16 @@ snit::widgetadaptor ArticleList {
         date,anchor w
         date,text Date
         date,width 75
-        lines,stretch yes
+        lines,stretch no
         lines,anchor e
         lines,text Lines
-        lines,width 50
-        size,stretch yes
+        lines,width 40
+        size,stretch no
         size,anchor e
         size,text Size
-        size,width 50
-        menu,stretch no
-        menu,width 18
-        menu,text V
+        size,width 40
     }
-    typevariable columns {articlenumber subject from date lines size menu}
+    typevariable columns {articlenumber subject from date lines size}
     typeconstructor {
         global execbindir
         bind $type <B1-Leave>              { #nothing }
@@ -150,7 +149,6 @@ snit::widgetadaptor ArticleList {
     delegate method xview to hull
     delegate method yview to hull
     delegate method selection to hull
-    component columnMenu
     option -command -default ""
     method _invoke {x y} {
         #puts stderr "*** $self _invoke $x $y"
@@ -197,12 +195,12 @@ snit::widgetadaptor ArticleList {
     }
     constructor {args} {
         installhull using ttk::treeview -columns $columns \
-              -displaycolumns $columns -show {headings} \
+              -displaycolumns $columns -show {tree headings} \
               -style $type -class $type
         set _hulls($self) $hull
         $self configurelist $args
         #parray columnheadings
-        foreach c $columns {
+        foreach c [concat #0 $columns] {
             #puts stderr "*** $type create $self: c = $c"
             set copts [list]
             if {[info exists columnheadings($c,stretch)]} {
@@ -233,81 +231,79 @@ snit::widgetadaptor ArticleList {
                 eval [list $hull heading $c] $hopts
             }
         }
-        install columnMenu using menu $win.columnMenu -tearoff no
-        $columnMenu add command -label "Show Threaded" \
-              -command [mymethod _threadArticleList]
-        $columnMenu add command -label "Sort by article number" \
-              -command [mymethod _sortByArtNumber]
-        $columnMenu add command -label "Sort by Date" \
-              -command [mymethod _sortByDate]
-        $columnMenu add command -label "Sort by Sender" \
-              -command [mymethod _sortBySender]
-        $columnMenu add command -label "Sort by Subject" \
-              -command [mymethod _sortBySubject]
-        $hull heading menu -command [mymethod _postColumnMenu]
-    }
-    method _postColumnMenu {} {
-        set y [winfo pointery $win]
-        set x [winfo pointerx $win]
-        $columnMenu post $x $y
+        $hull heading #0 -command [mymethod _threadArticleList]
+        $hull heading articlenumber -command [mymethod _sortByArtNumber]
+        $hull heading date -command [mymethod _sortByDate]
+        $hull heading from -command [mymethod _sortBySender]
+        $hull heading subject -command [mymethod _sortBySubject]
     }
     method _threadArticleList {} {
+        puts stderr "*** $self _threadArticleList"
         $hull detach [$hull children {}]
         foreach an [lsort -integer [array names messageid]] {
             set parent $inreplyto($messageid($an))
             if {![$hull exists $parent]} {set parent {}}
             $hull move messageid($an) $parent end
         }
-        if {[lsearch -exact [$hull cget -show] tree] < 0} {
-            $hull configure -show {tree headings}
-            adjustHeadWidth $hull [winfo width [winfo parent $win]]
-        }
+        #if {[lsearch -exact [$hull cget -show] tree] < 0} {
+        #    set widthneeded [winfo width [winfo parent $win]]
+        #    $hull configure -show {tree headings}
+        #    adjustHeadWidth $hull $widthneeded
+        #}
     }
     method _sortByArtNumber {} {
+        puts stderr "*** $self _sortByArtNumber"
         $hull detach [$hull children {}]
         foreach an [lsort -integer [array names messageid]] {
             $hull move messageid($an) {} end
         }
-        if {[lsearch -exact [$hull cget -show] tree] >= 0} {
-            $hull configure -show {headings}
-            adjustHeadWidth $hull [winfo width [winfo parent $win]]
-        }
+        #if {[lsearch -exact [$hull cget -show] tree] >= 0} {
+        #    set widthneeded [winfo width [winfo parent $win]]
+        #    $hull configure -show {headings}
+        #    adjustHeadWidth $hull $widthneeded
+        #}
     }
     method _sortByDate {} {
+        puts stderr "*** $self _sortByDate"
         $hull detach [$hull children {}]
         foreach date [lsort -integer [array names dates]] {
             foreach m $dates($date) {
                 $hull move $m {} end
             }
         }
-        if {[lsearch -exact [$hull cget -show] tree] >= 0} {
-            $hull configure -show {headings}
-            adjustHeadWidth $hull [winfo width [winfo parent $win]]
-        }
+        #if {[lsearch -exact [$hull cget -show] tree] >= 0} {
+        #    set widthneeded [winfo width [winfo parent $win]]
+        #    $hull configure -show {headings}
+        #    adjustHeadWidth $hull $widthneeded
+        #}
     }
     method _sortBySender {} {
+        puts stderr "*** $self _sortBySender"
         $hull detach [$hull children {}]
-        foreach from [lsort -dictionary [array names $froms]] {
+        foreach from [lsort -dictionary [array names froms]] {
             foreach m $froms($from) {
                 $hull move $m {} end
             }
         }
-        if {[lsearch -exact [$hull cget -show] tree] >= 0} {
-            $hull configure -show {headings}
-            adjustHeadWidth $hull [winfo width [winfo parent $win]]
-        }
+        #if {[lsearch -exact [$hull cget -show] tree] >= 0} {
+        #    set widthneeded [winfo width [winfo parent $win]]
+        #    $hull configure -show {headings}
+        #    adjustHeadWidth $hull $widthneeded
+        #}
     }
     method _sortBySubject {} {
+        puts stderr "*** $self _sortBySubject"
         $hull detach [$hull children {}]
-        foreach subj [lsort -dictionary [array names $subjects]] {
+        foreach subj [lsort -dictionary [array names subjects]] {
             foreach m $subjects($subj) {
                 $hull move $m {} end
             }
         }
-        if {[lsearch -exact [$hull cget -show] tree] >= 0} {
-            $hull configure -show {headings}
-            adjustHeadWidth $hull [winfo width [winfo parent $win]]
-        }
+        #if {[lsearch -exact [$hull cget -show] tree] >= 0} {
+        #    set widthneeded [winfo width [winfo parent $win]]
+        #    $hull configure -show {headings}
+        #    adjustHeadWidth $hull $widthneeded
+        #}
     }
     proc computeHeadWidth {artlist} {
         set width 0
@@ -315,27 +311,46 @@ snit::widgetadaptor ArticleList {
             set cw [$artlist column $c -width]
             incr width $cw
         }
+        if {[lsearch [$artlist cget -show] tree] >= 0} {
+            set cw [$artlist column #0 -width]
+            incr width $cw
+        }
         return $width
     }
     proc adjustHeadWidth {artlist widthneeded} {
-        #puts stderr "*** MainWindow::adjustHeadWidth $artlist $widthneeded"
+        puts stderr "*** ArticleList::adjustHeadWidth $artlist $widthneeded"
         set reqwidth [computeHeadWidth $artlist]
-        #puts stderr "*** -: reqwidth = $reqwidth"
+        puts stderr "*** -: reqwidth = $reqwidth"
         set diff [expr {$widthneeded - $reqwidth}]
-        #puts stderr "*** -: diff = $diff"
+        puts stderr "*** -: diff = $diff"
+        set fract [expr {double($diff) / double($reqwidth)}]
+        puts stderr "*** -: fract = $fract"
         set stretchablecols [list]
+        if {[lsearch [$artlist cget -show] tree] >= 0} {
+            if {[$artlist column #0 -stretch]} {
+                lappend stretchablecols #0
+            }
+        }
+        set totalstretch 0
         foreach c [$artlist cget -displaycolumns] {
             if {[$artlist column $c -stretch]} {
                 lappend stretchablecols $c
+                incr totalstretch [$artlist column $c -width]
             }
         }
         if {[llength $stretchablecols] == 0} {return}
         set stretch [expr {$diff / [llength $stretchablecols]}]
-        #puts stderr "*** -: stretch = $stretch"
+        puts stderr "*** -: stretch = $stretch"
         foreach c $stretchablecols {
-            set cw [expr {[$artlist column $c -width] + $stretch}]
-            #puts stderr "*** -: ($c) cw = $cw"
-            $artlist column $c -width $cw
+            set cwf [expr {[$artlist column $c -width] + $stretch}]
+            set percentstretch [expr {double([$artlist column $c -width]) / double($totalstretch)}]
+            set stretchp [expr {int($diff * $percentstretch)}]
+            #set stretchp [expr {int([$artlist column $c -width] * $fract)}]
+            puts stderr "*** -: ($c) stretchp = $stretchp"
+            set cwp [expr {[$artlist column $c -width] + $stretchp}]
+            puts stderr "*** -: ($c) cwf = $cwf"
+            puts stderr "*** -: ($c) cwp = $cwp"
+            $artlist column $c -width $cwp
         }
     }
         

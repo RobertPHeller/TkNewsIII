@@ -215,7 +215,7 @@ snit::widget SpoolWindow {
         list {ttk::button -text "List/Search\nArticles" -command "[mymethod _ListSearchArticles]"}
         read {ttk::button -text "Read\nArticle" -command "[mymethod _ReadSelectedArticle]"}
         refresh {ttk::button -text "Refresh Article\nList" -command "[mymethod _RefereshArticles]"}
-        manage {ttk::menubutton -text "Manage Saved\nArticles" -state disabled}
+        manage {ttk::menubutton -text "Manage\nSaved\nArticles" -state disabled}
     }
     typevariable artlistButtonsList {post list read refresh manage}
     component      manageSavedArticlesMenu
@@ -224,7 +224,7 @@ snit::widget SpoolWindow {
     component    articleButtonBox
     typevariable articleButtons -array {
         followup {-text {Followup} -command "[mymethod _FollowupArticle] no"}
-        mailreply {-text {Mail Reply To Sender} -command "[mymethod _MailReply]"}
+        mailreply {-text "Mail Reply\nTo Sender" -command "[mymethod _MailReply]"}
         forwardto {-text {Forward To} -command "[mymethod _ForwardTo]"}
         save {-text {Save} -command "[mymethod _SaveArticle]"}
         file {-text {File} -command "[mymethod _FileArticle]"}
@@ -393,7 +393,7 @@ snit::widget SpoolWindow {
               -selectcommand "[mymethod _EnableGroupButtons]" \
               -command "[mymethod _ReadGroup]" \
               -height [option get $win spoolNumGroups SpoolNumGroups] \
-              -takefocus 1 -spool $self -method File
+              -takefocus 1 -spool $self -method $method
         $groupTreeSW setwidget $groupTree
         install groupLabelFrame using ttk::labelframe $groupPane.groupLabelFrame
         pack $groupLabelFrame -fill x
@@ -405,7 +405,8 @@ snit::widget SpoolWindow {
         foreach b $groupButtonsList {
             eval [list $groupButtonBox add ttk::button $b] [subst $groupButtons($b)]
         }
-        bind $groupLabelFrame <Configure> [myproc _adjustTree %W %h $groupTree]
+        bind $groupLabelFrame <Configure> [myproc _adjustTree %W %h \
+                                           $groupTree $panes +]
         install artlistPane using ttk::frame $panes.artlistPane
         $panes add $artlistPane -weight 1
         install artlistButtonBox using ButtonBox $artlistPane.artlistButtonBox
@@ -460,7 +461,8 @@ snit::widget SpoolWindow {
         }
         #      puts stderr "*** ${type}::constructor: before configurelist: args = $args"
         $articleButtonBox configure -state disabled
-        bind $articleButtonBox <Configure> [myproc _adjustTree %W %h $articleList]
+        bind $articleButtonBox <Configure> [myproc _adjustTree %W %h \
+                                            $articleList $panes -]
         $self configurelist $args
         set _LoadedSpools($options(-spoolname)) $self
         set qfile [from args -fromQWK {}]
@@ -499,11 +501,30 @@ snit::widget SpoolWindow {
             $main setmenustate file:cleanall normal
         }
     }
-    proc _adjustTree {w h tree} {
+    proc _adjustTree {w h tree pane adjsign} {
         if {$h < [winfo reqheight $w]} {
+            ## Attempting to squish a button box -- ouch!
+            # First defense: try to shorten a tree
             set th [$tree cget -height]
             incr th -1
-            if {$th > 0} {$tree configure -height $th}
+            if {$th > 0} {
+                $tree configure -height $th
+            } else {
+                # Tree already shortened as much as we can.
+                # Compute min/max sash position
+                set sp [$pane sashpos 0]
+                if {$adjsign eq "+"} {
+                    incr sp [expr {[winfo reqheight $w] - $h}]
+                } else {
+                    incr sp [expr {$h - [winfo reqheight $w]}]
+                }
+                # Reset sash pos
+                $pane sashpos 0 $sp
+                ## And lock sash at min/max values -- prevent excess movement.
+                # (simulate button release)
+                set ttk::panedwindow::State(pressed) 0
+                ttk::panedwindow::ResetCursor $pane
+            }
         }
     }
     destructor {
