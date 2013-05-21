@@ -452,7 +452,7 @@ snit::widgetadaptor GroupTree {
     typeconstructor {
         global execbindir
         set HeadListProg [auto_execok [file join $execbindir headList]]
-                bind $type <Motion>                [mytypemethod _Motion %W %x %y]
+        bind $type <Motion>                [mytypemethod _Motion %W %x %y]
         bind $type <B1-Leave>              { #nothing }
         bind $type <Leave>                 [mytypemethod _ActivateHeading {} {}]
         bind $type <ButtonPress-1>         [mytypemethod _Press %W %x %y]
@@ -469,6 +469,7 @@ snit::widgetadaptor GroupTree {
         bind $type <KeyPress-space>        [mytypemethod _ToggleFocus %W]
         bind $type <Shift-ButtonPress-1>   [mytypemethod _Select %W %x %y extend]
         bind $type <Control-ButtonPress-1> [mytypemethod _Select %W %x %y toggle]
+
         ttk::copyBindings TtkScrollable $type
         ttk::style layout $type [ttk::style layout Treeview]
     }
@@ -508,8 +509,23 @@ snit::widgetadaptor GroupTree {
         }
         $w _invokeselect $x $y
     }
-    ##### HERE
-    typemethod _Toggle {w where} {}
+    typemethod _Toggle {w item} {
+        if {[$_hulls($w) item $item -open]} {
+            $type _CloseItem $w $item
+        } else {
+            $type _OpenItem $w $item
+        }
+    }
+    typemethod _OpenItem {w item} {
+        $_hulls($w) focus $item
+        event generate $w <<TreeviewOpen>>
+        $_hulls($w) item $item -open true
+    }
+    typemethod _CloseItem {w item} {
+        $_hulls($w) item $item -open false
+        $_hulls($w) focus $item
+        event generate $w <<TreeviewClose>>
+    }
     typemethod _Drag {w x y} {
         ttk::treeview::Drag $_hulls($w) $x $y
     }
@@ -517,7 +533,10 @@ snit::widgetadaptor GroupTree {
         ttk::treeview::Release $_hulls($w) $x $y
     }
     typemethod _ToggleFocus {w} {
-        ttk::treeview::ToggleFocus $_hulls($w)
+        set item [$_hulls($w) focus]
+        if {$item ne ""} {
+            $type _Toggle $w $item
+        }
     }
     delegate option -height to hull
     delegate option -xscrollcommand to hull
@@ -952,7 +971,6 @@ snit::widgetadaptor GroupTree {
             set imsg 0
             set done 0
             while {[gets $pipe line] != -1} {
-                scan "$line" {%6d } artNumber
                 eval [list $articleList insertArticleHeader] $line
                 incr imsg
                 if {$imsg == 10} {
@@ -969,8 +987,7 @@ snit::widgetadaptor GroupTree {
         } else {
             set index 1
             while {[gets $pipe line] != -1} {
-                scan "$line" {%6d } artNumber
-                $articleList insert end $index -text "$line" -data $artNumber
+                eval [list $articleList insertArticleHeader] $line
                 incr index
             }
         }

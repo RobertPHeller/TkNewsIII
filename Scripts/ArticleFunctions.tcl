@@ -129,9 +129,28 @@ snit::widgetadaptor ArticleList {
             item { ttk::treeview::SelectOp $_hulls($w) $where choose }
         }
         if {$what eq "item" && [string match *indicator $detail]} {
-            ttk::treeview::Toggle $_hulls($w) $where
+            $type _Toggle $w $where
+            #ttk::treeview::Toggle $_hulls($w) $where
+            #ttk::treeview::Toggle $w $where
         }
         $w _invokeselect $x $y
+    }
+    typemethod _Toggle {w item} {
+        if {[$_hulls($w) item $item -open]} {
+            $type _CloseItem $w $item
+        } else {
+            $type _OpenItem $w $item
+        }
+    }
+    typemethod _OpenItem {w item} {
+        $_hulls($w) focus $item
+        event generate $w <<TreeviewOpen>>
+        $_hulls($w) item $item -open true
+    }
+    typemethod _CloseItem {w item} {
+        $_hulls($w) item $item -open false
+        $_hulls($w) focus $item
+        event generate $w <<TreeviewClose>>
     }
     typemethod _Drag {w x y} {
         ttk::treeview::Drag $_hulls($w) $x $y
@@ -184,14 +203,31 @@ snit::widgetadaptor ArticleList {
     }
     method insertArticleHeader {artnumber nread subject from date lines size 
         _messageid _inreplyto} {
-        set messageid($_artnumber) $_messageid
+        #puts stderr "*** $self insertArticleHeader: $artnumber, $_messageid, $_inreplyto"
+        if {[$hull exists $_messageid]} {
+            # Duplicate message id (message filed or sent multiple times?)
+            set index 1
+            set newid ${_messageid}.$index
+            while {[$hull exists $newid]} {
+                incr index
+                set newid ${_messageid}.$index
+            }
+            set _messageid $newid
+        }
+        set messageid($artnumber) $_messageid
         set inreplyto($_messageid) $_inreplyto
         set nreads($_messageid) $nread
-        lappend subjects($subject) $messageid
-        lappend froms($from) $messageid
-        lappend dates([clock scan $date]) $messageid
-        $hull insert {} end -id $messageid -text {} \
-              -values [list $articlenumber $subject $from $date $lines $size {}]
+        lappend subjects($subject) $_messageid
+        lappend froms($from) $_messageid
+        if {[regexp {^(.*)[[:space:]]([+-][02][0-9][0-9][0-9])$} $date => gmt offset] > 0} {
+            set timestamp [clock scan $gmt -gmt yes]
+        } else {
+            set timestamp [clock scan $date]
+        }
+        #puts stderr "*** $self insertArticleHeader: date = $date, timestamp = $timestamp"
+        lappend dates($timestamp) $_messageid
+        $hull insert {} end -id $_messageid -text {} \
+              -values [list $artnumber $subject $from $date $lines $size]
     }
     constructor {args} {
         installhull using ttk::treeview -columns $columns \
@@ -238,12 +274,15 @@ snit::widgetadaptor ArticleList {
         $hull heading subject -command [mymethod _sortBySubject]
     }
     method _threadArticleList {} {
-        puts stderr "*** $self _threadArticleList"
+        #puts stderr "*** $self _threadArticleList"
         $hull detach [$hull children {}]
         foreach an [lsort -integer [array names messageid]] {
             set parent $inreplyto($messageid($an))
             if {![$hull exists $parent]} {set parent {}}
-            $hull move messageid($an) $parent end
+            #puts stderr "*** $self _threadArticleList: an = $an, messageid($an) = $messageid($an), inreplyto($messageid($an)) = $inreplyto($messageid($an))"
+            #puts stderr "*** $self _threadArticleList: parent = $parent"
+            $hull move $messageid($an) $parent end
+            if {$parent ne {}} {$hull item $parent -open yes}
         }
         #if {[lsearch -exact [$hull cget -show] tree] < 0} {
         #    set widthneeded [winfo width [winfo parent $win]]
@@ -252,10 +291,11 @@ snit::widgetadaptor ArticleList {
         #}
     }
     method _sortByArtNumber {} {
-        puts stderr "*** $self _sortByArtNumber"
+        #puts stderr "*** $self _sortByArtNumber"
         $hull detach [$hull children {}]
         foreach an [lsort -integer [array names messageid]] {
-            $hull move messageid($an) {} end
+            $hull item $messageid($an) -open no
+            $hull move $messageid($an) {} end
         }
         #if {[lsearch -exact [$hull cget -show] tree] >= 0} {
         #    set widthneeded [winfo width [winfo parent $win]]
@@ -264,10 +304,12 @@ snit::widgetadaptor ArticleList {
         #}
     }
     method _sortByDate {} {
-        puts stderr "*** $self _sortByDate"
+        #puts stderr "*** $self _sortByDate"
         $hull detach [$hull children {}]
         foreach date [lsort -integer [array names dates]] {
+            #puts stderr "*** $self _sortByDate: date = $date, dates($date) = $dates($date)"
             foreach m $dates($date) {
+                $hull item $m -open no
                 $hull move $m {} end
             }
         }
@@ -278,10 +320,11 @@ snit::widgetadaptor ArticleList {
         #}
     }
     method _sortBySender {} {
-        puts stderr "*** $self _sortBySender"
+        #puts stderr "*** $self _sortBySender"
         $hull detach [$hull children {}]
         foreach from [lsort -dictionary [array names froms]] {
             foreach m $froms($from) {
+                $hull item $m -open no
                 $hull move $m {} end
             }
         }
@@ -292,10 +335,11 @@ snit::widgetadaptor ArticleList {
         #}
     }
     method _sortBySubject {} {
-        puts stderr "*** $self _sortBySubject"
+        #puts stderr "*** $self _sortBySubject"
         $hull detach [$hull children {}]
         foreach subj [lsort -dictionary [array names subjects]] {
             foreach m $subjects($subj) {
+                $hull item $m -open no
                 $hull move $m {} end
             }
         }
@@ -318,13 +362,13 @@ snit::widgetadaptor ArticleList {
         return $width
     }
     proc adjustHeadWidth {artlist widthneeded} {
-        puts stderr "*** ArticleList::adjustHeadWidth $artlist $widthneeded"
+        #puts stderr "*** ArticleList::adjustHeadWidth $artlist $widthneeded"
         set reqwidth [computeHeadWidth $artlist]
-        puts stderr "*** -: reqwidth = $reqwidth"
+        #puts stderr "*** -: reqwidth = $reqwidth"
         set diff [expr {$widthneeded - $reqwidth}]
-        puts stderr "*** -: diff = $diff"
+        #puts stderr "*** -: diff = $diff"
         set fract [expr {double($diff) / double($reqwidth)}]
-        puts stderr "*** -: fract = $fract"
+        #puts stderr "*** -: fract = $fract"
         set stretchablecols [list]
         if {[lsearch [$artlist cget -show] tree] >= 0} {
             if {[$artlist column #0 -stretch]} {
@@ -340,16 +384,16 @@ snit::widgetadaptor ArticleList {
         }
         if {[llength $stretchablecols] == 0} {return}
         set stretch [expr {$diff / [llength $stretchablecols]}]
-        puts stderr "*** -: stretch = $stretch"
+        #puts stderr "*** -: stretch = $stretch"
         foreach c $stretchablecols {
             set cwf [expr {[$artlist column $c -width] + $stretch}]
             set percentstretch [expr {double([$artlist column $c -width]) / double($totalstretch)}]
             set stretchp [expr {int($diff * $percentstretch)}]
             #set stretchp [expr {int([$artlist column $c -width] * $fract)}]
-            puts stderr "*** -: ($c) stretchp = $stretchp"
+            #puts stderr "*** -: ($c) stretchp = $stretchp"
             set cwp [expr {[$artlist column $c -width] + $stretchp}]
-            puts stderr "*** -: ($c) cwf = $cwf"
-            puts stderr "*** -: ($c) cwp = $cwp"
+            #puts stderr "*** -: ($c) cwf = $cwf"
+            #puts stderr "*** -: ($c) cwp = $cwp"
             $artlist column $c -width $cwp
         }
     }

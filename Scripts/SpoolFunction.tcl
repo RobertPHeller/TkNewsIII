@@ -73,7 +73,44 @@ proc Common::CountMessages {list} {
     return $count
 }
 
+proc Common::GroupToWindowName {group} {
+  regsub -all -- {\.} $group {_} result
+  return "[string tolower $result]"
+}
 
+proc Common::Lowestnumber {list} {
+  set result 0
+  foreach i $list {
+    if {[file isdirectory "$i"]} {continue}
+    set i [file tail $i]
+    if {[catch [list expr int($i)] j]} {continue}
+    if {[string compare "$i" "$j"] == 0} {
+      if {$result == 0} {
+	set result $i
+      } elseif {$i < $result} {
+	set result $i
+      }
+    }
+  }
+  return $result
+}
+
+proc Common::Highestnumber {list} {
+  set result 0
+  foreach i $list {
+    if {[file isdirectory "$i"]} {continue}
+    set i [file tail $i]
+    if {[catch [list expr int($i)] j]} {continue}
+    if {[string compare "$i" "$j"] == 0} {
+      if {$result == 0} {
+	set result $i
+      } elseif {$i > $result} {
+	set result $i
+      }
+    }
+  }
+  return $result
+}
 
 snit::widget SpoolWindow {
     widgetclass SpoolWindow
@@ -717,17 +754,17 @@ snit::widget SpoolWindow {
         $groupTree loadGroupTree $pattern $unsubscribed $format $saved
     }
     method _ReadAGroup {} {
-        #      puts stderr "*** ${type}::_ReadAGroup: selectedGroup = $selectedGroup, currentGroup = $currentGroup"
+        puts stderr "*** ${type}::_ReadAGroup: selectedGroup = $selectedGroup, currentGroup = $currentGroup"
         if {[string equal "$selectedGroup" {}]} {return}
         if {![string equal "$currentGroup" {}] && 
             ![string equal "$currentGroup" "$selectedGroup"]} {
             $self _CloseGroup 0
         }
-        $main mainframe setmenustate file:post normal
+        $main setmenustate file:post normal
         bind $win <Control-p> [mymethod _PostToGroup]
         set notsaved [catch "set savedDirectories($selectedGroup)"]
-        #      puts stderr "*** ${type}::_ReadAGroup: notsaved = $notsaved"
-        #      puts stderr "*** ${type}::_ReadAGroup: options(-cleanfunction) = $options(-cleanfunction)"
+        puts stderr "*** ${type}::_ReadAGroup: notsaved = $notsaved"
+        puts stderr "*** ${type}::_ReadAGroup: options(-cleanfunction) = $options(-cleanfunction)"
         if {$notsaved && $options(-cleanfunction)} {
             $main setmenustate file:clean normal
             bind $win <Control-l> [mymethod _CleanGroup]
@@ -779,28 +816,28 @@ snit::widget SpoolWindow {
     method _EnableGroupButtons {selection} {
         return
         if {[string length "$selection"] == 0} {return}
-        #      puts stderr "*** ${type}::_EnableGroupButtons: gt = $gt, selection = $selection"
-        set selectedGroup [$gt itemcget $selection -data]
-        #      puts stderr "*** ${type}::_EnableGroupButtons: selectedGroup = $selectedGroup"
-        #      puts stderr "*** ${type}::_EnableGroupButtons: currentGroup = $currentGroup"
+        puts stderr "*** ${type}::_EnableGroupButtons: selection = $selection"
+        set selectedGroup $selection
+        puts stderr "*** ${type}::_EnableGroupButtons: selectedGroup = $selectedGroup"
+        puts stderr "*** ${type}::_EnableGroupButtons: currentGroup = $currentGroup"
         $main setmenustate file:read normal
-        $groupButtonBox.read configure -state normal
-        $groupButtonBox.unread configure -state normal
-        $groupButtonBox.close configure -state normal
-        $groupButtonBox.catchup configure -state normal
-        $groupButtonBox.unsubscribe configure -state normal
+        $groupButtonBox itemconfigure read configure -state normal
+        $groupButtonBox itemconfigure unread configure -state normal
+        $groupButtonBox itemconfigure close configure -state normal
+        $groupButtonBox itemconfigure catchup configure -state normal
+        $groupButtonBox itemconfigure unsubscribe configure -state normal
         bind $win <Control-r> [mymethod _ReadAGroup]
     }
-    method _ReadGroup {gt selection} {
-        #      puts stderr "*** ${type}::_ReadGroup: gt = $gt, selection = $selection"
-        set selectedGroup [$gt itemcget $selection -data]
-        #      puts stderr "*** ${type}::_ReadGroup:  selectedGroup = $selectedGroup"
+    method _ReadGroup {selection} {
+        puts stderr "*** ${type}::_ReadGroup: selection = $selection"
+        set selectedGroup $selection
+        puts stderr "*** ${type}::_ReadGroup:  selectedGroup = $selectedGroup"
         $main setmenustate file:read normal
-        $groupButtonBox.read configure -state normal
-        $groupButtonBox.unread configure -state normal
-        $groupButtonBox.close configure -state normal
-        $groupButtonBox.catchup configure -state normal
-        $groupButtonBox.unsubscribe configure -state normal
+        $groupButtonBox itemconfigure read -state normal
+        $groupButtonBox itemconfigure unread -state normal
+        $groupButtonBox itemconfigure close -state normal
+        $groupButtonBox itemconfigure catchup -state normal
+        $groupButtonBox itemconfigure unsubscribe -state normal
         bind $win <Control-r> [mymethod _ReadAGroup]
         $self _ReadAGroup
     }
@@ -812,10 +849,10 @@ snit::widget SpoolWindow {
             bind $win <Control-p> {}
             $main setmenustate file:clean disabled
             bind $win <Control-l> {}
-            $groupButtonBox.unread configure -state disabled
-            $groupButtonBox.catchup configure -state disabled
-            $groupButtonBox.unsubscribe configure -state disabled
-            $groupButtonBox.close configure -state disabled
+            $groupButtonBox itemconfigure unread configure -state disabled
+            $groupButtonBox itemconfigure catchup configure -state disabled
+            $groupButtonBox itemconfigure unsubscribe configure -state disabled
+            $groupButtonBox itemconfigure close configure -state disabled
         }
         if {[string equal "$currentGroup" {}]} {return}
         # Really close the group.
