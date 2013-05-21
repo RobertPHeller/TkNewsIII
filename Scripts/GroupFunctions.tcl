@@ -43,6 +43,13 @@
 #*  
 #* 
 
+namespace eval Common {#dummy}
+
+proc Common::GroupToPath { group} {
+  regsub -all -- {\.} $group {/} result
+  return $result
+}
+
 snit::type group {
     typevariable HeadListProg
     typeconstructor {
@@ -495,10 +502,14 @@ snit::widgetadaptor GroupTree {
             item { ttk::treeview::SelectOp $_hulls($w) $where choose }
         }
         if {$what eq "item" && [string match *indicator $detail]} {
-            ttk::treeview::Toggle $_hulls($w) $where
+            $type _Toggle $w $where
+            #ttk::treeview::Toggle $_hulls($w) $where
+            #ttk::treeview::Toggle $w $where
         }
         $w _invokeselect $x $y
     }
+    ##### HERE
+    typemethod _Toggle {w where} {}
     typemethod _Drag {w x y} {
         ttk::treeview::Drag $_hulls($w) $x $y
     }
@@ -729,7 +740,7 @@ snit::widgetadaptor GroupTree {
         foreach name $activeGroups {
             if {[regexp -nocase -- "$pattern" $name]} {
                 if {$unsubscribedP || [$self groupcget $name -subscribed]} {
-                    $hull insert {} \
+                    $hull insert {} end \
                           -id $name \
                           -text $name \
                           -values [list [format {%6d-%-6d} \
@@ -769,7 +780,7 @@ snit::widgetadaptor GroupTree {
     }
     method addSavedGroupLineInTree {tree parent group} {
         if {[catch "$options(-spool) savedDirectory $group" mdir] == 0} {
-            set font [option get $tree font Font]
+            #set font [option get $tree font Font]
             set line [$self formatSavedGroupLine $group]
             $tree insert end $parent $group -data $group -text "$line" \
                   -font "$font"
@@ -855,7 +866,7 @@ snit::widgetadaptor GroupTree {
         }
     }
     method _LoadSavedMessagesList {name sg} {
-        set font [option get $tree font Font]
+        #set font [option get $tree font Font]
         #      puts stderr "*** ${type}::_LoadSavedMessagesList: font = $font"
         if {[file exists "$sg"] == 1 && [file isdirectory "$sg"] == 1} {
             #	puts stderr "*** ${type}::_LoadSavedMessagesList: sg = $sg"
@@ -864,7 +875,7 @@ snit::widgetadaptor GroupTree {
             $options(-spool) addSavedDirectory $subfoldname $sg
             set mlist [lsort -dictionary [glob -nocomplain "$sg/*"]]
             set mcount [Common::CountMessages $mlist]
-            $hull insert end $name \
+            $hull insert $name end \
                   -id $subfoldname \
                   -text $subfoldname \
                   -values [list {} $mcount] \
@@ -899,7 +910,7 @@ snit::widgetadaptor GroupTree {
         $tree delete $group
     }
     method subscribeGroup {tree group {savedP 1}} {
-        set font [option get $tree font Font]
+        #set font [option get $tree font Font]
         $groups($group) configure -subscribed yes
         set line [$self formatRealGroupLine $group Brief]
         $tree insert end root $group -data $group -text "$line" -font $font
@@ -971,7 +982,7 @@ snit::widgetadaptor GroupTree {
 
         
 
-snit::type newsList {
+snit::type NewsList {
     option -file -readonly yes -validatemethod _CheckRWFile -default ~/.newsrc
     method _CheckRWFile {option value} {
         if {[file exists "$value"] && 
@@ -982,20 +993,20 @@ snit::type newsList {
             error "Expected a read/writeable file for $option, but got $value"
         }
     }
-    option -grouplist -validatemethod _CheckGroupList
-    method _CheckGroupList {option value} {
+    option -grouptree -validatemethod _CheckGroupTree
+    method _CheckGroupTree {option value} {
         if {[catch [list $value info type] thetype]} {
-            error "Expected a ::groupList for $option, but got $value"
-        } elseif {![string equal "$thetype" ::Groups::groupList]} {
-            error "Expected a ::Groups::groupList for $option, but got a $thetype ($value)"
+            error "Expected a ::GroupTree for $option, but got $value"
+        } elseif {![string equal "$thetype" ::GroupTree]} {
+            error "Expected a ::GroupTree for $option, but got a $thetype ($value)"
         } else {
             return $value
         }
     }
     constructor {args} {
         $self configurelist $args
-        if {![info exists options(-grouplist)]} {
-            error "${type}::constructorThe -grouplist option is required!"
+        if {![info exists options(-grouptree)]} {
+            error "${type}::constructorThe -grouptree option is required!"
         }
         set File [open $options(-file) r]
         while {[gets $File line] != -1} {
@@ -1008,9 +1019,9 @@ snit::type newsList {
             set list [split $line $splitC]
             set name [lindex $list 0]
             set ranges [split [lindex $list 1] {,}]
-            if {![$options(-grouplist) isActiveGroup $name]} {continue}
-            $options(-grouplist) groupconfigure $name -subscribed $subscribed
-            $options(-grouplist) groupsetranges $name $ranges
+            if {![$options(-grouptree) isActiveGroup $name]} {continue}
+            $options(-grouptree) groupconfigure $name -subscribed $subscribed
+            $options(-grouptree) groupsetranges $name $ranges
         }
         close $File
     }
@@ -1019,7 +1030,7 @@ snit::type newsList {
         set backupNewsrc "$options(-file)~"
         set newNewsrc    "$options(-file).new"
         set newsOut [open $newNewsrc w]
-        set groups $options(-grouplist)
+        set groups $options(-grouptree)
         if {[catch "open $options(-file) r" newsIn]} {
             foreach name [$groups activeGroups] {
                 set subflag [$groups groupcget $name -subscribed]
@@ -1081,13 +1092,13 @@ snit::widgetadaptor DirectoryOfAllGroupsDialog {
     component groupTree
     component selectedGroupLE
     
-    option {-grouplist groupList GroupList} -readonly yes \
-          -validatemethod _CheckGroupList
-    method _CheckGroupList {option value} {
+    option {-grouptree groupTree GroupTree} -readonly yes \
+          -validatemethod _CheckGroupTree
+    method _CheckGroupTree {option value} {
         if {[catch [list $value info type] thetype]} {
-            error "Expected a ::Groups::groupList for $option, but got $value ($thetype)"
-        } elseif {![string equal "$thetype" ::Groups::groupList]} {
-            error "Expected a ::Groups::groupList for $option, but got a $thetype ($value)"
+            error "Expected a ::GroupTree for $option, but got $value ($thetype)"
+        } elseif {![string equal "$thetype" ::GroupTree]} {
+            error "Expected a ::GroupTree for $option, but got a $thetype ($value)"
         } else {
             return $value
         }
@@ -1128,10 +1139,10 @@ snit::widgetadaptor DirectoryOfAllGroupsDialog {
         if {[string equal "$options(-subscribecallback)" {}]} {
             Dialog::itemconfigure $win join -state disabled
         }
-        if {[string equal "$options(-grouplist)" {}]} {
-            error "-grouplist is a required option!"
+        if {[string equal "$options(-grouptree)" {}]} {
+            error "-GroupTree is a required option!"
         }
-        $options(-grouplist) loadGroupTree $groupTree $options(-pattern) 1 Full 0
+        $options(-grouptree) loadGroupTree $groupTree $options(-pattern) 1 Full 0
         Dialog::draw $win
     }
     method _Dismis {} {

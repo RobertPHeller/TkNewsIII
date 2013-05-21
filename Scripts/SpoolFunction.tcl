@@ -700,10 +700,10 @@ snit::widget SpoolWindow {
         $groupTree reloadActiveFile
     }
     method _LoadNewsRc {} {
-#        install newslist using NewsList \
-#              "${options(-spoolname)}_news" \
-#              -file $options(-newsrc) \
-#              -grouptree $groupTree
+        install newslist using NewsList \
+              "${options(-spoolname)}_news" \
+              -file $options(-newsrc) \
+              -grouptree $groupTree
     }
     method _WriteNewsRc {} {
         $newslist write
