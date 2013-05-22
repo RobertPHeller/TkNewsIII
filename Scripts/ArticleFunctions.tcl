@@ -107,21 +107,9 @@ snit::widget ArticleListFrame {
     delegate option -height to articleList
     delegate option -takefocus to articleList
     delegate method selection to articleList
-    method _invoke {x y} {
-        #puts stderr "*** $self _invoke $x $y"
-        #puts stderr "*** $self _invoke: items are [$articleList children {}]"
-        #puts stderr "*** $self _invoke: selection is [$articleList selection]"
-        #puts stderr "*** $self _invoke: identify is [$articleList identify $x $y]"
+    method _ReadArticleAt {x y} {
         lassign [$articleList identify $x $y] what where detail
-#        if {$options(-command) ne ""} {
-#            uplevel #0 "$options(-command) $where"
-#        }
-    }
-    method _invokeselect {x y} {
-        lassign [$articleList identify $x $y] what where detail
-#        if {$options(-selectcommand) ne ""} {
-#            uplevel #0 "$options(-selectcommand) $where"
-#        }
+        $spoolwindow _ReadArticle $where
     }
     variable inreplyto -array {}
     variable messageid -array {}
@@ -129,6 +117,12 @@ snit::widget ArticleListFrame {
     variable froms -array {}
     variable dates -array {}
     variable nreads -array {}
+    variable article_number -array {}
+    method articlenumber {_messageid} {
+        if {[info exists article_number($_messageid)]} {
+            return $article_number($_messageid)
+        }
+    }
     method deleteall {} {
         $articleList delete [$articleList children {}]
         array unset inreplyto
@@ -137,6 +131,7 @@ snit::widget ArticleListFrame {
         array unset froms
         array unset dates
         array unset nreads
+        array unset article_number
     }
     method insertArticleHeader {artnumber nread subject from date lines size 
         _messageid _inreplyto} {
@@ -151,6 +146,7 @@ snit::widget ArticleListFrame {
             }
             set _messageid $newid
         }
+        set article_number($_messageid) $artnumber
         set messageid($artnumber) $_messageid
         set inreplyto($_messageid) $_inreplyto
         set nreads($_messageid) $nread
@@ -164,7 +160,8 @@ snit::widget ArticleListFrame {
         #puts stderr "*** $self insertArticleHeader: date = $date, timestamp = $timestamp"
         lappend dates($timestamp) $_messageid
         $articleList insert {} end -id $_messageid -text {} \
-              -values [list $artnumber $subject $from $date $lines $size]
+              -values [list $artnumber $subject $from $date $lines $size] \
+              -tags   article
     }
     option -spool -readonly yes -validatemethod _CheckSpool
     method _CheckSpool {option value} {
@@ -249,6 +246,7 @@ snit::widget ArticleListFrame {
         install articleList using ttk::treeview \
               [$articleListSW getframe].articleList -columns $columns \
               -displaycolumns $columns -show {tree headings}
+        $articleList tag bind article <Double-ButtonPress-1> [mymethod _ReadArticleAt %x %y]
         $articleListSW setwidget $articleList
         # Article buttons
         install articleButtonBox using ButtonBox $win.articleButtonBox

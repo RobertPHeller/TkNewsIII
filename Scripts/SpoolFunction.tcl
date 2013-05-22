@@ -735,10 +735,10 @@ snit::widget SpoolWindow {
     method _ReadSelectedArticle {} {
         set selection [$articleListFrame selection]
         if {[llength $selection] < 1} {return}
-        $self _ReadArticle $articleListFrame [lindex $selection 0]
+        $self _ReadArticle [lindex $selection 0]
     }
-    method _ReadArticle {al selection} {
-        set artNumber [$al itemcget $selection -data]
+    method _ReadArticle {selection} {
+        set artNumber [$articleListFrame articlenumber $selection]
         $self _ReadArticleN $artNumber
     }
     method _ReadArticleN {artNumber {unread 1}} {
