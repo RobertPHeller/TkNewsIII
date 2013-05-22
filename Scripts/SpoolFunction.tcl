@@ -219,32 +219,10 @@ snit::widget SpoolWindow {
         $type getOrMakeSpoolByName $spool -iconic $iconic -reload yes
     }
     component main
+    delegate method setmenustate to main        
     component panes
     component groupPane
-    component   groupTreeSW
-    component     groupTree
-    component   groupLabelFrame
-    component     groupNameLabel
-    component     groupButtonBox
-    typevariable groupButtons -array {
-        unread {-text "Unread\nGroup" -state {disabled} \
-                  -command "[mymethod _UnreadGroup]"}
-        read {-text "Read\nGroup"  -state {disabled}  \
-                                -command "[mymethod _ReadAGroup]"}
-        close {-text "Close\nGroup"  -state {disabled}  \
-                  -command "[mymethod _CloseGroup]"}
-        catchup {-text "Catch Up\nGroup"  -state {disabled}  \
-                  -command "[mymethod _CatchUpGroup]"}
-        unsubscribe {-text "Unsubscribe\nGroup"  \
-                  -state {disabled}  \
-                  -command "[mymethod _UnSubscribeGroup]"}
-        groupdir {-text "Directory of\nall groups"  \
-                  -command "[mymethod _DirectoryOfGroups]"}
-        refresh {-text "Refresh\nGroup List"  \
-                  -command "[mymethod _RefreshGroupList]"}
-    }
-    typevariable groupButtonsList {unread read close catchup unsubscribe 
-        groupdir refresh}
+    component   groupTreeFrame
     component artlistPane
     component    artlistButtonBox
     typevariable artlistButtons -array {
@@ -417,33 +395,18 @@ snit::widget SpoolWindow {
         pack $panes -expand yes -fill both
         install groupPane using ttk::frame $panes.groupPane
         $panes add $groupPane -weight 2
-        install groupTreeSW using ScrolledWindow $groupPane.groupTreeSW \
-              -scrollbar vertical -auto vertical
-        pack $groupTreeSW -expand yes -fill both
         # Group tree
         if {$options(-useserver)} {
             set method NNTP
         } else {
             set method File
         }
-        install groupTree using GroupTree [$groupTreeSW getframe].groupTree \
-              -selectcommand "[mymethod _EnableGroupButtons]" \
-              -command "[mymethod _ReadGroup]" \
+        install groupTreeFrame using GroupTreeFrame $groupPane.groupTreeFrame \
               -height [option get $win spoolNumGroups SpoolNumGroups] \
-              -takefocus 1 -spool $self -method $method
-        $groupTreeSW setwidget $groupTree
-        install groupLabelFrame using ttk::labelframe $groupPane.groupLabelFrame
-        pack $groupLabelFrame -fill x
-        install groupNameLabel using ttk::label $groupLabelFrame.groupNameLabel 
-        $groupLabelFrame configure -labelwidget $groupNameLabel -labelanchor n
-        # Group buttons 
-        install groupButtonBox using ButtonBox $groupLabelFrame.groupButtonBox
-        pack $groupButtonBox -fill x
-        foreach b $groupButtonsList {
-            eval [list $groupButtonBox add ttk::button $b] [subst $groupButtons($b)]
-        }
-        bind $groupLabelFrame <Configure> [myproc _adjustTree %W %h \
-                                           $groupTree $panes +]
+              -takefocus 1 -spool $self -method $method \
+              -panewindow $panes -sashsign +
+        pack $groupTreeFrame -expand yes -fill both
+        
         install artlistPane using ttk::frame $panes.artlistPane
         $panes add $artlistPane -weight 1
         install artlistButtonBox using ButtonBox $artlistPane.artlistButtonBox
@@ -533,7 +496,7 @@ snit::widget SpoolWindow {
             bind $win <Control-f> [mymethod _FetchMyQWKFile]
             $main setmenustate file:fetch normal
         }
-        focus $groupTree
+        focus $groupTreeFrame
         if {$options(-cleanfunction)} {
             $main setmenustate file:cleanall normal
         }
@@ -734,13 +697,13 @@ snit::widget SpoolWindow {
     }
     
     method _ReLoadActiveList {} {
-        $groupTree reloadActiveFile
+        $groupTreeFrame reloadActiveFile
     }
     method _LoadNewsRc {} {
         install newslist using NewsList \
               "${options(-spoolname)}_news" \
               -file $options(-newsrc) \
-              -grouptree $groupTree
+              -grouptree $groupTreeFrame
     }
     method _WriteNewsRc {} {
         $newslist write
@@ -751,7 +714,7 @@ snit::widget SpoolWindow {
         } else {
             set saved 0
         }
-        $groupTree loadGroupTree $pattern $unsubscribed $format $saved
+        $groupTreeFrame loadGroupTree $pattern $unsubscribed $format $saved
     }
     method _ReadAGroup {} {
         puts stderr "*** ${type}::_ReadAGroup: selectedGroup = $selectedGroup, currentGroup = $currentGroup"
@@ -761,6 +724,7 @@ snit::widget SpoolWindow {
             $self _CloseGroup 0
         }
         $main setmenustate file:post normal
+        $groupTreeFrame groupButtonBox itemconfigure close -state normal
         bind $win <Control-p> [mymethod _PostToGroup]
         set notsaved [catch "set savedDirectories($selectedGroup)"]
         puts stderr "*** ${type}::_ReadAGroup: notsaved = $notsaved"
@@ -772,16 +736,15 @@ snit::widget SpoolWindow {
             $main setmenustate file:clean disabled
             bind $win <Control-l> {}
         }
-        $groupButtonBox.close configure -state normal
         if {$notsaved} {
-            $groupButtonBox.unread configure -state normal
-            $groupButtonBox.catchup configure -state normal
-            $groupButtonBox.unsubscribe configure -state normal
+            $groupTreeFrame groupButtonBox itemconfigure unread -state normal
+            $groupTreeFrame groupButtonBox itemconfigure catchup -state normal
+            $groupTreeFrame groupButtonBox itemconfigure unsubscribe -state normal
             $artlistButtonBox.manage configure -state disabled
         } else {
-            $groupButtonBox.unread configure -state disabled
-            $groupButtonBox.catchup configure -state disabled
-            $groupButtonBox.unsubscribe configure -state disabled
+            $groupTreeFrame groupButtonBox itemconfigure unread -state disabled
+            $groupTreeFrame groupButtonBox itemconfigure catchup -state disabled
+            $groupTreeFrame groupButtonBox itemconfigure unsubscribe -state disabled
             $artlistButtonBox.manage configure -state normal
         }
         # ReadGroup1
@@ -809,37 +772,12 @@ snit::widget SpoolWindow {
                   -command "[mymethod _FollowupArticle] no"
         }
         $articleList deleteall
-        $groupTree insertArticleList $articleList $currentGroup
-        $groupNameLabel configure -text "$currentGroup"
+        $groupTreeFrame insertArticleList $articleList $currentGroup
+        $groupTreeFrame configure -grouplabel "$currentGroup"
         focus $articleList
     }
-    method _EnableGroupButtons {selection} {
-        return
-        if {[string length "$selection"] == 0} {return}
-        puts stderr "*** ${type}::_EnableGroupButtons: selection = $selection"
+    method setSelectedGroup {selection} {
         set selectedGroup $selection
-        puts stderr "*** ${type}::_EnableGroupButtons: selectedGroup = $selectedGroup"
-        puts stderr "*** ${type}::_EnableGroupButtons: currentGroup = $currentGroup"
-        $main setmenustate file:read normal
-        $groupButtonBox itemconfigure read configure -state normal
-        $groupButtonBox itemconfigure unread configure -state normal
-        $groupButtonBox itemconfigure close configure -state normal
-        $groupButtonBox itemconfigure catchup configure -state normal
-        $groupButtonBox itemconfigure unsubscribe configure -state normal
-        bind $win <Control-r> [mymethod _ReadAGroup]
-    }
-    method _ReadGroup {selection} {
-        puts stderr "*** ${type}::_ReadGroup: selection = $selection"
-        set selectedGroup $selection
-        puts stderr "*** ${type}::_ReadGroup:  selectedGroup = $selectedGroup"
-        $main setmenustate file:read normal
-        $groupButtonBox itemconfigure read -state normal
-        $groupButtonBox itemconfigure unread -state normal
-        $groupButtonBox itemconfigure close -state normal
-        $groupButtonBox itemconfigure catchup -state normal
-        $groupButtonBox itemconfigure unsubscribe -state normal
-        bind $win <Control-r> [mymethod _ReadAGroup]
-        $self _ReadAGroup
     }
     method _CloseGroup {{disableButtons 1}} {
         if {$disableButtons} {
@@ -849,10 +787,10 @@ snit::widget SpoolWindow {
             bind $win <Control-p> {}
             $main setmenustate file:clean disabled
             bind $win <Control-l> {}
-            $groupButtonBox itemconfigure unread configure -state disabled
-            $groupButtonBox itemconfigure catchup configure -state disabled
-            $groupButtonBox itemconfigure unsubscribe configure -state disabled
-            $groupButtonBox itemconfigure close configure -state disabled
+            $groupTreeFrame groupButtonBox itemconfigure unread  -state disabled
+            $groupTreeFrame groupButtonBox itemconfigure catchup  -state disabled
+            $groupTreeFrame groupButtonBox itemconfigure unsubscribe  -state disabled
+            $groupTreeFrame groupButtonBox itemconfigure close  -state disabled
         }
         if {[string equal "$currentGroup" {}]} {return}
         # Really close the group.
@@ -878,7 +816,7 @@ snit::widget SpoolWindow {
             set currentArticle $artNumber
             set useFile yes
         } elseif {$options(-useserver)} {
-            if {![$groupTree articleExists $currentGroup $artNumber]} {return}
+            if {![$groupTreeFrame articleExists $currentGroup $artNumber]} {return}
             set currentArticle $artNumber
             set useFile no
         } else {
@@ -888,8 +826,8 @@ snit::widget SpoolWindow {
             set currentArticle $artNumber
             set useFile yes
         }
-        set nextArticle [$groupTree findNextArticle $currentGroup $currentArticle $unread]
-        set previousArticle [$groupTree findPreviousArticle $currentGroup $currentArticle $unread]
+        set nextArticle [$groupTreeFrame findNextArticle $currentGroup $currentArticle $unread]
+        set previousArticle [$groupTreeFrame findPreviousArticle $currentGroup $currentArticle $unread]
         if {[string equal $articleViewWindow {}]} {
             install articleViewWindow \
                   using Articles::Viewer $win.articleViewWindow \
@@ -916,8 +854,8 @@ snit::widget SpoolWindow {
         } else {
             $articleViewWindow readArticleFromFile $filename
         }
-        $groupTree findRange $currentGroup $currentArticle yes
-        $groupTree updateGroupLineInTree $currentGroup
+        $groupTreeFrame findRange $currentGroup $currentArticle yes
+        $groupTreeFrame updateGroupLineInTree $currentGroup
         $articleButtons configure -state normal
         $articleViewWindow draw      
         $newslist write
@@ -926,9 +864,9 @@ snit::widget SpoolWindow {
         $articleButtons configure -state disabled
     }
     method _UnreadGroup {} {
-        $groupTree groupsetranges $currentGroup {}
+        $groupTreeFrame groupsetranges $currentGroup {}
         $articleList deleteall
-        $groupTree insertArticleList $articleList $currentGroup
+        $groupTreeFrame insertArticleList $articleList $currentGroup
         $newslist write
     }
     method _SaveArticle {} {
@@ -938,26 +876,22 @@ snit::widget SpoolWindow {
         $articleViewWindow buttons invoke file
     }
     method addSavedGroupLine {group newsaved} {
-        $groupTree addSavedGroupLineInTree $group $newsaved
+        $groupTreeFrame addSavedGroupLineInTree $group $newsaved
     }
     method updateGroupTreeLine {name} {
-        $groupTree updateGroupLineInTree $name
+        $groupTreeFrame updateGroupLineInTree $name
     }
     method _PrintArticle {} {
         $articleViewWindow buttons invoke print
     }
-    method _RefreshGroupList {} {
-        $self _ReLoadActiveList
-        $self _LoadGroupTree {.} 0 Brief
-    }
     method _RefereshArticles {} {
         $articleList deleteall
-        $groupTree insertArticleList $articleList $currentGroup
+        $groupTreeFrame insertArticleList $articleList $currentGroup
     }
     # Misc additional group functions
     method _CatchUpGroup {} {
         if {[catch "set savedDirectories($currentGroup)" mdir] == 0} {return}
-        $groupTree catchUpGroup $articleList $currentGroup
+        $groupTreeFrame catchUpGroup $articleList $currentGroup
         $newslist write
     }
     method _CleanGroup {} {
@@ -969,7 +903,7 @@ snit::widget SpoolWindow {
                     -message "Really clean group $currentGroup?" \
                     -parent $win]
         if {[string equal "$answer" no]} {return}
-        $groupTree cleanGroup $articleList $currentGroup
+        $groupTreeFrame cleanGroup $articleList $currentGroup
         $self _CloseGroup
     }
     method _CleanAllGroups {} {
@@ -981,23 +915,17 @@ snit::widget SpoolWindow {
                     -parent $win]
         if {[string equal "$answer" no]} {return}
         $self _CloseGroup
-        foreach group [$groupTree activeGroups] {
+        foreach group [$groupTreeFrame activeGroups] {
             if {[catch "set savedDirectories($group)" mdir] == 0} {continue}
             if {[string equal -nocase "$group" reply]} {continue}
-            $groupTree cleanGroup {} $group
+            $groupTreeFrame cleanGroup {} $group
         }
     }
     method _UnSubscribeGroup {} {
         if {[catch "set savedDirectories($currentGroup)" mdir]} {
-            $groupTree unSubscribeGroup $currentGroup
+            $groupTreeFrame unSubscribeGroup $currentGroup
         }
         $self _CloseGroup
-    }
-    method _DirectoryOfGroups {} {
-        Groups::DirectoryOfAllGroupsDialog draw \
-              -parent $win \
-              -grouptree $groupTree \
-              -subscribecallback [mymethod _SubscribeToGroup]
     }
     method _SubscribeToGroup {newgroup} {
         if {[string length "$options(-savednews)"] > 0} {
@@ -1005,12 +933,12 @@ snit::widget SpoolWindow {
         } else {
             set saved 0
         }
-        $groupTree subscribeGroup $newgroup $saved
+        $groupTreeFrame subscribeGroup $newgroup $saved
         $newslist write
     }
     method _ListSearchArticles {} {
         Articles::SearchArticlesDialog draw \
-              -parent $win -grouptree $groupTree \
+              -parent $win -grouptree $groupTreeFrame \
               -group $currentGroup -readarticle [mymethod _ReadArticleN]
     }
     # Saved articles management menu
@@ -1063,15 +991,15 @@ snit::widget SpoolWindow {
                 file delete $mfile
             }
         }
-        $groupTree updateGroupLineInTree $currentGroup
+        $groupTreeFrame updateGroupLineInTree $currentGroup
         $articleList deleteall
-        $groupTree insertArticleList $articleList $currentGroup
+        $groupTreeFrame insertArticleList $articleList $currentGroup
     }
     method _DeleteSelectedArticles {} {
         if {[catch "set savedDirectories($currentGroup)" mdir]} {return}
         # -- Delete selected articles. (Needs a Dialog w/ListBox)
         set artList [Articles::SelectArticlesDialog draw \
-                     -parent $win -grouptree $groupTree \
+                     -parent $win -grouptree $groupTreeFrame \
                      -group $currentGroup -selectmode multiple \
                      -title "Articles to delete" -geometry 750x400]
         foreach a $artList {
@@ -1080,9 +1008,9 @@ snit::widget SpoolWindow {
                 file delete $mfile
             }
         }
-        $groupTree updateGroupLineInTree $currentGroup
+        $groupTreeFrame updateGroupLineInTree $currentGroup
         $articleList deleteall
-        $groupTree insertArticleList $articleList $currentGroup
+        $groupTreeFrame insertArticleList $articleList $currentGroup
     }
     method _RenumberArticles {} {
         if {[catch "set savedDirectories($currentGroup)" mdir]} {return}
@@ -1105,14 +1033,14 @@ snit::widget SpoolWindow {
                 if {[catch [list file rename $orgfile $newfile]] == 0} {incr n}
             }
         }      
-        $groupTree updateGroupLineInTree $currentGroup
+        $groupTreeFrame updateGroupLineInTree $currentGroup
         $articleList deleteall
-        $groupTree insertArticleList $articleList $currentGroup
+        $groupTreeFrame insertArticleList $articleList $currentGroup
     }
     method _RecodeArticle {} {
         if {[catch "set savedDirectories($currentGroup)" mdir]} {return}
         set artList [Articles::SelectArticlesDialog draw \
-                         -parent $win -grouptree $groupTree \
+                         -parent $win -grouptree $groupTreeFrame \
                          -group $currentGroup -selectmode single]
         if {[llength $artList] == 0} {return}
         
@@ -1156,7 +1084,7 @@ snit::widget SpoolWindow {
         set emailAddress {}	
         catch {set emailAddress "$components(user)@$components(host)"}
         set haveEmailGroup no
-        foreach postGroup [$groupTree activeGroups] {
+        foreach postGroup [$groupTreeFrame activeGroups] {
             set groupWindow $win.[Common::GroupToWindowName $postGroup]
             set groupClass [Common::Capitialize [lindex [split $postGroup {.}] 0]]
             catch {destroy $groupWindow}
