@@ -579,7 +579,8 @@ snit::widget GroupTreeFrame {
         $self configurelist $args
         bind $groupLabelFrame <Configure> [myproc _adjustTree %W %h \
                                            $groupTree \
-                                           $options(-panewindow) $options(-sashsign)]
+                                           $options(-panewindow) \
+                                           $options(-sashsign)]
         #parray columnheadings
         set cols [concat #0 $columns]
         foreach c $cols {

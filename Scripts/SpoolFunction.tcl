@@ -1,4 +1,4 @@
-#* 
+#*
 #* ------------------------------------------------------------------
 #* SpoolFunction.tcl - Spool functions
 #* Created by Robert Heller on Sat May 27 15:58:06 2006
@@ -224,28 +224,7 @@ snit::widget SpoolWindow {
     component groupPane
     component   groupTreeFrame
     component artlistPane
-    component    artlistButtonBox
-    typevariable artlistButtons -array {
-        post {ttk::button -text {Post}  -command "[mymethod _PostToGroup] no"}
-        list {ttk::button -text "List/Search\nArticles" -command "[mymethod _ListSearchArticles]"}
-        read {ttk::button -text "Read\nArticle" -command "[mymethod _ReadSelectedArticle]"}
-        refresh {ttk::button -text "Refresh Article\nList" -command "[mymethod _RefereshArticles]"}
-        manage {ttk::menubutton -text "Manage\nSaved\nArticles" -state disabled}
-    }
-    typevariable artlistButtonsList {post list read refresh manage}
-    component      manageSavedArticlesMenu
-    component    articleListSW
-    component      articleList
-    component    articleButtonBox
-    typevariable articleButtons -array {
-        followup {-text {Followup} -command "[mymethod _FollowupArticle] no"}
-        mailreply {-text "Mail Reply\nTo Sender" -command "[mymethod _MailReply]"}
-        forwardto {-text {Forward To} -command "[mymethod _ForwardTo]"}
-        save {-text {Save} -command "[mymethod _SaveArticle]"}
-        file {-text {File} -command "[mymethod _FileArticle]"}
-        print {-text {Print} -command "[mymethod _PrintArticle]"}
-    }
-    typevariable articleButtonsList {followup mailreply forwardto save file print}
+    component   articleListFrame
     
     option -spoolname -readonly yes
     
@@ -409,60 +388,14 @@ snit::widget SpoolWindow {
         
         install artlistPane using ttk::frame $panes.artlistPane
         $panes add $artlistPane -weight 1
-        install artlistButtonBox using ButtonBox $artlistPane.artlistButtonBox
-        pack $artlistButtonBox -fill x
-        foreach ab $artlistButtonsList {
-            set opts $artlistButtons($ab)
-            set command [lindex $opts 0]
-            set opts [subst [lrange $opts 1 end]]
-            eval [list $artlistButtonBox add $command $ab] $opts
-            if {$command eq "ttk::menubutton"} {
-                install manageSavedArticlesMenu using menu $artlistButtonBox.$ab.manageSavedArticlesMenu
-                $artlistButtonBox itemconfigure $ab -menu $manageSavedArticlesMenu
-            }
-        }
-        $artlistButtonBox configure -state disabled
-        $manageSavedArticlesMenu add command \
-              -label {Print All Articles} \
-              -command [mymethod _PrintAllSavedArticles]
-        $manageSavedArticlesMenu add command \
-              -label {Delete All Articles} \
-              -command [mymethod _DeleteAllSavedArticles]
-        $manageSavedArticlesMenu add command \
-              -label {Delete Selected Articles} \
-              -command [mymethod _DeleteSelectedArticles]
-        $manageSavedArticlesMenu add command \
-              -label {Renumber Articles} \
-              -command [mymethod _RenumberArticles]
-        $manageSavedArticlesMenu add command \
-              -label {Recode Article} \
-              -command [mymethod _RecodeArticle]
-        $manageSavedArticlesMenu add command \
-              -label {Flatfile Articles} \
-              -command [mymethod _FlatfileArticles]
-        #bind $manageSavedArticlesMenu <Escape> {Common::UnPostMenu %W;break}
         # Article list
-        install articleListSW using ScrolledWindow $artlistPane.articleListSW \
-              -scrollbar vertical -auto vertical
-        pack $articleListSW -fill both -expand yes
-        #      puts stderr "*** $type create $self: option get $win spoolNumArticles SpoolNumArticles = [option get $win spoolNumArticles SpoolNumArticles]"
-        install articleList using ArticleList [$articleListSW getframe].articleList \
-              -takefocus 1 \
+        install articleListFrame using ArticleListFrame \
+              $artlistPane.articleListFrame \
+              -takefocus 1 -spool $self \
               -height [option get $win spoolNumArticles SpoolNumArticles] \
-              -command [mymethod _ReadArticle]
-        $articleListSW setwidget $articleList
-        #      puts stderr "*** ${type}::constructor: winfo class $articleList = [winfo class $articleList]"
-        # Article buttons
-        install articleButtonBox using ButtonBox $artlistPane.articleButtonBox
-        pack $articleButtonBox -fill x
-        foreach ab $articleButtonsList {
-            set opts [subst $articleButtons($ab)]
-            eval [list $articleButtonBox add ttk::button $ab] $opts
-        }
-        #      puts stderr "*** ${type}::constructor: before configurelist: args = $args"
-        $articleButtonBox configure -state disabled
-        bind $articleButtonBox <Configure> [myproc _adjustTree %W %h \
-                                            $articleList $panes -]
+              -panewindow $panes -sashsign {-}
+        pack $articleListFrame -fill both -expand yes
+        #      puts stderr "*** ${type}::constructor: winfo class $articleListFrame = [winfo class $articleListFrame]"
         $self configurelist $args
         set _LoadedSpools($options(-spoolname)) $self
         set qfile [from args -fromQWK {}]
@@ -740,12 +673,12 @@ snit::widget SpoolWindow {
             $groupTreeFrame groupButtonBox itemconfigure unread -state normal
             $groupTreeFrame groupButtonBox itemconfigure catchup -state normal
             $groupTreeFrame groupButtonBox itemconfigure unsubscribe -state normal
-            $artlistButtonBox.manage configure -state disabled
+            $articleListFrame artlistButtonBox itemconfigure manage -state disabled
         } else {
             $groupTreeFrame groupButtonBox itemconfigure unread -state disabled
             $groupTreeFrame groupButtonBox itemconfigure catchup -state disabled
             $groupTreeFrame groupButtonBox itemconfigure unsubscribe -state disabled
-            $artlistButtonBox.manage configure -state normal
+            $articleListFrame artlistButtonBox itemconfigure manage -state normal
         }
         # ReadGroup1
         set currentGroup "$selectedGroup"
@@ -758,23 +691,23 @@ snit::widget SpoolWindow {
         ### Here
         if {$IsEmail} {
             $main menu entryconfigure file 1 -command "[mymethod _PostToGroup] yes"
-            $artlistButtonBox.post configure \
+            $articleListFrame artlistButtonBox itemconfigure post \
                   -text {Compose} -command "[mymethod _PostToGroup] yes"
-            $articleButtonBox.followup configure \
+            $articleListFrame articleButtonBox itemconfigure followup \
                   -text {Reply To All} \
                   -command "[mymethod _FollowupArticle] yes"
         } else {
             $main menu entryconfigure file 1 -command "[mymethod _PostToGroup] no"
-            $artlistButtonBox.post configure \
+            $articleListFrame artlistButtonBox itemconfigure post \
                   -text {Post} -command "[mymethod _PostToGroup] no"
-            $articleButtonBox.followup configure \
+            $articleListFrame articleButtonBox itemconfigure followup \
                   -text {Followup} \
                   -command "[mymethod _FollowupArticle] no"
         }
-        $articleList deleteall
-        $groupTreeFrame insertArticleList $articleList $currentGroup
+        $articleListFrame deleteall
+        $groupTreeFrame insertArticleList $articleListFrame $currentGroup
         $groupTreeFrame configure -grouplabel "$currentGroup"
-        focus $articleList
+        focus $articleListFrame
     }
     method setSelectedGroup {selection} {
         set selectedGroup $selection
@@ -800,9 +733,9 @@ snit::widget SpoolWindow {
     }
     #### Art List API...
     method _ReadSelectedArticle {} {
-        set selection [$articleList selection]
+        set selection [$articleListFrame selection]
         if {[llength $selection] < 1} {return}
-        $self _ReadArticle $articleList [lindex $selection 0]
+        $self _ReadArticle $articleListFrame [lindex $selection 0]
     }
     method _ReadArticle {al selection} {
         set artNumber [$al itemcget $selection -data]
@@ -865,8 +798,8 @@ snit::widget SpoolWindow {
     }
     method _UnreadGroup {} {
         $groupTreeFrame groupsetranges $currentGroup {}
-        $articleList deleteall
-        $groupTreeFrame insertArticleList $articleList $currentGroup
+        $articleListFrame deleteall
+        $groupTreeFrame insertArticleList $articleListFrame $currentGroup
         $newslist write
     }
     method _SaveArticle {} {
@@ -885,13 +818,13 @@ snit::widget SpoolWindow {
         $articleViewWindow buttons invoke print
     }
     method _RefereshArticles {} {
-        $articleList deleteall
-        $groupTreeFrame insertArticleList $articleList $currentGroup
+        $articleListFrame deleteall
+        $groupTreeFrame insertArticleList $articleListFrame $currentGroup
     }
     # Misc additional group functions
     method _CatchUpGroup {} {
         if {[catch "set savedDirectories($currentGroup)" mdir] == 0} {return}
-        $groupTreeFrame catchUpGroup $articleList $currentGroup
+        $groupTreeFrame catchUpGroup $articleListFrame $currentGroup
         $newslist write
     }
     method _CleanGroup {} {
@@ -903,7 +836,7 @@ snit::widget SpoolWindow {
                     -message "Really clean group $currentGroup?" \
                     -parent $win]
         if {[string equal "$answer" no]} {return}
-        $groupTreeFrame cleanGroup $articleList $currentGroup
+        $groupTreeFrame cleanGroup $articleListFrame $currentGroup
         $self _CloseGroup
     }
     method _CleanAllGroups {} {
@@ -992,8 +925,8 @@ snit::widget SpoolWindow {
             }
         }
         $groupTreeFrame updateGroupLineInTree $currentGroup
-        $articleList deleteall
-        $groupTreeFrame insertArticleList $articleList $currentGroup
+        $articleListFrame deleteall
+        $groupTreeFrame insertArticleList $articleListFrame $currentGroup
     }
     method _DeleteSelectedArticles {} {
         if {[catch "set savedDirectories($currentGroup)" mdir]} {return}
@@ -1009,8 +942,8 @@ snit::widget SpoolWindow {
             }
         }
         $groupTreeFrame updateGroupLineInTree $currentGroup
-        $articleList deleteall
-        $groupTreeFrame insertArticleList $articleList $currentGroup
+        $articleListFrame deleteall
+        $groupTreeFrame insertArticleList $articleListFrame $currentGroup
     }
     method _RenumberArticles {} {
         if {[catch "set savedDirectories($currentGroup)" mdir]} {return}
@@ -1034,8 +967,8 @@ snit::widget SpoolWindow {
             }
         }      
         $groupTreeFrame updateGroupLineInTree $currentGroup
-        $articleList deleteall
-        $groupTreeFrame insertArticleList $articleList $currentGroup
+        $articleListFrame deleteall
+        $groupTreeFrame insertArticleList $articleListFrame $currentGroup
     }
     method _RecodeArticle {} {
         if {[catch "set savedDirectories($currentGroup)" mdir]} {return}
