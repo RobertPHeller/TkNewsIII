@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon May 20 10:03:07 2013
-#  Last Modified : <130520.1120>
+#  Last Modified : <130523.1416>
 #
 #  Description	
 #
@@ -74,6 +74,9 @@ snit::widget ButtonBox {
     }
     method itemcget {name option} {
         return [eval [list $win.$name cget $option]]
+    }
+    method invoke {name} {
+        return [$win.$name invoke]
     }
 }
 

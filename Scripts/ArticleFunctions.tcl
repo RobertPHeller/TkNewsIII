@@ -87,7 +87,7 @@ snit::widget ArticleListFrame {
         size,stretch no
         size,anchor e
         size,text Size
-        size,width 40
+        size,width 50
     }
     typevariable columns {articlenumber subject from date lines size}
     typeconstructor {
@@ -163,7 +163,7 @@ snit::widget ArticleListFrame {
         set nreads($_messageid) $nread
         lappend subjects($subject) $_messageid
         lappend froms($from) $_messageid
-        if {[regexp {^(.*)[[:space:]]([+-][02][0-9][0-9][0-9])$} $date => gmt offset] > 0} {
+        if {[regexp {^(.*)[[:space:]]([+-][02][0-9][0-9][0-9])} $date => gmt offset] > 0} {
             set timestamp [clock scan $gmt -gmt yes]
         } else {
             set timestamp [clock scan $date]
@@ -726,10 +726,11 @@ snit::widget ArticleViewer {
     
     component articleHeaderFrame
     component   headerButtons
+    component articlePanes
     component   articleHeaderSW
     component     articleHeader
-    component articleBodySW
-    component   articleBody
+    component   articleBodySW
+    component     articleBody
     component bodyButtons
     delegate method {buttons *} to bodyButtons
     
@@ -763,10 +764,14 @@ snit::widget ArticleViewer {
               -command [mymethod _GetHeaderFields yes] \
               -onvalue yes -offvalue no \
               -variable [myvar fullHeadersP]
+        install articlePanes using ttk::panedwindow $win.articlePanes \
+              -orient vertical
+        pack $articlePanes -fill both -expand yes
         install articleHeaderSW using ScrolledWindow \
-              $articleHeaderFrame.articleHeaderSW \
+              $articlePanes.articleHeaderSW \
               -scrollbar both -auto both
-        grid $articleHeaderSW  -column 0 -columnspan 2 -row 1 -sticky news
+        #pack $articleHeaderSW  -fill both;# -expand yes
+        $articlePanes add $articleHeaderSW -weight 1
         install articleHeader using text \
               [$articleHeaderSW getframe].articleHeader \
               -height 5 -tabs {1in right 1in left} \
@@ -778,9 +783,10 @@ snit::widget ArticleViewer {
                               ROText]
         $articleHeader tag configure key -foreground #505050
         $articleHeader tag configure val -foreground black
-        install articleBodySW using ScrolledWindow $win.articleBodySW \
+        install articleBodySW using ScrolledWindow $articlePanes.articleBodySW \
               -scrollbar both -auto both
-        pack $articleBodySW  -fill both -expand yes
+        $articlePanes add $articleBodySW -weight 10
+        #pack $articleBodySW  -fill both -expand yes
         install articleBody using text \
               [$articleBodySW getframe].articleBody -height 1
         $articleBodySW setwidget $articleBody
@@ -935,6 +941,8 @@ snit::widget ArticleViewer {
     
       regexp {^([0-9]*).[0-9]*$} [$articleBody index end-1c] -> lastline
       set fract [expr double($EOH) / double($lastline)]
+      update idletasks
+      #$articleBody see $EOH.0
       $articleBody yview moveto $fract
       #AddressBook::WriteAddressBookFileIfDirty
     }

@@ -485,21 +485,17 @@ snit::widget GroupTreeFrame {
     method _EnableGroupButtons {x y} {
         lassign [$groupTree identify $x $y] what selection detail
         if {[string length "$selection"] == 0} {return}
-        puts stderr "*** ${type}::_EnableGroupButtons: selection = $selection"
+        #puts stderr "*** ${type}::_EnableGroupButtons: selection = $selection"
         $options(-spool) setSelectedGroup $selection
         #puts stderr "*** ${type}::_EnableGroupButtons: selectedGroup = $selectedGroup"
         #puts stderr "*** ${type}::_EnableGroupButtons: currentGroup = $currentGroup"
         $options(-spool) setmenustate file:read normal
         $groupButtonBox itemconfigure read  -state normal
-        #$groupButtonBox itemconfigure unread  -state normal
-        #$groupButtonBox itemconfigure close  -state normal
-        #$groupButtonBox itemconfigure catchup  -state normal
-        #$groupButtonBox itemconfigure unsubscribe  -state normal
         bind $options(-spool) <Control-r> "$options(-spool) _ReadAGroup"
     }
     method _ReadGroup {x y} {
         lassign [$groupTree identify $x $y] what selection detail
-        puts stderr "*** ${type}::_ReadGroup: selection = $selection"
+        #puts stderr "*** ${type}::_ReadGroup: selection = $selection"
         $options(-spool) setSelectedGroup $selection
         #puts stderr "*** ${type}::_ReadGroup:  selectedGroup = $selectedGroup"
         $options(-spool) setmenustate file:read normal

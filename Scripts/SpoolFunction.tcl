@@ -650,7 +650,7 @@ snit::widget SpoolWindow {
         $groupTreeFrame loadGroupTree $pattern $unsubscribed $format $saved
     }
     method _ReadAGroup {} {
-        puts stderr "*** ${type}::_ReadAGroup: selectedGroup = $selectedGroup, currentGroup = $currentGroup"
+        #puts stderr "*** ${type}::_ReadAGroup: selectedGroup = $selectedGroup, currentGroup = $currentGroup"
         if {[string equal "$selectedGroup" {}]} {return}
         if {![string equal "$currentGroup" {}] && 
             ![string equal "$currentGroup" "$selectedGroup"]} {
@@ -660,8 +660,8 @@ snit::widget SpoolWindow {
         $groupTreeFrame groupButtonBox itemconfigure close -state normal
         bind $win <Control-p> [mymethod _PostToGroup]
         set notsaved [catch "set savedDirectories($selectedGroup)"]
-        puts stderr "*** ${type}::_ReadAGroup: notsaved = $notsaved"
-        puts stderr "*** ${type}::_ReadAGroup: options(-cleanfunction) = $options(-cleanfunction)"
+        #puts stderr "*** ${type}::_ReadAGroup: notsaved = $notsaved"
+        #puts stderr "*** ${type}::_ReadAGroup: options(-cleanfunction) = $options(-cleanfunction)"
         if {$notsaved && $options(-cleanfunction)} {
             $main setmenustate file:clean normal
             bind $win <Control-l> [mymethod _CleanGroup]
@@ -673,11 +673,19 @@ snit::widget SpoolWindow {
             $groupTreeFrame groupButtonBox itemconfigure unread -state normal
             $groupTreeFrame groupButtonBox itemconfigure catchup -state normal
             $groupTreeFrame groupButtonBox itemconfigure unsubscribe -state normal
+            $articleListFrame artlistButtonBox itemconfigure post -state normal
+            $articleListFrame artlistButtonBox itemconfigure list -state normal
+            $articleListFrame artlistButtonBox itemconfigure read -state normal
+            $articleListFrame artlistButtonBox itemconfigure refresh -state normal
             $articleListFrame artlistButtonBox itemconfigure manage -state disabled
         } else {
             $groupTreeFrame groupButtonBox itemconfigure unread -state disabled
             $groupTreeFrame groupButtonBox itemconfigure catchup -state disabled
             $groupTreeFrame groupButtonBox itemconfigure unsubscribe -state disabled
+            $articleListFrame artlistButtonBox itemconfigure post -state normal
+            $articleListFrame artlistButtonBox itemconfigure list -state normal
+            $articleListFrame artlistButtonBox itemconfigure read -state normal
+            $articleListFrame artlistButtonBox itemconfigure refresh -state normal
             $articleListFrame artlistButtonBox itemconfigure manage -state normal
         }
         # ReadGroup1
@@ -724,9 +732,11 @@ snit::widget SpoolWindow {
             $groupTreeFrame groupButtonBox itemconfigure catchup  -state disabled
             $groupTreeFrame groupButtonBox itemconfigure unsubscribe  -state disabled
             $groupTreeFrame groupButtonBox itemconfigure close  -state disabled
+            $articleListFrame configure -artlistbuttonstate disabled
         }
         if {[string equal "$currentGroup" {}]} {return}
         # Really close the group.
+        $articleListFrame deleteall
         catch {$articleViewWindow close}
         catch {$self _WriteNewsRc}
         set currentGroup {}
@@ -766,6 +776,8 @@ snit::widget SpoolWindow {
                   using ArticleViewer $win.articleViewWindow \
                   -parent $win -spool $self
         }
+        $articleViewWindow draw      
+        update idletasks
         if {$nextArticle < 0} {
             $articleViewWindow buttons itemconfigure next -state disabled
         } else {
@@ -790,11 +802,10 @@ snit::widget SpoolWindow {
         $groupTreeFrame findRange $currentGroup $currentArticle yes
         $groupTreeFrame updateGroupLineInTree $currentGroup
         $articleListFrame articleButtonBox configure -state normal
-        $articleViewWindow draw      
         $newslist write
     }
     method closeArticle {} {
-        $articleButtons configure -state disabled
+        $articleListFrame articleButtonBox configure -state disabled
     }
     method _UnreadGroup {} {
         $groupTreeFrame groupsetranges $currentGroup {}
