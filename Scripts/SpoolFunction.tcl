@@ -763,7 +763,7 @@ snit::widget SpoolWindow {
         set previousArticle [$groupTreeFrame findPreviousArticle $currentGroup $currentArticle $unread]
         if {[string equal $articleViewWindow {}]} {
             install articleViewWindow \
-                  using Articles::Viewer $win.articleViewWindow \
+                  using ArticleViewer $win.articleViewWindow \
                   -parent $win -spool $self
         }
         if {$nextArticle < 0} {
@@ -789,7 +789,7 @@ snit::widget SpoolWindow {
         }
         $groupTreeFrame findRange $currentGroup $currentArticle yes
         $groupTreeFrame updateGroupLineInTree $currentGroup
-        $articleButtons configure -state normal
+        $articleListFrame articleButtonBox configure -state normal
         $articleViewWindow draw      
         $newslist write
     }

@@ -43,7 +43,18 @@
 #*  
 #* 
 
+package require Tk;#                 GUI Toolkit
+package require tile;#               Themed Widgets
+package require snit;#               OO Framework
+package require Img;#                Extended image support
+package require MainFrame;#          Basic Main Frame
+package require ScrollWindow;#       Scrolled Window
+package require DynamicHelp;#        Dynamic Help Code
+package require IconImage;#          Icon image Loader / cache
+package require ButtonBox;#          Button Box
+
 namespace eval AddressBook {#dummy}
+
 
 
 snit::widget ArticleListFrame {
@@ -428,7 +439,516 @@ snit::widget ArticleListFrame {
         
 }
 
-        
+#** Readonly bindings for text widgets
+catch {
+# Standard Motif bindings:
+
+bind ROText <1> {
+    tk::TextButton1 %W %x %y
+    %W tag remove sel 0.0 end
+}
+bind ROText <B1-Motion> {
+    set tk::Priv(x) %x
+    set tk::Priv(y) %y
+    tk::TextSelectTo %W %x %y
+}
+bind ROText <Double-1> {
+    set tk::Priv(selectMode) word
+    tk::TextSelectTo %W %x %y
+    catch {%W mark set insert sel.last}
+    catch {%W mark set anchor sel.first}
+}
+bind ROText <Triple-1> {
+    set tk::Priv(selectMode) line
+    tk::TextSelectTo %W %x %y
+    catch {%W mark set insert sel.last}
+    catch {%W mark set anchor sel.first}
+}
+bind ROText <Shift-1> {
+    tk::TextResetAnchor %W @%x,%y
+    set tk::Priv(selectMode) char
+    tk::TextSelectTo %W %x %y
+}
+bind ROText <Double-Shift-1>	{
+    set tk::Priv(selectMode) word
+    tk::TextSelectTo %W %x %y 1
+}
+bind ROText <Triple-Shift-1>	{
+    set tk::Priv(selectMode) line
+    tk::TextSelectTo %W %x %y
+}
+bind ROText <B1-Leave> {
+    set tk::Priv(x) %x
+    set tk::Priv(y) %y
+    tk::TextAutoScan %W
+}
+bind ROText <B1-Enter> {
+    tk::CancelRepeat
+}
+bind ROText <ButtonRelease-1> {
+    tk::CancelRepeat
+}
+bind ROText <Control-1> {
+    %W mark set insert @%x,%y
+}
+bind ROText <Left> {
+    tk::TextSetCursor %W insert-1c
+}
+bind ROText <Right> {
+    tk::TextSetCursor %W insert+1c
+}
+bind ROText <Up> {
+    tk::TextSetCursor %W [tk::TextUpDownLine %W -1]
+}
+bind ROText <Down> {
+    tk::TextSetCursor %W [tk::TextUpDownLine %W 1]
+}
+bind ROText <Shift-Left> {
+    tk::TextKeySelect %W [%W index {insert - 1c}]
+}
+bind ROText <Shift-Right> {
+    tk::TextKeySelect %W [%W index {insert + 1c}]
+}
+bind ROText <Shift-Up> {
+    tk::TextKeySelect %W [tk::TextUpDownLine %W -1]
+}
+bind ROText <Shift-Down> {
+    tk::TextKeySelect %W [tk::TextUpDownLine %W 1]
+}
+bind ROText <Control-Left> {
+    tk::TextSetCursor %W [tk::TextPrevPos %W insert tcl_startOfPreviousWord]
+}
+bind ROText <Control-Right> {
+    tk::TextSetCursor %W [tk::TextNextWord %W insert]
+}
+bind ROText <Control-Up> {
+    tk::TextSetCursor %W [tk::TextPrevPara %W insert]
+}
+bind ROText <Control-Down> {
+    tk::TextSetCursor %W [tk::TextNextPara %W insert]
+}
+bind ROText <Shift-Control-Left> {
+    tk::TextKeySelect %W [tk::TextPrevPos %W insert tcl_startOfPreviousWord]
+}
+bind ROText <Shift-Control-Right> {
+    tk::TextKeySelect %W [tk::TextNextWord %W insert]
+}
+bind ROText <Shift-Control-Up> {
+    tk::TextKeySelect %W [tk::TextPrevPara %W insert]
+}
+bind ROText <Shift-Control-Down> {
+    tk::TextKeySelect %W [tk::TextNextPara %W insert]
+}
+bind ROText <Prior> {
+    tk::TextSetCursor %W [tk::TextScrollPages %W -1]
+}
+bind ROText <Shift-Prior> {
+    tk::TextKeySelect %W [tk::TextScrollPages %W -1]
+}
+bind ROText <Next> {
+    tk::TextSetCursor %W [tk::TextScrollPages %W 1]
+}
+bind ROText <Shift-Next> {
+    tk::TextKeySelect %W [tk::TextScrollPages %W 1]
+}
+bind ROText <Control-Prior> {
+    %W xview scroll -1 page
+}
+bind ROText <Control-Next> {
+    %W xview scroll 1 page
+}
+
+bind ROText <Home> {
+    tk::TextSetCursor %W {insert linestart}
+}
+bind ROText <Shift-Home> {
+    tk::TextKeySelect %W {insert linestart}
+}
+bind ROText <End> {
+    tk::TextSetCursor %W {insert lineend}
+}
+bind ROText <Shift-End> {
+    tk::TextKeySelect %W {insert lineend}
+}
+bind ROText <Control-Home> {
+    tk::TextSetCursor %W 1.0
+}
+bind ROText <Control-Shift-Home> {
+    tk::TextKeySelect %W 1.0
+}
+bind ROText <Control-End> {
+    tk::TextSetCursor %W {end - 1 char}
+}
+bind ROText <Control-Shift-End> {
+    tk::TextKeySelect %W {end - 1 char}
+}
+
+bind ROText <Control-Tab> {
+    focus [tk_focusNext %W]
+}
+bind ROText <Control-Shift-Tab> {
+    focus [tk_focusPrev %W]
+}
+bind ROText <Select> {
+    %W mark set anchor insert
+}
+bind ROText <<Copy>> {
+    tk_textCopy %W
+}
+# Additional emacs-like bindings:
+
+bind ROText <Control-a> {
+    if {!$tk_strictMotif} {
+	tk::TextSetCursor %W {insert linestart}
+    }
+}
+bind ROText <Control-b> {
+    if {!$tk_strictMotif} {
+	tk::TextSetCursor %W insert-1c
+    }
+}
+bind ROText <Control-e> {
+    if {!$tk_strictMotif} {
+	tk::TextSetCursor %W {insert lineend}
+    }
+}
+bind ROText <Control-f> {
+    if {!$tk_strictMotif} {
+	tk::TextSetCursor %W insert+1c
+    }
+}
+bind ROText <Control-n> {
+    if {!$tk_strictMotif} {
+	tk::TextSetCursor %W [tk::TextUpDownLine %W 1]
+    }
+}
+bind ROText <Control-p> {
+    if {!$tk_strictMotif} {
+	tk::TextSetCursor %W [tk::TextUpDownLine %W -1]
+    }
+}
+if {[string compare $tcl_platform(platform) "windows"]} {
+bind ROText <Control-v> {
+    if {!$tk_strictMotif} {
+	tk::TextScrollPages %W 1
+    }
+}
+}
+
+bind ROText <Meta-b> {
+    if {!$tk_strictMotif} {
+	tk::TextSetCursor %W [tk::TextPrevPos %W insert tcl_startOfPreviousWord]
+    }
+}
+bind ROText <Meta-f> {
+    if {!$tk_strictMotif} {
+	tk::TextSetCursor %W [tk::TextNextWord %W insert]
+    }
+}
+bind ROText <Meta-less> {
+    if {!$tk_strictMotif} {
+	tk::TextSetCursor %W 1.0
+    }
+}
+bind ROText <Meta-greater> {
+    if {!$tk_strictMotif} {
+	tk::TextSetCursor %W end-1c
+    }
+}
+# Macintosh only bindings:
+
+# if text black & highlight black -> text white, other text the same
+if {[string equal $tcl_platform(platform) "macintosh"]} {
+bind ROText <FocusIn> {
+    %W tag configure sel -borderwidth 0
+    %W configure -selectbackground systemHighlight -selectforeground systemHighlightText
+}
+bind ROText <FocusOut> {
+    %W tag configure sel -borderwidth 1
+    %W configure -selectbackground white -selectforeground black
+}
+bind ROText <Option-Left> {
+    tk::TextSetCursor %W [tk::TextPrevPos %W insert tcl_startOfPreviousWord]
+}
+bind ROText <Option-Right> {
+    tk::TextSetCursor %W [tk::TextNextWord %W insert]
+}
+bind ROText <Option-Up> {
+    tk::TextSetCursor %W [tk::TextPrevPara %W insert]
+}
+bind ROText <Option-Down> {
+    tk::TextSetCursor %W [tk::TextNextPara %W insert]
+}
+bind ROText <Shift-Option-Left> {
+    tk::TextKeySelect %W [tk::TextPrevPos %W insert tcl_startOfPreviousWord]
+}
+bind ROText <Shift-Option-Right> {
+    tk::TextKeySelect %W [tk::TextNextWord %W insert]
+}
+bind ROText <Shift-Option-Up> {
+    tk::TextKeySelect %W [tk::TextPrevPara %W insert]
+}
+bind ROText <Shift-Option-Down> {
+    tk::TextKeySelect %W [tk::TextNextPara %W insert]
+}
+
+# End of Mac only bindings
+}
+
+}
+
+
+snit::widget ArticleViewer {
+    hulltype tk::toplevel
+    widgetclass Viewer
+    option -parent -readonly yes -default .
+    option -spool  -readonly yes -validatemethod _CheckSpool
+    method _CheckSpool {option value} {
+      if {[catch [list $value info type] thetype]} {
+	error "Expected a ::Spool::SpoolWindow for $option, but got $value ($thetype)"
+      } elseif {![string equal "$thetype" ::Spool::SpoolWindow]} {
+	error "Expected a ::Spool::SpoolWindow for $option, but got a $thetype ($value)"
+      } else {
+ 	return $value
+      }
+    }
+    option {-geometry articleGeometry ArticleGeometry} -readonly yes -default {}
+
+    variable articleNumber
+    variable groupName
+    variable pipeFP
+    variable processing
+    variable EOH
+    variable cc {}
+
+    
+    variable fullHeadersP no
+    
+    component articleHeaderFrame
+    component   headerButtons
+    component   articleHeaderSW
+    component     articleHeader
+    component articleBodySW
+    component   articleBody
+    component bodyButtons
+    delegate method {buttons *} to bodyButtons
+    
+    typeconstructor {
+        ttk::style configure ArticleHeaders -background gray -borderwidth 0 \
+              -font "helvetica 8" -foreground black
+        ttk::style configure ArticleBody -background white -borderwidth 0 \
+              -font "helvetica 10" -foreground black
+    }
+    constructor {args} {
+        set options(-parent) [from args -parent]
+        set options(-spool)  [from args -spool]
+        set options(-geometry) [from args -geometry [option get $win articleGeometry ArticleGeometry]]
+        wm transient $win $options(-parent)
+        wm protocol $win WM_DELETE_WINDOW [mymethod close]
+        wm withdraw $win
+        install articleHeaderFrame using ttk::labelframe \
+              $win.articleHeaderFrame -labelanchor n;# -height 190
+        pack $articleHeaderFrame -fill both;# -expand yes
+        install headerButtons using ButtonBox \
+              $articleHeaderFrame.headerButtons \
+              -orient horizontal
+        grid columnconfigure $articleHeaderFrame 0 -uniform cols -weight 1
+        grid columnconfigure $articleHeaderFrame 1 -uniform cols -weight 1
+        grid $headerButtons -row 0 -column 1 -sticky ew
+        $headerButtons add ttk::button collectAddresses \
+              -text {Collect Addresses} \
+              -command [mymethod _collectAddresses]
+        $headerButtons add ttk::checkbutton headerMode \
+              -text {Full Headers?} \
+              -command [mymethod _GetHeaderFields yes] \
+              -onvalue yes -offvalue no \
+              -variable [myvar fullHeadersP]
+        install articleHeaderSW using ScrolledWindow \
+              $articleHeaderFrame.articleHeaderSW \
+              -scrollbar both -auto both
+        grid $articleHeaderSW  -column 0 -columnspan 2 -row 1 -sticky news
+        install articleHeader using text \
+              [$articleHeaderSW getframe].articleHeader \
+              -height 5 -tabs {1in right 1in left} \
+              -wrap none
+        $articleHeaderSW setwidget $articleHeader
+        bind $articleHeader <<ThemeChanged>> [mymethod _restyle_articleHeader]
+        set indx [lsearch [bindtags $articleHeader] Text]
+        bindtags $articleHeader [lreplace [bindtags $articleHeader] $indx $indx \
+                              ROText]
+        $articleHeader tag configure key -foreground #505050
+        $articleHeader tag configure val -foreground black
+        install articleBodySW using ScrolledWindow $win.articleBodySW \
+              -scrollbar both -auto both
+        pack $articleBodySW  -fill both -expand yes
+        install articleBody using text \
+              [$articleBodySW getframe].articleBody -height 1
+        $articleBodySW setwidget $articleBody
+        bind $articleBody <<ThemeChanged>> [mymethod _restyle_articleBody]
+        set indx [lsearch [bindtags $articleBody] Text]
+        bindtags $articleBody [lreplace [bindtags $articleBody] $indx $indx \
+                               ROText]
+        install bodyButtons using ButtonBox \
+              $win.bodyButtons -orient horizontal
+        pack $bodyButtons -fill x;# -expand no
+        $bodyButtons add ttk::button close -text "Close" -command [mymethod close]
+        $bodyButtons add ttk::button previous -text "Previous"
+        $bodyButtons add ttk::button next -text "Next"
+        $bodyButtons add ttk::button save -text "Save" -command [mymethod _Save]
+        $bodyButtons add ttk::button file -text "File" -command [mymethod _File]
+        $bodyButtons add ttk::button print -text "Print" -command [mymethod _Print]
+        $bodyButtons add ttk::button decrypt -text "Decrypt" -command [mymethod _Decrypt]
+        $self configurelist $args
+        $self _restyle_articleHeader
+        $self _restyle_articleBody
+        set articleNumber -1
+        set groupName {}
+        $articleHeaderFrame configure -text $articleNumber
+        if {[string length "$options(-geometry)"] > 0} {
+            puts stderr "*** $type create $self: options(-geometry) is $options(-geometry)"
+            wm geometry $win "$options(-geometry)"
+        }
+    }
+    method _restyle_articleHeader {} {
+        $articleHeader configure \
+              -background [ttk::style lookup ArticleHeaders -background] \
+              -borderwidth [ttk::style lookup ArticleHeaders -borderwidth] \
+              -font [ttk::style lookup ArticleHeaders -font] \
+              -foreground [ttk::style lookup ArticleHeaders -foreground]
+    }
+    method _restyle_articleBody {} {
+        $articleBody configure \
+              -background [ttk::style lookup ArticleBody -background] \
+              -borderwidth [ttk::style lookup ArticleBody -borderwidth] \
+              -font [ttk::style lookup ArticleBody -font] \
+              -foreground [ttk::style lookup ArticleBody -foreground]
+    }
+    method draw {} {
+        wm deiconify $win
+    }
+    method close {} {
+      wm withdraw $win
+      $options(-spool) closeArticle
+    }
+    method setNumber {artNumber} {
+      set articleNumber $artNumber
+      $articleHeaderFrame configure -text "$artNumber"
+    }
+    method setGroup {group} {
+      wm title $win "Reading group $group"
+      set groupName $group
+    }
+    method NNTP_GetArticleToText {} {
+      $articleBody delete 1.0 end-1c
+      if {[$options(-spool) srv_cmd "group $groupName" buff] < 0} {
+	error "${type}::NNTP_GetArticleToText: Error sending group command"
+	return 0
+      }
+      if {[string first {411} "$buff"] == 0} {return 0}
+      if {[$options(-spool) srv_cmd "article $articleNumber" buff] < 0} {
+	error "${type}::NNTP_GetArticleToText: Error sending article command"
+	return 0
+      }
+      if {[string first {220} "$buff"] != 0} {return 0}
+      $options(-spool) srv_rdTxtTextBox $articleBody
+      $self _GetHeaderFields
+    }
+    method readArticleFromFile {filename} {
+      $articleBody delete 1.0 end-1c
+      set file [open $filename "r"]
+      set block [read $file 4096]
+      while {[string length "$block"] > 0} {
+	$articleBody insert end "$block"
+	update idletasks
+	set block [read $file 4096]
+      }
+      close $file
+      $self _GetHeaderFields
+    }
+    method _CollectAddresses {} {
+        #set to "[$toLE cget -text]"
+        #if {[string length "$to"] > 0} {AddressBook::CheckNewAddresses "$to"}
+        #set from "[$fromLE cget -text]"
+        #if {[string length "$from"] > 0} {AddressBook::CheckNewAddresses "$from"}
+        #if {[string length "$cc"] > 0} {AddressBook::CheckNewAddresses "$cc"}
+    }
+    method _GetHeaderFields {{refetching no}} {
+        $articleHeader delete 1.0 end
+        if {$refetching} {
+            set lastline [expr {$EOH + 1}]
+        } else {
+            regexp {^([0-9]*).[0-9]*$} [$articleBody index end-1c] -> lastline
+            set EOH 0
+        }
+        set win1252 no
+        set headerbuffer {}
+        for {set iline 1} {$iline < $lastline} {incr iline} {
+            set line [$articleBody get "${iline}.0" "${iline}.0 lineend"]
+            #puts stderr "*** ${self} _GetHeaderFields: line = '$line'"
+            if {[regexp {^[[:space:]]} $line] > 0} {
+                append headerbuffer "\n$line"
+                continue
+            } elseif {$headerbuffer ne ""} {
+                #puts stderr "*** ${self} _GetHeaderFields: headerbuffer = '$headerbuffer'"
+                if {[regexp {^([^:]+):[[:space:]]+(.*)$} $headerbuffer => key value] > 0} {
+                    #puts stderr "*** ${self} _GetHeaderFields: key = $key, value = '$value'"
+                    if {[lsearch {to cc from date subject} [string tolower $key]] >= 0 ||
+                        $fullHeadersP} {
+                        set vls [split $value "\n"]
+                        $articleHeader insert end "\t$key\t" key [lindex $vls 0] val "\n"
+                        foreach hl [lrange $vls 1 end] {
+                            $articleHeader insert end "\t\t" key "$hl" val "\n"
+                        }
+                    }
+                }
+                if {[regexp -nocase {charset="??windows-1252"??} "$headerbuffer"] > 0} {
+                    set win1252 yes
+                }
+            }
+            set headerbuffer $line
+            if {[string equal "$headerbuffer" {}]} {
+                if {!$refetching} {set EOH $iline}
+                break
+            }
+        }
+        if {$refetching} return
+        if {$win1252} {
+            set tempFile /tmp/[pid].recoded
+            if {[catch [list open "$tempFile" w] tmpFP]} {
+                error "${type}::_GetHeaderFields: open \"$tempFile\" w: $tmpFP"
+                return
+            }
+            set tempBlock "[$articleBody get "${EOH}.0" end-1c]"
+            puts $tmpFP "$tempBlock"
+            close $tmpFP
+            if {[catch [list open "|recode < $tempFile windows-1252..iso-8859-1" r] pipeFP]} {
+                file delete -force "$tempFile"
+                error "${type}::_GetHeaderFields: open \"|recode < $tempFile windows-1252..iso-8859-1\" r: $pipeFP"
+                return
+            }
+            set processing 1
+            $articleBody delete "${EOH}.0" end-1c
+            fileevent $pipeFP readable [mymethod _PipeToText]
+            if {$processing > 0} {tkwait variable [myvar processing]}
+            file delete -force "$tempFile"
+        }
+    
+      regexp {^([0-9]*).[0-9]*$} [$articleBody index end-1c] -> lastline
+      set fract [expr double($EOH) / double($lastline)]
+      $articleBody yview moveto $fract
+      #AddressBook::WriteAddressBookFileIfDirty
+    }
+    method _PipeToText {} {
+      if {[gets $pipeFP line] < 0} {
+	catch "close $pipeFP"
+	incr processing -1
+      } else {
+	$articleBody insert end "$line\n"
+      }
+    }
+}
+
+
 namespace eval Articles {
 
   snit::widget Viewer {

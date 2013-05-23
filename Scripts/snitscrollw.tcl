@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon May 13 20:08:01 2013
-#  Last Modified : <130514.1252>
+#  Last Modified : <130523.1000>
 #
 #  Description	
 #
@@ -51,6 +51,7 @@ snit::widget ScrolledWindow {
     option -size -type {snit::integer -min 0} -default 0 -readonly yes
     option -ipad -type {snit::integer -min 0} -default 1 -readonly yes
     option -managed -type snit::boolean -default yes -readonly yes
+    delegate option * to hull except {-class -style}
     
     component hscroll
     component vscroll
