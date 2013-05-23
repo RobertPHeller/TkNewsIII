@@ -190,34 +190,6 @@ snit::widget ArticleListFrame {
     delegate option -artlistbuttonstate to artlistButtonBox as -state
     delegate method {articleButtonBox *} to articleButtonBox except {add}
     delegate option -articlebuttonstate to articleButtonBox as -state
-    option -panewindow -default {} -readonly yes -type snit::window
-    option -sashsign -default - -readonly yes -type {snit::enum -values {+ -}}
-    proc _adjustTree {w h groupTree pane adjsign} {
-        if {$h < [winfo reqheight $w]} {
-            ## Attempting to squish a button box -- ouch!
-            # First defense: try to shorten a tree
-            set th [$groupTree cget -height]
-            incr th -1
-            if {$th > 0} {
-                $groupTree configure -height $th
-            } else {
-                # Tree already shortened as much as we can.
-                # Compute min/max sash position
-                set sp [$pane sashpos 0]
-                if {$adjsign eq "+"} {
-                    incr sp [expr {[winfo reqheight $w] - $h}]
-                } else {
-                    incr sp [expr {$h - [winfo reqheight $w]}]
-                }
-                # Reset sash pos
-                $pane sashpos 0 $sp
-                ## And lock sash at min/max values -- prevent excess movement.
-                # (simulate button release)
-                set ttk::panedwindow::State(pressed) 0
-                ttk::panedwindow::ResetCursor $pane
-            }
-        }
-    }
     constructor {args} {
         install artlistButtonBox using ButtonBox $win.artlistButtonBox
         pack $artlistButtonBox -fill x
@@ -270,10 +242,6 @@ snit::widget ArticleListFrame {
         $articleButtonBox configure -state disabled
         $self configurelist $args
         set spoolwindow $options(-spool)
-        bind $articleButtonBox <Configure> [myproc _adjustTree %W %h \
-                                            $articleList \
-                                            $options(-panewindow) \
-                                            $options(-sashsign)]
         #parray columnheadings
         foreach c [concat #0 $columns] {
             #puts stderr "*** $type create $self: c = $c"
@@ -311,6 +279,50 @@ snit::widget ArticleListFrame {
         $articleList heading date -command [mymethod _sortByDate]
         $articleList heading from -command [mymethod _sortBySender]
         $articleList heading subject -command [mymethod _sortBySubject]
+        bind $win <Configure> [mymethod _ConfigureHeight %h]
+    }
+    proc _heightOfChildren {w} {
+        set sum 0
+        foreach c [winfo children $w] {
+            incr sum [winfo height $c]
+        }
+        return $sum
+    }
+    proc _reqheightOfChildren {w} {
+        set sum 0
+        foreach c [winfo children $w] {
+            incr sum [winfo reqheight $c]
+        }
+        return $sum
+    }
+    
+    method _ConfigureHeight {newheight} {
+        #puts stderr "*** $self _ConfigureHeight $newheight"
+        set cheight [_heightOfChildren $win]
+        #puts stderr "*** $self _ConfigureHeight: cheight is $cheight"
+        set reqcheight [_reqheightOfChildren $win]
+        #puts stderr "*** $self _ConfigureHeight: reqcheight = $reqcheight"
+        if {$cheight < $reqcheight} {
+            set diff [expr {$reqcheight - $cheight}]
+            #puts stderr "*** $self _ConfigureHeight: diff = $diff"
+            set headheight [font metrics [ttk::style lookup Heading -font] \
+                            -displayof $win -linespace]
+            #puts stderr "*** $self _ConfigureHeight: headheight = $headheight"
+            set rowheight [font metrics [ttk::style lookup Treeview -font]  \
+                           -displayof $win -linespace]
+            #puts stderr "*** $self _ConfigureHeight: rowheight = $rowheight"
+            set rows [$articleList cget -height]
+            #puts stderr "*** $self _ConfigureHeight: rows = $rows"
+            set totalheight [expr {$headheight + ($rowheight * $rows)}]
+            #puts stderr "*** $self _ConfigureHeight: totalheight = $totalheight"
+            set rdiff [expr {int(ceil(double($diff) / double($rowheight)))}]
+            #puts stderr "*** $self _ConfigureHeight: rdiff = $rdiff"
+            set newrows [expr {$rows - $rdiff}]
+            #puts stderr "*** $self _ConfigureHeight: newrows = $newrows"
+            if {$newrows >= 0} {
+                $articleList configure -height $newrows
+            }
+        }        
     }
     method _threadArticleList {} {
         #puts stderr "*** $self _threadArticleList"

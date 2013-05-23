@@ -382,8 +382,7 @@ snit::widget SpoolWindow {
         }
         install groupTreeFrame using GroupTreeFrame $groupPane.groupTreeFrame \
               -height [option get $win spoolNumGroups SpoolNumGroups] \
-              -takefocus 1 -spool $self -method $method \
-              -panewindow $panes -sashsign +
+              -takefocus 1 -spool $self -method $method
         pack $groupTreeFrame -expand yes -fill both
         
         install artlistPane using ttk::frame $panes.artlistPane
@@ -392,8 +391,7 @@ snit::widget SpoolWindow {
         install articleListFrame using ArticleListFrame \
               $artlistPane.articleListFrame \
               -takefocus 1 -spool $self \
-              -height [option get $win spoolNumArticles SpoolNumArticles] \
-              -panewindow $panes -sashsign {-}
+              -height [option get $win spoolNumArticles SpoolNumArticles]
         pack $articleListFrame -fill both -expand yes
         #      puts stderr "*** ${type}::constructor: winfo class $articleListFrame = [winfo class $articleListFrame]"
         $self configurelist $args
