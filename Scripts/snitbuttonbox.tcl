@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon May 20 10:03:07 2013
-#  Last Modified : <130523.1416>
+#  Last Modified : <130524.1128>
 #
 #  Description	
 #
@@ -37,6 +37,18 @@ snit::widget ButtonBox {
     }
     delegate option * to hull except {-class -style}
     variable buttons -array {}
+    option -default -default {} -configuremethod _configDefault
+    method _configDefault {option value} {
+        if {[info exists options($option)] &&
+            [winfo exists $win.$options($option)]} {
+            $win.$options($option) configure -default normal
+        }
+        set options($option) $value
+        if {[winfo exists $win.$options($option)]} {
+            $win.$options($option) configure -default active
+        }
+    }
+                                                    
     option -orient -default horizontal \
           -type {snit::enum -values {horizontal vertical}}
     constructor {args} {
@@ -67,16 +79,37 @@ snit::widget ButtonBox {
         }
         set buttons($name) [eval [list $const $win.$name] $args]
         grid $buttons($name) -column $col -row $row -sticky news
-        #$buttons($name) configure -state $options(-state)
+        $buttons($name) configure -state $options(-state)
+        if {$options(-default) eq $name} {
+            $buttons($name) configure -default active
+        }
     }
     method itemconfigure {name args} {
-        return [eval [list $win.$name configure] $args]
+        if {[winfo exists $win.$name]} {
+            return [eval [list $win.$name configure] $args]
+        }
+        return {}
     }
     method itemcget {name option} {
-        return [eval [list $win.$name cget $option]]
+        if {[winfo exists $win.$name]} {
+            return [$win.$name cget $option]
+        }
+        return {}
     }
     method invoke {name} {
-        return [$win.$name invoke]
+        if {[winfo exists $win.$name]} {
+            return [$win.$name invoke]
+        } elseif {$name eq "default" &&
+            [info exists options(-default)] &&
+            [winfo exists $win.$options(-default)]} {
+            return [$win.$options(-default) invoke]
+        }
+        return {}
+    }
+    method setfocus {name} {
+        if {[winfo exists $win.$name]} {
+            focus $win.$name
+        }
     }
 }
 
