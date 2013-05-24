@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon May 20 10:03:07 2013
-#  Last Modified : <130524.1128>
+#  Last Modified : <130524.1254>
 #
 #  Description	
 #
@@ -109,6 +109,10 @@ snit::widget ButtonBox {
     method setfocus {name} {
         if {[winfo exists $win.$name]} {
             focus $win.$name
+        } elseif {$name eq "default" &&
+            [info exists options(-default)] &&
+            [winfo exists $win.$options(-default)]} {
+            focus $win.$options(-default)
         }
     }
 }
