@@ -74,12 +74,12 @@ namespace eval AddressBook {
       }
     }
     typemethod CheckNewAddresses {tofield} {
-      set tolist [Common::SmartSplit [string trim "$tofield"] ","]
+      set tolist [RFC822 SmartSplit [string trim "$tofield"] ","]
       foreach to $tolist {
 	set to [string trim "$to"]
-	set toEM [string tolower [Common::GetRFC822EMail "$to"]]
-        set toName [Common::GetRFC822Name "$to"]
-	if {![Common::ValidEMailAddress "$toEM"]} {continue}
+	set toEM [string tolower [RFC822 EMail "$to"]]
+        set toName [RFC822 Name "$to"]
+	if {![RFC822 validate "$toEM"]} {continue}
 	if {[catch {set addresses($toEM)} old]} {
 	  $type create %AUTO% -email "$toEM" -name "$toName" -flags collected
 	}
@@ -644,9 +644,9 @@ namespace eval AddressBook {
       set EM [string tolower "[$newEMailAddressLE cget -text]"]
 #      puts stderr "*** $type _CreateANewEmailAddress: EM = $EM"
       $_newEMailAddressDialog withdraw
-#      puts stderr "*** $type _CreateANewEmailAddress: \[Common::ValidEMailAddress \{$EM\}\] => [Common::ValidEMailAddress $EM]"
+#      puts stderr "*** $type _CreateANewEmailAddress: \[RFC822 validate \{$EM\}\] => [RFC822 validate $EM]"
 #      puts stderr "*** $type _CreateANewEmailAddress: \[catch {set addresses($EM)} old\] => [catch {set addresses($EM)} old]"
-      if {[Common::ValidEMailAddress "$EM"] && 
+      if {[RFC822 validate "$EM"] && 
 	  [catch {set addresses($EM)} old]} {
 	$type create %AUTO% -email [$newEMailAddressLE cget -text]
 	set lframe [$viewEditList getframe]

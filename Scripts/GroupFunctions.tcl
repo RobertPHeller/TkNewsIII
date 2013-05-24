@@ -43,12 +43,16 @@
 #*  
 #* 
 
-namespace eval Common {#dummy}
+package require Tk
+package require tile
+package require CommonFunctions
+#package require SpoolFunctions
+package require ArticleFunctions
+package require ScrollWindow
+package require ButtonBox
+package require Dialog
 
-proc Common::GroupToPath { group} {
-  regsub -all -- {\.} $group {/} result
-  return $result
-}
+namespace eval Common {#dummy}
 
 snit::type group {
     typevariable HeadListProg
@@ -213,7 +217,7 @@ snit::type group {
         set lastMessage  $options(-last)
         set numMessages [expr double($lastMessage - $firstMessage + 1)]
         set spoolDirectory [$spool cget -spooldirectory]
-        set groupPath [Common::GroupToPath $options(-name)]
+        set groupPath [GroupName Path $options(-name)]
         #      puts stderr "*** ${type}::insertArticleListFromSpoolDir: firstMessage = $firstMessage, lastMessage = $lastMessage"
         #      puts stderr "*** ${type}::insertArticleListFromSpoolDir: numMessages = $numMessages, spoolDirectory = $spoolDirectory"
         #      puts stderr "*** ${type}::insertArticleListFromSpoolDir: groupPath = $groupPath"
@@ -414,7 +418,7 @@ snit::type group {
             return [expr [string first {223} "$buff"] == 0]
         } else {
             set spoolDirectory [$options(-spool) cget -spooldirectory]
-            set filename [file join "$spoolDirectory" [Common::GroupToPath $options(-name)] $a]
+            set filename [file join "$spoolDirectory" [GroupName Path $options(-name)] $a]
             if {![file exists $filename]} {return 0}
             if {![file readable $filename]} {return 0}
             return 1
@@ -425,7 +429,7 @@ snit::type group {
     }
     method cleanGroup {} {
         set spoolDirectory [$options(-spool) cget -spooldirectory]
-        set groupFiles [file join "$spoolDirectory" [Common::GroupToPath $options(-name)] *]
+        set groupFiles [file join "$spoolDirectory" [GroupName Path $options(-name)] *]
         catch {eval [list file delete -force] [glob -nocomplain $groupFiles]}
         $self configure -first 0 -last 0
         set ranges {}
@@ -797,7 +801,7 @@ snit::widget GroupTreeFrame {
                           -tags groupitem -open no
                     if {$savedP} {
                         set thisGroupSaved \
-                              "$savedSpoolDirectory/[Common::GroupToPath $name]"
+                              "$savedSpoolDirectory/[GroupName Path $name]"
                         foreach sg [lsort -dictionary [glob -nocomplain "$thisGroupSaved/*"]] {
                             $self _LoadSavedMessagesList $name $sg 
                         }
@@ -885,7 +889,7 @@ snit::widget GroupTreeFrame {
     method findNextArticle {group a {unread 1}} {
         if {[catch "$options(-spool) savedDirectory $group" mdir] == 0} {
             incr a
-            set lastMessage [Common::Highestnumber [glob -nocomplain "$mdir/*"]]
+            set lastMessage [MessageList Highestnumber [glob -nocomplain "$mdir/*"]]
             while {$a <= $lastMessage} {
                 if {[file exists "$mdir/$a"] &&
                     [file readable "$mdir/$a"]} {return $a}
@@ -899,7 +903,7 @@ snit::widget GroupTreeFrame {
     method findPreviousArticle {group a {unread 1}} {
         if {[catch "$options(-spool) savedDirectory $group" mdir] == 0} {
             incr a -1
-            set firstMessage [Common::Lowestnumber [glob -nocomplain "$mdir/*"]]
+            set firstMessage [MessageList Lowestnumber [glob -nocomplain "$mdir/*"]]
             while {$a >= $firstMessage} {
                 if {[file exists "$mdir/$a"] &&
                     [file readable "$mdir/$a"]} {return $a}
@@ -926,7 +930,7 @@ snit::widget GroupTreeFrame {
             regsub -all {/} "$subfoldname" {.} subfoldname
             $options(-spool) addSavedDirectory $subfoldname $sg
             set mlist [lsort -dictionary [glob -nocomplain "$sg/*"]]
-            set mcount [Common::CountMessages $mlist]
+            set mcount [MessageList CountMessages $mlist]
             $groupTree insert $name end \
                   -id $subfoldname \
                   -text $subfoldname \
@@ -940,13 +944,13 @@ snit::widget GroupTreeFrame {
     method formSavedGroupValues {name} {
         set mdir [$options(-spool) savedDirectory $name]
         set subname [file tail $mdir]
-        set mcount [Common::CountMessages [glob -nocomplain "$mdir/*"]]
+        set mcount [MessageList CountMessages [glob -nocomplain "$mdir/*"]]
         return [list {} $mcount]
     }
     method formatSavedGroupLine {name} {
         set mdir [$options(-spool) savedDirectory $name]
         set subname [file tail $mdir]
-        set mcount [Common::CountMessages [glob -nocomplain "$mdir/*"]]
+        set mcount [MessageList CountMessages [glob -nocomplain "$mdir/*"]]
         return "[format {%-40s %d saved messages} $subname $mcount]"
     }
     method insertArticleList {articleList group {pattern "."} {unreadp "0"}} {
@@ -974,7 +978,7 @@ snit::widget GroupTreeFrame {
         $tree insert end root $group -data $group -text "$line" -font $font
         if {$savedP} {
             set savedSpoolDirectory "[$options(-spool) cget -savednews]"
-            set thisGroupSaved "$savedSpoolDirectory/[Common::GroupToPath $group]"
+            set thisGroupSaved "$savedSpoolDirectory/[GroupName Path $group]"
             foreach sg [lsort -dictionary [glob -nocomplain "$thisGroupSaved/*"]] {
                 $self _LoadSavedMessagesList $tree $group $sg 
             }
@@ -985,13 +989,13 @@ snit::widget GroupTreeFrame {
         #      puts stderr "*** ${type}::insertArticleListAllDir: mdir = $mdir"
         set mlist [glob -nocomplain [file join "$mdir" *]]
         #      puts stderr "*** ${type}::insertArticleListAllDir: mlist = $mlist"
-        set numMessages [Common::CountMessages $mlist]
+        set numMessages [MessageList CountMessages $mlist]
         #      puts stderr "*** ${type}::insertArticleListAllDir: numMessages = $numMessages"
         if {$numMessages == 0} {return}
         set a [file dirname "$mdir"]
         set b [file tail    "$mdir"]
-        set firstMessage [Common::Lowestnumber $mlist]
-        set lastMessage  [Common::Highestnumber $mlist]
+        set firstMessage [MessageList Lowestnumber $mlist]
+        set lastMessage  [MessageList Highestnumber $mlist]
         #      puts stderr "*** ${type}::insertArticleListAllDir: firstMessage = $firstMessage, lastMessage = $lastMessage"
         set command [list $HeadListProg $a $b "$pattern" $unreadp $firstMessage $lastMessage]
         set pipeCmd "|$command"

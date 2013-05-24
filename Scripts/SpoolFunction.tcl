@@ -57,60 +57,12 @@ package require ScrollWindow
 package require ButtonBox
 package require GroupFunctions
 package require ArticleFunctions
-#package require Dialog
+package require Dialog
+package require CommonFunctions
 #package require AddressBook                                                    
 
 # Temporary...
 namespace eval Common {#dummy}
-proc Common::CountMessages {list} {
-    set count 0
-    foreach m $list {
-        if {[file isdirectory "$m"]} {continue}
-        set m [file tail $m]
-        if {[catch [list expr int($m)] i]} {continue}
-        if {[string compare "$i" "$m"] == 0} {incr count}
-    }
-    return $count
-}
-
-proc Common::GroupToWindowName {group} {
-  regsub -all -- {\.} $group {_} result
-  return "[string tolower $result]"
-}
-
-proc Common::Lowestnumber {list} {
-  set result 0
-  foreach i $list {
-    if {[file isdirectory "$i"]} {continue}
-    set i [file tail $i]
-    if {[catch [list expr int($i)] j]} {continue}
-    if {[string compare "$i" "$j"] == 0} {
-      if {$result == 0} {
-	set result $i
-      } elseif {$i < $result} {
-	set result $i
-      }
-    }
-  }
-  return $result
-}
-
-proc Common::Highestnumber {list} {
-  set result 0
-  foreach i $list {
-    if {[file isdirectory "$i"]} {continue}
-    set i [file tail $i]
-    if {[catch [list expr int($i)] j]} {continue}
-    if {[string compare "$i" "$j"] == 0} {
-      if {$result == 0} {
-	set result $i
-      } elseif {$i > $result} {
-	set result $i
-      }
-    }
-  }
-  return $result
-}
 
 snit::widget SpoolWindow {
     widgetclass SpoolWindow
@@ -688,7 +640,7 @@ snit::widget SpoolWindow {
         }
         # ReadGroup1
         set currentGroup "$selectedGroup"
-        set groupWindow $win.[Common::GroupToWindowName $currentGroup]
+        set groupWindow $win.[GroupName WindowName $currentGroup]
         set groupClass [string totitle [lindex [split $currentGroup {.}] 0]]
         catch {destroy $groupWindow}
         frame $groupWindow -class $groupClass
@@ -761,7 +713,7 @@ snit::widget SpoolWindow {
             set currentArticle $artNumber
             set useFile no
         } else {
-            set filename [file join "$options(-spooldirectory)" [Common::GroupToPath $currentGroup] $artNumber]
+            set filename [file join "$options(-spooldirectory)" [GroupName Path $currentGroup] $artNumber]
             if {![file exists $filename]} {return}
             if {![file readable $filename]} {return}
             set currentArticle $artNumber
@@ -887,10 +839,10 @@ snit::widget SpoolWindow {
     method _PrintAllSavedArticles {} {
         if {[catch "set savedDirectories($currentGroup)" mdir]} {return}
         set mlist [glob -nocomplain [file join "$mdir" *]]
-        set numMessages [Common::CountMessages $mlist]
+        set numMessages [MessageList CountMessages $mlist]
         if {$numMessages == 0} {return}
-        set firstMessage [Common::Lowestnumber $mlist]
-        set lastMessage  [Common::Highestnumber $mlist]
+        set firstMessage [MessageList Lowestnumber $mlist]
+        set lastMessage  [MessageList Highestnumber $mlist]
         global PrintCommand
         set printPipe "|$PrintCommand"
         if {[catch [list open "$printPipe" w] outfp]} {
@@ -918,15 +870,15 @@ snit::widget SpoolWindow {
     method _DeleteAllSavedArticles {} {
         if {[catch "set savedDirectories($currentGroup)" mdir]} {return}
         set mlist [glob -nocomplain [file join "$mdir" *]]
-        set numMessages [Common::CountMessages $mlist]
+        set numMessages [MessageList CountMessages $mlist]
         if {$numMessages == 0} {return}
         set answer [tk_messageBox -icon question \
                     -type yesno \
                     -message "Really clean group $currentGroup?" \
                     -parent $win]
         if {[string equal "$answer" no]} {return}
-        set firstMessage [Common::Lowestnumber $mlist]
-        set lastMessage  [Common::Highestnumber $mlist]
+        set firstMessage [MessageList Lowestnumber $mlist]
+        set lastMessage  [MessageList Highestnumber $mlist]
         for {set im $firstMessage} {$im <= $lastMessage} {incr im} {
             set mfile [file join $mdir $im]
             if {[file exists "$mfile"] && [file writable "$mfile"]} {
@@ -957,10 +909,10 @@ snit::widget SpoolWindow {
     method _RenumberArticles {} {
         if {[catch "set savedDirectories($currentGroup)" mdir]} {return}
         set mlist [glob -nocomplain [file join "$mdir" *]]
-        set numMessages [Common::CountMessages $mlist]
+        set numMessages [MessageList CountMessages $mlist]
         if {$numMessages == 0} {return}
-        set firstMessage [Common::Lowestnumber $mlist]
-        set lastMessage  [Common::Highestnumber $mlist]
+        set firstMessage [MessageList Lowestnumber $mlist]
+        set lastMessage  [MessageList Highestnumber $mlist]
         set n 1
         for {set im $firstMessage} {$im <= $lastMessage} {incr im} {
             set orgfile [file join $mdir $im]
@@ -990,10 +942,10 @@ snit::widget SpoolWindow {
     method _FlatfileArticles {} {
         if {[catch "set savedDirectories($currentGroup)" mdir]} {return}
         set mlist [glob -nocomplain [file join "$mdir" *]]
-        set numMessages [Common::CountMessages $mlist]
+        set numMessages [MessageList CountMessages $mlist]
         if {$numMessages == 0} {return}
-        set firstMessage [Common::Lowestnumber $mlist]
-        set lastMessage  [Common::Highestnumber $mlist]
+        set firstMessage [MessageList Lowestnumber $mlist]
+        set lastMessage  [MessageList Highestnumber $mlist]
         set saveFile [tk_getSaveFile -defaultextension .text \
                       -filetypes { {{Text Files} {.text .txt} TEXT} \
                       {{All Files} {*} } } \
@@ -1027,8 +979,8 @@ snit::widget SpoolWindow {
         catch {set emailAddress "$components(user)@$components(host)"}
         set haveEmailGroup no
         foreach postGroup [$groupTreeFrame activeGroups] {
-            set groupWindow $win.[Common::GroupToWindowName $postGroup]
-            set groupClass [Common::Capitialize [lindex [split $postGroup {.}] 0]]
+            set groupWindow $win.[GroupName WindowName $postGroup]
+            set groupClass [string totitle [lindex [split $postGroup {.}] 0]]
             catch {destroy $groupWindow}
             frame $groupWindow -class $groupClass
             set IsEmail [option get $groupWindow isEmail IsEmail]
@@ -1097,7 +1049,7 @@ snit::widget SpoolWindow {
                 if {![file exists "$saveDir"]} {
                     file mkdir $saveDir
                 }
-                set highMessage [Common::Highestnumber [glob -nocomplain "$saveDir/*"]]
+                set highMessage [MessageList Highestnumber [glob -nocomplain "$saveDir/*"]]
                 set mnum [expr $highMessage + 1]
                 set saveFile [file join $saveDir $mnum]
                 file copy $draftFile $saveFile
@@ -1111,8 +1063,8 @@ snit::widget SpoolWindow {
         set theGroup $currentGroup
         #      puts stderr "*** $self _PostToGroup: theGroup = $theGroup, isEmail = $isEmail"
         set postGroup [$self _PostGroup $theGroup]
-        set groupWindow $win.[Common::GroupToWindowName $postGroup]
-        set groupClass [Common::Capitialize [lindex [split $postGroup {.}] 0]]
+        set groupWindow $win.[GroupName WindowName $postGroup]
+        set groupClass [string totitle [lindex [split $postGroup {.}] 0]]
         catch {destroy $groupWindow}
         frame $groupWindow -class $groupClass
         #      puts stderr "*** $self _PostToGroup: postGroup = $postGroup, groupWindow = $groupWindow"
@@ -1176,7 +1128,7 @@ snit::widget SpoolWindow {
                 if {![file exists "$saveDir"]} {
                     file mkdir $saveDir
                 }
-                set highMessage [Common::Highestnumber [glob -nocomplain "$saveDir/*"]]
+                set highMessage [MessageList Highestnumber [glob -nocomplain "$saveDir/*"]]
                 set mnum [expr $highMessage + 1]
                 set saveFile [file join $saveDir $mnum]
                 file copy $draftFile $saveFile
@@ -1191,8 +1143,8 @@ snit::widget SpoolWindow {
     method _FollowupArticle {{isEmail no}} {
         set theGroup $currentGroup
         set postGroup [$self _PostGroup $theGroup]
-        set groupWindow $win.[Common::GroupToWindowName $postGroup]
-        set groupClass [Common::Capitialize [lindex [split $postGroup {.}] 0]]
+        set groupWindow $win.[GroupName WindowName $postGroup]
+        set groupClass [string totitle [lindex [split $postGroup {.}] 0]]
         catch {destroy $groupWindow}
         frame $groupWindow -class $groupClass
         set draftFile /usr/tmp/$groupWindow.[pid]
@@ -1339,7 +1291,7 @@ snit::widget SpoolWindow {
                 if {![file exists "$saveDir"]} {
                     file mkdir $saveDir
                 }
-                set highMessage [Common::Highestnumber [glob -nocomplain "$saveDir/*"]]
+                set highMessage [MessageList Highestnumber [glob -nocomplain "$saveDir/*"]]
                 set mnum [expr $highMessage + 1]
                 set saveFile [file join $saveDir $mnum]
                 file copy $draftFile $saveFile
@@ -1351,8 +1303,8 @@ snit::widget SpoolWindow {
     method _MailReply {} {
         set theGroup $currentGroup
         set postGroup [$self _PostGroup $theGroup]
-        set groupWindow $win.[Common::GroupToWindowName $postGroup]
-        set groupClass [Common::Capitialize [lindex [split $postGroup {.}] 0]]
+        set groupWindow $win.[GroupName WindowName $postGroup]
+        set groupClass [string totitle [lindex [split $postGroup {.}] 0]]
         catch {destroy $groupWindow}
         frame $groupWindow -class $groupClass
         set draftFile /usr/tmp/$groupWindow.[pid]
@@ -1446,7 +1398,7 @@ snit::widget SpoolWindow {
                 if {![file exists "$saveDir"]} {
                     file mkdir $saveDir
                 }
-                set highMessage [Common::Highestnumber [glob -nocomplain "$saveDir/*"]]
+                set highMessage [MessageList Highestnumber [glob -nocomplain "$saveDir/*"]]
                 set mnum [expr $highMessage + 1]
                 set saveFile [file join $saveDir $mnum]
                 file copy $draftFile $saveFile
@@ -1458,8 +1410,8 @@ snit::widget SpoolWindow {
     method _ForwardTo {} {
         set theGroup $currentGroup
         set postGroup [$self _PostGroup $theGroup]
-        set groupWindow $win.[Common::GroupToWindowName $postGroup]
-        set groupClass [Common::Capitialize [lindex [split $postGroup {.}] 0]]
+        set groupWindow $win.[GroupName WindowName $postGroup]
+        set groupClass [string totitle [lindex [split $postGroup {.}] 0]]
         catch {destroy $groupWindow}
         frame $groupWindow -class $groupClass
         set draftFile /usr/tmp/$groupWindow.[pid]
@@ -1525,7 +1477,7 @@ snit::widget SpoolWindow {
                 if {![file exists "$saveDir"]} {
                     file mkdir $saveDir
                 }
-                set highMessage [Common::Highestnumber [glob -nocomplain "$saveDir/*"]]
+                set highMessage [MessageList Highestnumber [glob -nocomplain "$saveDir/*"]]
                 set mnum [expr $highMessage + 1]
                 set saveFile [file join $saveDir $mnum]
                 file copy $draftFile $saveFile
@@ -1657,7 +1609,7 @@ snit::widget SpoolWindow {
                 continue
             }
         }
-        set from [Common::GetRFC822Name $from]
+        set from [RFC822 Name $from]
         if {[regexp -nocase -- "$pattern" "$subject"] && 
             [$self _PassKillFile "$from" "$subject"]} {
             if {[string length $subject] > 36} {set subject [string range $subject 0 35]}
@@ -1977,16 +1929,16 @@ snit::widgetadaptor ArticlePostMenu {
                     #puts stderr "*** $self _SendMessageEncrypted: hbuffer is $hbuffer"
                     if {[regexp -nocase {^from:[[:space:]]+(.*)$} "$hbuffer" -> fromwhome] > 0} {
                         set fromwhome [string trim "$fromwhome"]
-                        set from [Common::GetRFC822EMail "$fromwhome"]
+                        set from [RFC822 EMail "$fromwhome"]
                     } elseif {[regexp -nocase {^to:[[:space:]]+(.*)$} "$hbuffer" -> towhome] > 0 ||
 		        [regexp -nocase {^cc:[[:space:]]+(.*)$} "$hbuffer" -> towhome] > 0 ||
 		        [regexp -nocase {^bcc:[[:space:]]+(.*)$} "$hbuffer" -> towhome] > 0} {
                         #puts stderr "*** $self _SendMessageEncrypted: towhome = $towhome"
-                        set whoms [Common::SmartSplit "$towhome" ","]
+                        set whoms [RFC822 SmartSplit "$towhome" ","]
                         #puts stderr "*** $self _SendMessageEncrypted: whoms = $whoms"
                         foreach w $whoms {
                             set w [string trim "$w"]
-                            set address [Common::GetRFC822EMail "$w"]
+                            set address [RFC822 EMail "$w"]
                             #puts stderr "*** $self _SendMessageEncrypted: address = $address"
                             if {[lsearch -exact $recpts $address] < 0} {
                                 lappend recpts $address
@@ -2223,19 +2175,19 @@ snit::widgetadaptor ArticlePostMenu {
                     if {[regexp -nocase {^to:[[:space:]]+(.*)$} "$hbuffer" -> towhome] > 0 ||
                         [regexp -nocase {^cc:[[:space:]]+(.*)$} "$hbuffer" -> towhome] > 0} {
                         
-                        set whoms [Common::SmartSplit "$towhome" ","]
+                        set whoms [RFC822 SmartSplit "$towhome" ","]
                         foreach w $whoms {
                             set w [string trim "$w"]
-                            set address [Common::GetRFC822Name "$w"]
+                            set address [RFC822 Name "$w"]
                             if {![$whomlist exists $address]} {
                                 $whomlist insert end $address -text "MailTo: $w"
                             }
                         }
                     } elseif {[regexp -nocase {^bcc:[[:space:]]+(.*)$} "$hbuffer" -> towhome] > 0} {
-                        set whoms [Common::SmartSplit "$towhome" ","]
+                        set whoms [RFC822 SmartSplit "$towhome" ","]
                         foreach w $whoms {
                             set w [string trim "$w"]
-                            set address [Common::GetRFC822Name "$w"]
+                            set address [RFC822 Name "$w"]
                             if {![$whomlist exists $address]} {
                                 $whomlist insert end $address -text "MailTo (blind): $w"
                             }

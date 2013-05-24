@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri May 24 09:50:47 2013
-#  Last Modified : <130524.1308>
+#  Last Modified : <130524.1522>
 #
 #  Description	
 #
@@ -41,7 +41,7 @@ snit::widgetadaptor Dialog {
         set options($option) $value
         wm title $win $value
     }
-    option -geometry -default {} -configmethod _configGeometry \
+    option -geometry -default {} -configuremethod _configGeometry \
           -validatemethod _validateGeometry
     method _configGeometry {option value} {
         set options($option) $value
@@ -65,7 +65,7 @@ snit::widgetadaptor Dialog {
     option -class -default Dialog -readonly yes
     option -transient -default yes -readonly yes -type snit::boolean
     option -place -default center \
-          -type {snit::enum {none center left right above below}}
+          -type {snit::enum -values {none center left right above below}}
     
     component bbox
     component frame
@@ -85,7 +85,7 @@ snit::widgetadaptor Dialog {
               -framerelief flat \
               -frameborderwidth 0 \
               ;
-              
+        
         
         bind Dialog <<ThemeChanged>> [mytypemethod _ThemeChanged %W]
         bind Dialog <Escape>         [mytypemethod _Escape %W]
@@ -251,45 +251,46 @@ snit::widgetadaptor Dialog {
         } else {
             $bbox setfocus default
         }
-        if {[set grab $options(-modal] ne "none"} {
-             set savedgrab [grab current]
-             if {[winfo exists $savedgrab]} {
-                 set savedgrabopt [grab status $savedgrab]
-             }
-             if {$grab eq "global"} {
-                 grab -global $win
-             } else {
-                 grab $win
-             }
-             if {[info exists result]} {unset result}
-             tkwait variable [myvar result]
-             if {[info exists result]} {
-                 set res $result
-                 unset result
-             } else {
-                 set res -1
-             }
-             $self withdraw $win
-             return $res
-         }
-         return ""
-     }
-     method withdraw {} {
-         focus $savedfocus
-         if {[winfo exists $win] {grab release $win}
-         if {[winfo exists $savedgrab]} {
-             if {$savedgrabopt eq "global"} {
-                 grab -global $savedgrab
-             } else {
-                 grab $savedgrab
-             }
-         }
-         if {[winfo exists $win]} {wm withdraw $win}
-     }
-     destructor {
-         catch {$self enddialog -1}
-         catch {focus $savedfocus}
-         catch {grab release $win}
-     }
+        if {[set grab $options(-modal)] ne "none"} {
+            set savedgrab [grab current]
+            if {[winfo exists $savedgrab]} {
+                set savedgrabopt [grab status $savedgrab]
+            }
+            if {$grab eq "global"} {
+                grab -global $win
+            } else {
+                grab $win
+            }
+            if {[info exists result]} {unset result}
+            tkwait variable [myvar result]
+            if {[info exists result]} {
+                set res $result
+                unset result
+            } else {
+                set res -1
+            }
+            $self withdraw $win
+            return $res
+        }
+        return ""
+    }
+    method withdraw {} {
+        focus $savedfocus
+        if {[winfo exists $win]} {grab release $win}
+        if {[winfo exists $savedgrab]} {
+            if {$savedgrabopt eq "global"} {
+                grab -global $savedgrab
+            } else {
+                grab $savedgrab
+            }
+        }
+        if {[winfo exists $win]} {wm withdraw $win}
+    }
+    destructor {
+        catch {$self enddialog -1}
+        catch {focus $savedfocus}
+        catch {grab release $win}
+    }
 }
-
+ 
+package provide Dialog 1.0
