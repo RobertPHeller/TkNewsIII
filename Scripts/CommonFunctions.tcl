@@ -258,7 +258,7 @@ snit::widgetadaptor ServerMessageDialog {
         $type draw -message "$message" -parent $parent -title $title    
     }
     typeconstructor {
-        ttk::style ServerMessageDialog \
+        ttk::style configure ServerMessageDialog \
               -aspect 1500 \
               -justify left \
               -anchor w \
