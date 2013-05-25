@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri May 24 09:50:47 2013
-#  Last Modified : <130524.1522>
+#  Last Modified : <130525.1203>
 #
 #  Description	
 #
@@ -32,6 +32,7 @@
 package require Tk
 package require tile
 package require ButtonBox
+package require IconImage
 
 snit::widgetadaptor Dialog {
     
@@ -53,7 +54,7 @@ snit::widgetadaptor Dialog {
         }
     }
     option -modal -default local -type {snit::enum -values {none local global}}
-    option -bitmap -default {} -readonly yes 
+    option -bitmap -default {} -readonly yes
     option -image -default {} -readonly yes
     option -separator -default no -readonly yes -type snit::boolean
     option -cancel -default {}
@@ -102,19 +103,17 @@ snit::widgetadaptor Dialog {
     }
     method _ThemeChanged {} {
         set background [ttk::style lookup $options(-style) -background]
-        $win configure \
+        #puts stderr "*** $self _ThemeChanged: background = $background"
+        #puts stderr "*** $self _ThemeChanged: hull is $hull"
+        $hull configure \
               -borderwidth [ttk::style lookup $options(-style) -borderwidth] \
               -background $background \
               -relief [ttk::style lookup $options(-style) -relief]
+        #puts stderr "*** $self _ThemeChanged: frame is $frame"
         $frame configure \
               -borderwidth [ttk::style lookup $options(-style) \
                             -frameborderwidth] \
-              -background $background \
               -relief [ttk::style lookup $options(-style) -framerelief]
-        if {[info exists $label] &&
-            [winfo exists $label]} {$label configure -background $background}
-        if {[info exists $sep] &&
-            [winfo exists $sep]} {$sep configure -background $background}
     }
     method _Escape {} {
         return [$bbox invoke $options(-cancel)]
@@ -138,6 +137,7 @@ snit::widgetadaptor Dialog {
     variable savedgrabopt
     
     constructor {args} {
+        #puts stderr "*** $type create $self $args"
         set options(-style) [from args -style]
         set options(-class) [from args -class]
         installhull using tk::toplevel -class $options(-class) \
@@ -146,6 +146,7 @@ snit::widgetadaptor Dialog {
         wm withdraw $win
         wm overrideredirect $win 1
         set options(-title) [from args -title]
+        #puts stderr "*** $type create $self: options(-title) = '$options(-title)'"
         wm title $win $options(-title)
         set options(-parent) [from args -parent [winfo parent $win]]
         set options(-transient) [from args -transient]
@@ -164,19 +165,28 @@ snit::widgetadaptor Dialog {
               -borderwidth [ttk::style lookup $options(-style) \
                             -frameborderwidth]
         set background [ttk::style lookup $options(-style) -background]
-        $win configure -background $background
-        $frame configure -background $background
+        #puts stderr "*** $type create $self: background is $background"
+        #puts stderr "*** $type create $self: hull is $hull"
+        $hull configure -background $background
+        #puts stderr "*** $type create $self: frame is $frame"
+        #$frame configure -background $background
         set options(-bitmap) [from args -bitmap]
         set options(-image) [from args -image]
-        if {$options(-bitmap) ne ""} {
+        if {$options(-image) ne ""} {
+            #puts stderr "*** $type create $self: -image is $options(-image)"
             install label using ttk::label $win.label \
-                  -bitmap $options(-bitmap) -background $background
-        } elseif {$options(-image) ne ""} {
+                  -image $options(-image)
+        } elseif {$options(-bitmap) ne ""} {
+            #puts stderr "*** $type create $self: -bitmap is $options(-bitmap)"
             install label using ttk::label $win.label \
-                  -image $options(-image) -background $background
+                  -image [IconImage image $options(-bitmap) -filetype xbm \
+                          -background $background]
+            #puts stderr "*** $type create $self: label is $label"
+            #puts stderr "*** $type create $self: winfo exists $label is [winfo exists $label]"
         }
         set options(-separator) [from args -separator]
         if {$options(-separator)} {
+            #puts stderr "*** $type create $self: -separator is true"
             install sep using ttk::separator $win.sep -orient $orient \
                   -background $background
         }
@@ -209,13 +219,16 @@ snit::widgetadaptor Dialog {
                 }
                 pack $bbox -side $side -padx 1m -pady 1m \
                       -anchor $options(-anchor)
-                if {[info exists $sep] &&
+                if {[info exists sep] &&
                     [winfo exists $sep]} {
                     pack $sep -side $side -fill $fill $pad 2m
                 }
             }
-            if {[info exists $label] &&
+            #catch {puts stderr "*** $self draw: label is $label"}
+            #catch {puts stderr "*** $self draw: winfo exists $label is [winfo exists $label]"}
+            if {[info exists label] &&
                 [winfo exists $label]} {
+                #puts stderr "*** $self draw: label is $label"
                 pack $label -side left -anchor n -padx 3m -pady 3m
             }
             pack $frame -padx 1m -pady 1m -fill both -expand yes
@@ -269,7 +282,7 @@ snit::widgetadaptor Dialog {
             } else {
                 set res -1
             }
-            $self withdraw $win
+            $self withdraw
             return $res
         }
         return ""
@@ -291,6 +304,148 @@ snit::widgetadaptor Dialog {
         catch {focus $savedfocus}
         catch {grab release $win}
     }
+    proc _place { path w h args } { 
+        update idletasks
+        set reqw [winfo reqwidth  $path]
+        set reqh [winfo reqheight $path]
+        if { $w == 0 } {set w $reqw}
+        if { $h == 0 } {set h $reqh}
+
+        set arglen [llength $args]
+        if { $arglen > 3 } {
+            return -code error "Dialog::place: bad number of argument"
+        }
+
+        if { $arglen > 0 } {
+            set where [lindex $args 0]
+            set list  [list "at" "center" "left" "right" "above" "below"]
+            set idx   [lsearch $list $where]
+            if { $idx == -1 } {
+                return -code error "Dialog::place: bad position: $where"
+            }
+            if { $idx == 0 } {
+                set err [catch {
+                         # purposely removed the {} around these expressions - [PT]
+                         set x [expr int([lindex $args 1])]
+                         set y [expr int([lindex $args 2])]
+                     }]
+                if { $err } {
+                    return -code error "Dialog::_place: incorrect position"
+                }
+                if {$::tcl_platform(platform) == "windows"} {
+                    # handle windows multi-screen. -100 != +-100
+                    if {[string index [lindex $args 1] 0] != "-"} {
+                        set x "+$x"
+                    }
+                    if {[string index [lindex $args 2] 0] != "-"} {
+                        set y "+$y"
+                    }
+                } else {
+                    if { $x >= 0 } {
+                        set x "+$x"
+                    }
+                    if { $y >= 0 } {
+                        set y "+$y"
+                    }
+                }
+            } else {
+                if { $arglen == 2 } {
+                    set widget [lindex $args 1]
+                    if { ![winfo exists $widget] } {
+                        return -code error "Dialog::_place: \"$widget\" does not exist"
+                    }
+                } else {
+                    set widget .
+                }
+                set sw [winfo screenwidth  $path]
+                set sh [winfo screenheight $path]
+                if { $idx == 1 } {
+                    if { $arglen == 2 } {
+                        # center to widget
+                        set x0 [expr {[winfo rootx $widget] + ([winfo width  $widget] - $w)/2}]
+                        set y0 [expr {[winfo rooty $widget] + ([winfo height $widget] - $h)/2}]
+                    } else {
+                        # center to screen
+                        set x0 [expr {([winfo screenwidth  $path] - $w)/2 - [winfo vrootx $path]}]
+                        set y0 [expr {([winfo screenheight $path] - $h)/2 - [winfo vrooty $path]}]
+                    }
+                    set x "+$x0"
+                    set y "+$y0"
+                    if {$::tcl_platform(platform) != "windows"} {
+                        if { $x0+$w > $sw } {set x "-0"; set x0 [expr {$sw-$w}]}
+                        if { $x0 < 0 }      {set x "+0"}
+                        if { $y0+$h > $sh } {set y "-0"; set y0 [expr {$sh-$h}]}
+                        if { $y0 < 0 }      {set y "+0"}
+                    }
+                } else {
+                    set x0 [winfo rootx $widget]
+                    set y0 [winfo rooty $widget]
+                    set x1 [expr {$x0 + [winfo width  $widget]}]
+                    set y1 [expr {$y0 + [winfo height $widget]}]
+                    if { $idx == 2 || $idx == 3 } {
+                        set y "+$y0"
+                        if {$::tcl_platform(platform) != "windows"} {
+                            if { $y0+$h > $sh } {set y "-0"; set y0 [expr {$sh-$h}]}
+                            if { $y0 < 0 }      {set y "+0"}
+                        }
+                        if { $idx == 2 } {
+                            # try left, then right if out, then 0 if out
+                            if { $x0 >= $w } {
+                                set x [expr {$x0-$sw}]
+                            } elseif { $x1+$w <= $sw } {
+                                set x "+$x1"
+                            } else {
+                                set x "+0"
+                            }
+                        } else {
+                            # try right, then left if out, then 0 if out
+                            if { $x1+$w <= $sw } {
+                                set x "+$x1"
+                            } elseif { $x0 >= $w } {
+                                set x [expr {$x0-$sw}]
+                            } else {
+                                set x "-0"
+                            }
+                        }
+                    } else {
+                        set x "+$x0"
+                        if {$::tcl_platform(platform) != "windows"} {
+                            if { $x0+$w > $sw } {set x "-0"; set x0 [expr {$sw-$w}]}
+                            if { $x0 < 0 }      {set x "+0"}
+                        }
+                        if { $idx == 4 } {
+                            # try top, then bottom, then 0
+                            if { $h <= $y0 } {
+                                set y [expr {$y0-$sh}]
+                            } elseif { $y1+$h <= $sh } {
+                                set y "+$y1"
+                            } else {
+                                set y "+0"
+                            }
+                        } else {
+                            # try bottom, then top, then 0
+                            if { $y1+$h <= $sh } {
+                                set y "+$y1"
+                            } elseif { $h <= $y0 } {
+                                set y [expr {$y0-$sh}]
+                            } else {
+                                set y "-0"
+                            }
+                        }
+                    }
+                }
+            }
+            
+            ## If there's not a + or - in front of the number, we need to add one.
+            if {[string is integer [string index $x 0]]} { set x +$x }
+            if {[string is integer [string index $y 0]]} { set y +$y }
+            
+            wm geometry $path "${w}x${h}${x}${y}"
+        } else {
+            wm geometry $path "${w}x${h}"
+        }
+        update idletasks
+    }
 }
- 
+
 package provide Dialog 1.0

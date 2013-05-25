@@ -725,17 +725,23 @@ snit::widget ArticleViewer {
                          [GroupName Path $groupName]]
         }
         if {![file exists "$baseDir"]} {file mkdir $baseDir}
-        set folder [Articles::SelectFolderDialog draw \
+        set folder [SelectFolderDialog draw \
                     -parent $win \
                     -basedirectory $baseDir \
                     -title "Select subfolder for $groupName"]
         if {[string length "$folder"] == 0} {return}
-        set saveDir [file join $baseDir $folder]
-        set newname "${groupName}.${folder}"
-        if {![file exists "$saveDir"]} {
-            file mkdir $saveDir
-            $options(-spool) addSavedDirectory $newname $saveDir
-            $options(-spool) addSavedGroupLine $groupName $newname
+        set elements [file split $folder]
+        while {[llength $elements] > 0} {
+            set saveDir [file join $baseDir [lindex $elements 0]]
+            set newname "${groupName}.[lindex $elements 0]"
+            if {![file exists "$saveDir"]} {
+                file mkdir $saveDir
+                $options(-spool) addSavedDirectory $newname $saveDir
+                $options(-spool) addSavedGroupLine $groupName $newname
+            }
+            set groupName $newname
+            set baseDir $saveDir
+            set elements [lrange $elements 1 end]
         }
         set highMessage [MessageList Highestnumber [glob -nocomplain "$saveDir/*"]]
         set mnum [expr $highMessage + 1]
@@ -903,115 +909,159 @@ snit::widget ArticleViewer {
 }
 
 
-namespace eval Articles {
 
-  snit::widgetadaptor SelectFolderDialog {
+snit::widgetadaptor SelectFolderDialog {
     typevariable dialogsByParent -array {}
     option -parent -readonly yes -default .
     option {-basedirectory baseDirectory BaseDirectory} \
-		-validatemethod _CheckDirectory
+          -validatemethod _CheckDirectory
     delegate option -title to hull
-
-    component folderListSW
-    component folderList
-    component selectedFolderLE
-
+    
+    component folderTreeSW
+    component folderTree
+    component selectedFolderFrame
+    component   selectedFolderLabel
+    component   selectedFolder
+    
     method _CheckDirectory {option value} {
-      if {[file isdirectory "$value"]} {
-        return $value
-      } else {
-        error "Expected an existing directory for $option, got $value"
-      }
+        if {[file isdirectory "$value"]} {
+            return $value
+        } else {
+            error "Expected an existing directory for $option, got $value"
+        }
     }
-
+    
     constructor {args} {
-      set options(-parent) [from args -parent]
-      installhull using Dialog::create \
-			-class SelectFolderDialog -bitmap questhead \
-			-default 0 -cancel 1 -modal local -transient yes \
-			-parent $options(-parent) -side bottom
-#      puts stderr "*** $self constructor: hull = $hull, win = $win, winfo class $win = [winfo class $win]"
-      Dialog::add $win -name ok -text OK -command [mymethod _OK]
-      Dialog::add $win -name cancel -text Cancel -command [mymethod _Cancel]
-      Dialog::add $win -name help -text Help -command [list BWHelp::HelpTopic SelectFolderDialog]
-      wm protocol $win WM_DELETE_WINDOW [mymethod _Cancel]
-      install folderListSW using ScrolledWindow \
-				[Dialog::getframe $win].folderListSW \
-		-scrollbar vertical -auto vertical
-#      puts stderr "*** $self constructor: folderListSW = $folderListSW, winfo class $folderListSW = [winfo class $folderListSW]"
-      pack   $folderListSW -expand yes -fill both
-      install folderList using ListBox \
-			[ScrolledWindow::getframe $folderListSW].folderList \
-		-selectmode single -selectfill yes
-#      puts stderr "*** $self constructor: folderList = $folderList, winfo class $folderList = [winfo class $folderList]"
-      pack $folderList -fill both -expand yes
-      $folderListSW setwidget $folderList
-      $folderList bindText <space> [mymethod _SelectFolder]
-      $folderList bindText <1> [mymethod _SelectFolder]
-      $folderList bindText <Return> [mymethod _SelectAndReturnFolder]
-      $folderList bindText <Double-Button-1> [mymethod _SelectAndReturnFolder]
-#      puts stderr "*** $self constructor: about to install selectedFolderLE"
-      install selectedFolderLE using LabelEntry \
-		[Dialog::getframe $win].selectedFolderLE \
-		-label {Selected Folder:} -side left
-#      puts stderr "*** $self constructor: selectedFolderLE = $selectedFolderLE, winfo class $selectedFolderLE = [winfo class $selectedFolderLE]"
-      pack $selectedFolderLE -fill x
-      $self configurelist $args
-      set dialogsByParent($options(-parent)) $self
+        set options(-parent) [from args -parent]
+        installhull using Dialog \
+              -class SelectFolderDialog -bitmap questhead \
+              -default ok -cancel cancel -modal local -transient yes \
+              -parent $options(-parent) -side bottom
+        #      puts stderr "*** $self constructor: hull = $hull, win = $win, winfo class $win = [winfo class $win]"
+        $hull add  ok -text OK -command [mymethod _OK]
+        $hull add cancel -text Cancel -command [mymethod _Cancel]
+        $hull add help -text Help -command [list BWHelp::HelpTopic SelectFolderDialog]
+        wm protocol $win WM_DELETE_WINDOW [mymethod _Cancel]
+        install folderTreeSW using ScrolledWindow \
+              [$hull getframe].folderTreeSW \
+              -scrollbar vertical -auto vertical
+        #      puts stderr "*** $self constructor: folderTreeSW = $folderTreeSW, winfo class $folderTreeSW = [winfo class $folderTreeSW]"
+        pack   $folderTreeSW -expand yes -fill both
+        install folderTree using ttk::treeview \
+              [$folderTreeSW getframe].folderTree \
+              -selectmode browse -show {tree}
+        #      puts stderr "*** $self constructor: folderTree = $folderTree, winfo class $folTree = [winfo class $folderTree]"
+        $folderTreeSW setwidget $folderTree
+        $folderTree tag bind row <space> [mymethod _SelectFolder %x %y]
+        $folderTree tag bind row <Button-1> [mymethod _SelectFolder %x %y]
+        $folderTree tag bind row <Return> [mymethod _SelectAndReturnFolder %x %y]
+        $folderTree tag bind row <Double-Button-1> [mymethod _SelectAndReturnFolder %x %y]
+        #      puts stderr "*** $self constructor: about to install selectedFolderLE"
+        install selectedFolderFrame using ttk::frame \
+              [$hull getframe].selectedFolderFrame
+        pack $selectedFolderFrame -fill x -expand yes
+        install selectedFolderLabel using ttk::label \
+              $selectedFolderFrame.selectedFolderLabel \
+              -text {Selected Folder:} -anchor w
+        pack $selectedFolderLabel -side left
+        install selectedFolder using ttk::entry \
+              $selectedFolderFrame.selectedFolder
+        bind $selectedFolder <Tab> [mymethod _ExpandName]
+        bind $selectedFolder <Return> [mymethod _OK]
+        pack $selectedFolder -side left -fill x -expand yes
+        $self configurelist $args
+        set dialogsByParent($options(-parent)) $self
     }
     destructor {
-      catch {unset dialogsByParent($options(-parent))}
+        catch {unset dialogsByParent($options(-parent))}
     }
     method _OK {} {
-      Dialog::withdraw $win
-      return [Dialog::enddialog $win ok]
+        $hull withdraw
+        return [$hull enddialog ok]
     }
     method _Cancel {} {
-      Dialog::withdraw $win
-      return [Dialog::enddialog $win cancel]
+        $hull withdraw
+        return [$hull enddialog cancel]
     }
-    method _SelectFolder {selection} {
-      $selectedFolderLE configure -text "[$folderList itemcget $selection -data]"
+    method _SelectFolder {x y} {
+        set selection [$folderTree identify row $x $y]
+        $selectedFolder delete 0 end
+        $selectedFolder insert end [$folderTree item $selection -text]
     }
-    method _SelectAndReturnFolder {selection} {
-      $selectedFolderLE configure -text "[$folderList itemcget $selection -data]"
-      $self _OK
+    method _SelectAndReturnFolder {x y} {
+        set selection [$folderTree identify row $x $y]
+        $selectedFolder delete 0 end
+        $selectedFolder insert end [$folderTree item $selection -text]
+        $self _OK
     }
+    method _ExpandName {} {
+        set current [$selectedFolder get]
+        set files [lsort -dictionary \
+                   [glob -nocomplain -directory $options(-basedirectory) \
+                    -tails -types d "${current}*"]]
+        if {[llength $files] == 0} {return}
+        set nextletters [list]
+        foreach f $files {
+            if {[regexp "^${current}(.)" $f => letter] > 0} {
+                if {[lsearch $nextletters $letter] < 0} {
+                    lappend nextletters $letter
+                }
+            }
+        }
+        if {[llength $nextletters] == 1} {
+            $selectedFolder insert end [lindex $nextletters 0]
+            $self _ExpandName
+        }
+        return
+    }        
     method _Draw {args} {
-      $self configurelist $args
-      if {![info exists options(-basedirectory)]} {
-	error "-basedirectory is a required option!"
-      }
-      $folderList delete [$folderList items]
-      foreach dir [lsort -dictionary [glob -nocomplain \
-					   [file join $options(-basedirectory) \
-							*]]] {
-	if {[file isdirectory $dir] && [file writable $dir]} {
-	  set folder [file tail $dir]
-	  $folderList insert end $folder -data $folder -text $folder
-	}
-      }
-      switch -exact -- [Dialog::draw $win] {
-        ok {return "[$selectedFolderLE cget -text]"}
-	cancel -
-	default {return {}}
-      }
+        $self configurelist $args
+        if {![info exists options(-basedirectory)]} {
+            error "-basedirectory is a required option!"
+        }
+        $folderTree delete [$folderTree children {}]
+        _fillFolderTree $folderTree $options(-basedirectory) *
+        switch -exact -- [$hull draw] {
+            ok {return "[$selectedFolder get]"}
+            cancel -
+            default {return {}}
+        }
+    }
+    proc _fillFolderTree {ft base pattern {parent {}}} {
+        #puts stderr "*** SelectFolderDialog::_fillFolderTree: base = $base, pattern = $pattern"
+        #puts stderr "*** SelectFolderDialog::_fillFolderTree: parent is $parent"
+        foreach folder [lsort -dictionary \
+                        [glob -nocomplain -directory $base \
+                         -tails -types d $pattern]] {
+            #puts stderr "*** SelectFolderDialog::_fillFolderTree: folder is $folder"
+            if {[file writable [file join $base $folder]]} {
+                #puts stderr "*** SelectFolderDialog::_fillFolderTree: $folder is writable"
+                set child [$ft insert $parent end -text $folder \
+                           -open no -tags row]
+                #puts stderr "*** SelectFolderDialog::_fillFolderTree: child is $child"
+                _fillFolderTree $ft $base [file join $folder *] $child
+            }
+        }
     }
     typemethod draw {args} {
-      set parent [from args -parent {.}]
-      if {[catch "set dialogsByParent($parent)" dialog]} {
-	if {[string equal [string index $parent end] {.}]} {
-	  set dialog ${parent}selectFolderDialog
-	} else {
-	  set dialog ${parent}.selectFolderDialog
-	}
-	set dialog [eval [list $type \
-				create ${dialog} -parent $parent] \
-			 $args]
-      }
-      return "[eval [list $dialog _Draw] $args]"
+        set parent [from args -parent {.}]
+        if {[catch "set dialogsByParent($parent)" dialog]} {
+            if {[string equal [string index $parent end] {.}]} {
+                set dialog ${parent}selectFolderDialog
+            } else {
+                set dialog ${parent}.selectFolderDialog
+            }
+            set dialog [eval [list $type \
+                              create ${dialog} -parent $parent] \
+                              $args]
+        }
+        return "[eval [list $dialog _Draw] $args]"
     }
-  }
+}
+
+
+namespace eval Articles {
+
   snit::widgetadaptor SearchArticlesDialog {
 
     component articleListSW

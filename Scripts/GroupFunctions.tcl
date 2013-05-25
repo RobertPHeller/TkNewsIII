@@ -835,12 +835,12 @@ snit::widget GroupTreeFrame {
         }
         return "$line"
     }
-    method addSavedGroupLineInTree {tree parent group} {
+    method addSavedGroupLineInTree {parent group} {
+        #puts stderr "*** $self addSavedGroupLineInTree $parent $group"
         if {[catch "$options(-spool) savedDirectory $group" mdir] == 0} {
-            #set font [option get $tree font Font]
-            set line [$self formatSavedGroupLine $group]
-            $tree insert end $parent $group -data $group -text "$line" \
-                  -font "$font"
+            $groupTree insert $parent end -id $group -text $group \
+                  -values [$self formSavedGroupValues $group] \
+                  -tags groupitem -open no
         }
     }
     method updateGroupLineInTree {group {format {Brief}}} {

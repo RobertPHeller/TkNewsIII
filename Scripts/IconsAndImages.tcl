@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 16 13:48:41 2013
-#  Last Modified : <130517.1459>
+#  Last Modified : <130525.1157>
 #
 #  Description	
 #
@@ -42,9 +42,12 @@ snit::type IconImage {
     }
     option -filetype -default "any" -readonly yes \
           -type {snit::enum -values {any png xpm xbm}}
+    option -background -default {} -readonly yes
+    option -foreground -default black -readonly yes
     constructor {args} {
         #puts stderr "*** $type create $self $args"
         set name [namespace tail $self]
+        #puts stderr "*** $type create $self: name is $name"
         $self configurelist $args
         switch $options(-filetype) {
             xbm {
@@ -68,23 +71,33 @@ snit::type IconImage {
                 set pngfile [file join $icondir $name.png]
             }
         }
+        #puts stderr "*** $type create $self: pngfile file is $pngfile"
+        #puts stderr "*** $type create $self: xpmfile file is $xpmfile"
+        #puts stderr "*** $type create $self: xbmfile file is $xbmfile"
         if {$pngfile ne {} && [file exists $pngfile]} {
             set imagemap($name) [image create photo -file $pngfile]
         } elseif {$xpmfile ne {} && [file exists $xpmfile]} {
             set imagemap($name) [image create photo -file $xpmfile]
         } elseif {$xbmfile ne {} && [file exists $xbmfile]} {
-            set imagemap($name) [image create bitmap -file $xbmfile]
+            set imagemap($name) [image create bitmap -file $xbmfile \
+                                 -background [from args -background] \
+                                 -foreground [from args -foreground]]
         } else {
             set imagemap($name) $unknownimg
         }
+        #puts stderr "*** $type create $self: imagemap($name) is $imagemap($name)"
+        
     }
-    typemethod image {name} {
-        #puts stderr "*** $type $name"
+    typemethod image {name args} {
+        #puts stderr "*** $type image $name $args"
         #parray imagemap
+        set name [namespace tail $name]
+        #puts stderr "*** $type image: $name"
         if {[info exists imagemap($name)]} {
             return $imagemap($name)
         } else {
-            $type $name
+            eval [list $type $name] $args
+            #puts stderr "*** $type image: imagemap($name) is $imagemap($name)"
             return $imagemap($name)
         }
     }
@@ -94,6 +107,7 @@ snit::type IconBitmap {
     typevariable icondir
     typevariable unknownbm
     typevariable bitmapmap -array {}
+    
     typeconstructor {
         set icondir [file dirname [info script]]
         set unknownbm error
@@ -106,7 +120,7 @@ snit::type IconBitmap {
             }
         }
     }
-    constructor {} {
+    constructor {args} {
         set name [namespace tail $self]
         set xbmfile [file join $icondir $name.xbm]
         if {[file exists $xbmfile]} {
@@ -126,3 +140,4 @@ snit::type IconBitmap {
 }
 
 package provide IconImage 1.0
+

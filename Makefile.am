@@ -71,7 +71,8 @@ LibraryImages = Scripts/unknown.xpm Scripts/DeepwoodsBanner.png
 #                Scripts/close.gif Scripts/new.gif Scripts/open.gif \
 #		Scripts/print.gif Scripts/save.gif Scripts/DeepwoodsBanner.gif \
 #		Scripts/TkNewsIIIicon.gif
-LibraryXBMS =  Scripts/TkNewsIIIicon.xbm  Scripts/TkNewsIIIicon_mask.xbm
+LibraryXBMS =  Scripts/TkNewsIIIicon.xbm  Scripts/TkNewsIIIicon_mask.xbm \
+                Scripts/questhead.xbm Scripts/info.xbm
 TkNewsIIIDATA = $(LibraryScripts) $(LibraryImages) $(LibraryXBMS)
 Split_flatmessagefileDATA = 
 

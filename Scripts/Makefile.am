@@ -4,4 +4,4 @@ EXTRA_DIST = DynamicHelp.tcl IconsAndImages.tcl snitmainframe.tcl \
             TkNewsIII.src QWKFunctions.tcl TopWindow.tcl \
             SpoolFunction.tcl GroupFunctions.tcl snitbuttonbox.tcl \
             ArticleFunctions.tcl snitdialog.tcl CommonFunctions.tcl \
-            snitrotext.tcl
+            snitrotext.tcl questhead.xbm info.xbm
