@@ -51,6 +51,88 @@ package require ScrollWindow
 package require MainFrame
 package require ButtonBox
 
+snit::macro typevalidator {} {
+    typemethod validate {value} {
+        #puts stderr "*** $type validate $value"
+        if {[catch [list $value info type] thetype]} {
+            return -code error  "invalid value \"$value\", expected $type"
+        } elseif {$thetype ne $type} {
+            #puts "*** $type validate: thetype is $thetype, type is $type"
+            return -code error  "invalid value \"$value\", expected $type"
+        } else {
+            #puts "*** $type validate: thetype is $thetype, type is $type"
+            return $value
+        }
+    }
+}
+
+snit::type File {
+    
+    option -directory  -default no -readonly yes -type snit::boolean
+    option -writable   -default no -readonly yes -type snit::boolean
+    option -readable   -default no -readonly yes -type snit::boolean
+    option -regular    -default no -readonly yes -type snit::boolean
+    option -executable -default no -readonly yes -type snit::boolean
+    
+    typemethod validate {value} {
+        if {![file exists $value]} {
+            return -code error  "Expected a file, but got $value"
+        }
+        return
+    }
+    constructor {args} {
+        $self configurelist $args
+    }
+    
+    method validate {value} {
+        $type validate $value
+        if {$options(-directory)} {
+            if {![file isdirectory $value]} {
+                return -code error  "Not a directory: $value"
+            }
+        }
+        if {$options(-writable)} {
+            if {![file writable $value]} {
+                return -code error  "Not a writable file: $value"
+            }
+        }
+        if {$options(-readable)} {
+            if {![file readable $value]} {
+                return -code error  "Not a readable file: $value"
+            }
+        }
+        if {$options(-regular)} {
+            if {![file isfile $value]} {
+                return -code error  "Not a regular file: $value"
+            }
+        }
+        if {$options(-executable)} {
+            if {![file executable $value]} {
+                return -code error  "Not an executable file: $value"
+            }
+        }
+        return
+    }
+}
+
+File Directory -directory yes
+File RWFile -writable yes -readable yes -regular yes
+
+snit::type Host {
+    typemethod validate {value} {
+        if {[catch {package require dns}]} {return "$value"}
+        set token [dns::resolve "$value"]
+        set status [dns::status $token]
+        dns::cleanup $token 
+        switch -exact $status {
+            ok {return $value}
+            error {
+                error "Expected a hostname, but got $value"
+            }
+        }
+    }
+}
+
 snit::type MessageList {
     pragma -hastypedestroy no
     pragma -hasinstances no

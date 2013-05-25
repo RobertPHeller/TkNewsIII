@@ -276,18 +276,11 @@ snit::widget ArticleListFrame {
     typevariable articleButtonsList {followup mailreply forwardto save file print}
     method _ReadArticleAt {x y} {
         set selection [$articleList identify row $x $y]
-        $spoolwindow _ReadArticle $article_number($selection)
+        #puts stderr "*** $self _ReadArticleAt: selection is $selection"
+        #puts stderr "*** $self _ReadArticleAt: info exists article_number($selection) = [info exists article_number($selection)]"
+        $spoolwindow _ReadArticle $selection
     }
-    option -spool -readonly yes -validatemethod _CheckSpool
-    method _CheckSpool {option value} {
-        if {[catch [list $value info type] thetype]} {
-            error "Expected a SpoolWindow for $option, but got $value ($thetype)"
-        } elseif {"$thetype" ne "::SpoolWindow"} {
-            error "Expected a ::SpoolWindow for $option, but got a $thetype ($value)"
-        } else {
-            return $value
-        }
-    }
+    option -spool -readonly yes -type SpoolWindow
     component spoolwindow
     delegate method * to spoolwindow
     delegate method {artlistButtonBox *} to artlistButtonBox except {add}
@@ -392,16 +385,7 @@ snit::widget ArticleViewer {
     hulltype tk::toplevel
     widgetclass Viewer
     option -parent -readonly yes -default .
-    option -spool  -readonly yes -validatemethod _CheckSpool
-    method _CheckSpool {option value} {
-      if {[catch [list $value info type] thetype]} {
-	error "Expected a ::Spool::SpoolWindow for $option, but got $value ($thetype)"
-      } elseif {![string equal "$thetype" ::Spool::SpoolWindow]} {
-	error "Expected a ::Spool::SpoolWindow for $option, but got a $thetype ($value)"
-      } else {
- 	return $value
-      }
-    }
+    option -spool  -readonly yes -type SpoolWindow
     option {-geometry articleGeometry ArticleGeometry} -readonly yes -default {}
 
     variable articleNumber
@@ -731,7 +715,7 @@ snit::widget ArticleViewer {
         set spoolWindow $options(-spool)
         #set decryptProgram [split [option get $spoolWindow decryptProgram decryptProgram]]
         #set decryptPassphrase [split [option get $spoolWindow decryptPassphrase DecryptPassphrase]]
-        #set passPhrase [Articles::EnterPassPhraseDialog draw -parent $win]
+        #set passPhrase [EnterPassPhraseDialog draw -parent $win]
         #foreach o $decryptPassphrase {
 	#lappend decryptProgram [regsub -all "%passphrase" "$o" "$passPhrase"]
         #}
@@ -790,7 +774,7 @@ snit::widget ArticleViewer {
     method _passphrase_callback {uid_hint passphrase_info prev_was_bad} {
         #puts stderr "*** $self _passphrase_callback passphrase_info is '$passphrase_info'"
         #puts stderr "*** $self _passphrase_callback uid_hint is '$uid_hint'"
-        set passPhrase [Articles::EnterPassPhraseDialog draw -parent $win \
+        set passPhrase [EnterPassPhraseDialog draw -parent $win \
                         -uidhint [lrange $uid_hint 1 end] \
                         -prevwasbad $prev_was_bad]
     }
@@ -846,8 +830,7 @@ snit::widget ArticleViewer {
 snit::widgetadaptor SelectFolderDialog {
     typevariable dialogsByParent -array {}
     option -parent -readonly yes -default .
-    option {-basedirectory baseDirectory BaseDirectory} \
-          -validatemethod _CheckDirectory
+    option {-basedirectory baseDirectory BaseDirectory} -type Directory
     delegate option -title to hull
     
     component folderTreeSW
@@ -855,14 +838,6 @@ snit::widgetadaptor SelectFolderDialog {
     component selectedFolderFrame
     component   selectedFolderLabel
     component   selectedFolder
-    
-    method _CheckDirectory {option value} {
-        if {[file isdirectory "$value"]} {
-            return $value
-        } else {
-            error "Expected an existing directory for $option, got $value"
-        }
-    }
     
     constructor {args} {
         set options(-parent) [from args -parent]
@@ -1002,16 +977,7 @@ snit::widgetadaptor SearchArticlesDialog {
 
     
     option {-grouptree groupTree GroupTree} -readonly yes \
-					    -validatemethod _CheckGroupTree
-    method _CheckGroupTree {option value} {
-      if {[catch [list $value info type] thetype]} {
-	error "Expected a ::GroupTreeFrame for $option, but got $value ($thetype)"
-      } elseif {![string equal "$thetype" ::GroupTreeFrame]} {
-	error "Expected a ::GroupTreeFrame for $option, but got a $thetype ($value)"
-      } else {
- 	return $value
-      }
-    }
+					    -type GroupTreeFrame
     option -pattern -readonly yes -default .
     option -group -readonly yes
     option {-readarticle readArticle ReadArticle} \
@@ -1098,16 +1064,7 @@ snit::widgetadaptor SearchArticlesDialog {
 snit::widgetadaptor SelectArticlesDialog {
     ArticleListMethods
     option {-grouptree groupTree GroupTree} -readonly yes \
-          -validatemethod _CheckGroupTree
-    method _CheckGroupTree {option value} {
-        if {[catch [list $value info type] thetype]} {
-            error "Expected a ::GroupTreeFrame for $option, but got $value ($thetype)"
-        } elseif {![string equal "$thetype" ::GroupTreeFrame]} {
-            error "Expected a ::GroupTreeFrame for $option, but got a $thetype ($value)"
-        } else {
-            return $value
-        }
-    }
+          -type GroupTreeFrame
     option -group -readonly yes
     option -selectmode -readonly yes -default browse \
           -type {snit::enum -values {browse extended}}
@@ -1173,9 +1130,7 @@ snit::widgetadaptor SelectArticlesDialog {
     }
 }
     
-namespace eval Articles {
-
-  snit::widgetadaptor EnterPassPhraseDialog {
+snit::widgetadaptor EnterPassPhraseDialog {
     typevariable dialogsByParent -array {}
     option -parent -readonly yes -default .
     delegate option -title to hull
@@ -1193,54 +1148,63 @@ namespace eval Articles {
     option -passphraseinfo {}
     component uidhintL
     component prevwasbadL
-    component passphraseLE
+    component passphraseFrame
+    component   passphraseLabel
+    component   passphraseEntry
     constructor {args} {
-      set options(-parent) [from args -parent]
-      installhull using Dialog::create \
-	-class EnterPassPhraseDialog -bitmap questhead \
-	-default 0 -modal local -transient yes \
-	-parent $options(-parent) -side bottom
-      Dialog::add $win -name ok -text OK -command [mymethod _OK]
-      install uidhintL using Label \
-            [Dialog::getframe $win].uidhintL -justify left -anchor w
-      pack $uidhintL -fill x -expand yes
-      install prevwasbadL using Label \
-            [Dialog::getframe $win].prevwasbadL -justify left -anchor w
-      pack $prevwasbadL -fill x -expand yes
-      install passphraseLE using LabelEntry [Dialog::getframe $win].passphraseLE \
-				-show * -label "Pass Phrase:"
-      pack $passphraseLE -fill x
-      $self configurelist $args
-      set dialogsByParent($options(-parent)) $self
+        set options(-parent) [from args -parent]
+        installhull using Dialog \
+              -class EnterPassPhraseDialog -bitmap questhead \
+              -default ok -modal local -transient yes \
+              -parent $options(-parent) -side bottom
+        $hull add ok -text OK -command [mymethod _OK]
+        install uidhintL using ttk::label \
+              [$hull getframe].uidhintL -justify left -anchor w
+        pack $uidhintL -fill x -expand yes
+        install prevwasbadL using ttk::label \
+              [$hull getframe].prevwasbadL -justify left -anchor w
+        pack $prevwasbadL -fill x -expand yes
+        install passphraseFrame using ttk::frame \
+              [$hull getframe].passphraseFrame
+        pack $passphraseFrame -fill x
+        install passphraseLabel using ttk::label \
+              $passphraseFrame.passphraseLabel -text "Pass Phrase:"
+        pack $passphraseLabel -side left
+        install passphraseEntry using ttk::entry \
+              $passphraseFrame.passphraseEntry -show *
+        bind $passphraseEntry <Return> [mymethod _OK]
+        pack $passphraseEntry -side left -expand yes -fill x
+        $self configurelist $args
+        set dialogsByParent($options(-parent)) $self
     }
     destructor {
-      catch {unset dialogsByParent($options(-parent))}
+        catch {unset dialogsByParent($options(-parent))}
     }
     method _OK {} {
-      Dialog::withdraw $win
-      return [Dialog::enddialog $win [$passphraseLE cget -text]]
+        $hull withdraw
+        return [$hull enddialog [$passphraseEntry get]]
     }
     method _Draw {args} {
-      $self configurelist $args
-      $passphraseLE configure -text {}
-      return [Dialog::draw $win $passphraseLE.e]
+        $self configurelist $args
+        $passphraseEntry delete 0 end
+        return [$hull draw $passphraseEntry]
     }
     typemethod draw {args} {
-      set parent [from args -parent {.}]
-      if {[catch "set dialogsByParent($parent)" dialog]} {
-	if {[string equal [string index $parent end] {.}]} {
-	  set dialog ${parent}enterPassPhraseDialog
-	} else {
-	  set dialog ${parent}.enterPassPhraseDialog
+        set parent [from args -parent {.}]
+        if {[catch "set dialogsByParent($parent)" dialog]} {
+            if {[string equal [string index $parent end] {.}]} {
+                set dialog ${parent}enterPassPhraseDialog
+            } else {
+                set dialog ${parent}.enterPassPhraseDialog
+            }
+            set dialog [eval [list $type \
+                              create ${dialog} -parent $parent] \
+                              $args]
 	}
-	set dialog [eval [list $type \
-			create ${dialog} -parent $parent] \
-			$args]
-	}
-      return "[eval [list $dialog _Draw] $args]"
+        return "[eval [list $dialog _Draw] $args]"
     }
-  }
 }
+
 
 
 

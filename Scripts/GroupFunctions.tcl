@@ -52,9 +52,8 @@ package require ScrollWindow
 package require ButtonBox
 package require Dialog
 
-namespace eval Common {#dummy}
-
 snit::type group {
+    typevalidator
     typevariable HeadListProg
     typeconstructor {
         global execbindir
@@ -67,16 +66,7 @@ snit::type group {
     option -postable -type snit::boolean -default yes
     option -subscribed -type snit::boolean -default no
     option -name -readonly yes
-    option -spool -readonly yes -validatemethod _CheckSpool
-    method _CheckSpool {option value} {
-        if {[catch [list $value info type] thetype]} {
-            error "Expected a SpoolWindow for $option, but got $value ($thetype)"
-        } elseif {"$thetype" ne "::SpoolWindow"} {
-            error "Expected a ::SpoolWindow for $option, but got a $thetype ($value)"
-        } else {
-            return $value
-        }
-    }
+    option -spool -readonly yes -type SpoolWindow
     variable ranges
     method setranges {rangelist} {
         foreach r $rangelist {
@@ -437,6 +427,7 @@ snit::type group {
 }
 
 snit::widget GroupTreeFrame {
+    typevalidator
     hulltype tk::frame
     component groupTreeSW
     component   groupTree
@@ -538,19 +529,10 @@ snit::widget GroupTreeFrame {
     delegate option -takefocus to groupTree
     delegate method selection to groupTree
     ###
-    option -spool -readonly yes -validatemethod _CheckSpool
+    option -spool -readonly yes -type SpoolWindow
     option -method -readonly yes -type {snit::enum -values {NNTP File}} -default File
     variable groups -array {}
     variable activeGroupList {}
-    method _CheckSpool {option value} {
-        if {[catch [list $value info type] thetype]} {
-            error "Expected a ::SpoolWindow for $option, but got $value ($thetype)"
-        } elseif {"$thetype" ne "::SpoolWindow"} {
-            error "Expected a ::SpoolWindow for $option, but got a $thetype ($value)"
-        } else {
-            return $value
-        }
-    }
     constructor {args} {
         install groupTreeSW using ScrolledWindow $win.groupTreeSW \
               -scrollbar vertical -auto vertical
@@ -1043,26 +1025,9 @@ snit::widget GroupTreeFrame {
         
 
 snit::type NewsList {
-    option -file -readonly yes -validatemethod _CheckRWFile -default ~/.newsrc
-    method _CheckRWFile {option value} {
-        if {[file exists "$value"] && 
-            [file readable "$value"] && 
-            [file writable "$value"]} {
-            return "$value"
-        } else {
-            error "Expected a read/writeable file for $option, but got $value"
-        }
-    }
-    option -grouptree -validatemethod _CheckGroupTreeFrame
-    method _CheckGroupTreeFrame {option value} {
-        if {[catch [list $value info type] thetype]} {
-            error "Expected a ::GroupTreeFrame for $option, but got $value"
-        } elseif {![string equal "$thetype" ::GroupTreeFrame]} {
-            error "Expected a ::GroupTreeFrame for $option, but got a $thetype ($value)"
-        } else {
-            return $value
-        }
-    }
+    typevalidator
+    option -file -readonly yes -type RWFile -default ~/.newsrc
+    option -grouptree -type GroupTreeFrame
     constructor {args} {
         $self configurelist $args
         if {![info exists options(-grouptree)]} {
@@ -1153,16 +1118,7 @@ snit::widgetadaptor DirectoryOfAllGroupsDialog {
     component selectedGroupLE
     
     option {-grouptree groupTree GroupTree} -readonly yes \
-          -validatemethod _CheckGroupTree
-    method _CheckGroupTree {option value} {
-        if {[catch [list $value info type] thetype]} {
-            error "Expected a ::GroupTree for $option, but got $value ($thetype)"
-        } elseif {![string equal "$thetype" ::GroupTree]} {
-            error "Expected a ::GroupTree for $option, but got a $thetype ($value)"
-        } else {
-            return $value
-        }
-    }
+          -type GroupTreeFrame
     option -pattern -readonly yes -default .
     option {-subscribecallback subscribeCallback SubscribeCallback} \
           -readonly yes

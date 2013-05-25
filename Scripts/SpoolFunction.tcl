@@ -61,12 +61,11 @@ package require Dialog
 package require CommonFunctions
 #package require AddressBook                                                    
 
-# Temporary...
-namespace eval Common {#dummy}
-
 snit::widget SpoolWindow {
     widgetclass SpoolWindow
     hulltype tk::toplevel
+    
+    typevalidator
     
     typevariable _menu {
         "&File" {file:menu} {file} 0 {
@@ -193,47 +192,20 @@ snit::widget SpoolWindow {
     variable status {}
     variable progress 0
 
-    option {-activefile activeFile ActiveFile} -validatemethod _CheckFile -default {}
+    option {-activefile activeFile ActiveFile} -type File -default {}
     option {-cleanfunction cleanFunction CleanFunction} -readonly yes -type snit::boolean -default no
-    option {-newsrc newsRc NewsRc} -readonly yes -validatemethod _CheckFile -default {}
-    option {-savednews savedNews SavedNews} -readonly yes -validatemethod _CheckDirectory -default {}
-    option -drafts -readonly yes -validatemethod _CheckDirectory -default {}
-    option {-servername serverName ServerName} -readonly yes -validatemethod _CheckHost -default localhost
+    option {-newsrc newsRc NewsRc} -readonly yes -type File -default {}
+    option {-savednews savedNews SavedNews} -readonly yes -type Directory -default {}
+    option -drafts -readonly yes -type Directory -default {}
+    option {-servername serverName ServerName} -readonly yes -type Host -default localhost
     option {-spellchecker spellChecker SpellChecker} -readonly yes -default {}
     option {-externaleditor externalEditor ExternalEditor} -readonly yes -default {}
-    option {-spooldirectory spoolDirectory SpoolDirectory} -readonly yes -validatemethod _CheckDirectory -default {}
+    option {-spooldirectory spoolDirectory SpoolDirectory} -readonly yes -type Directory -default {}
     option {-useserver useServer UseServer} -readonly yes -type snit::boolean -default no
     option {-geometry spoolGeometry SpoolGeometry} -readonly yes -default {}
     option {-iconic iconic Iconic} -readonly yes -default 0 -type snit::boolean
-    option {-killfile killFile KillFile} -readonly yes -default {} -validatemethod _CheckFile
+    option {-killfile killFile KillFile} -readonly yes -default {} -type File
     
-    method _CheckFile {option value} {
-      if {[file exists "$value"] && [file readable "$value"]} {
-        return $value
-      } else {
-        error "Expected an existing, readable file for $option, got $value"
-      }
-    }
-    method _CheckDirectory {option value} {
-      if {[file isdirectory "$value"]} {
-        return $value
-      } else {
-        error "Expected an existing directory for $option, got $value"
-      }
-    }
-
-    method _CheckHost {option value} {
-      if {[catch {package require dns}]} {return "$value"}
-      set token [dns::resolve "$value"]
-      set status [dns::status $token]
-      dns::cleanup $token
-      switch -exact $status {
-	ok {return $value}
-	error {
-	  error "Expected a hostname for $option, got $value"
-        }
-      }
-    }
     delegate option * to hull
     delegate method {main *} to main
     method setstatus {string} {set string $string}
@@ -1712,7 +1684,7 @@ snit::type GetSpoolNameDialog {
         set loadedP [from args -loaded no]
         $spoolListBox delete [$spoolListBox items]
         if {$loadedP} {
-            set spoolList [Spool::SpoolWindow loadedSpools]
+            set spoolList [SpoolWindow loadedSpools]
         } else {
             set spoolList [option get . spoolList SpoolList]
         }

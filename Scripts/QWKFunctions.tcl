@@ -58,15 +58,8 @@ snit::type QWKFileProcess {
     variable processErrorP
     variable done
     variable status
-    option -nocomplain -readonly yes -default no -validatemethod _CheckBoolean
-    option -doreply    -readonly yes -default no -validatemethod _CheckBoolean
-    method _CheckBoolean {option value} {
-        if {[string is boolean -strict "$value"]} {
-            return $value"
-        } else {
-            error "Expected a boolean value for $option, got $value"
-        }
-    }
+    option -nocomplain -readonly yes -default no -type snit::boolean
+    option -doreply    -readonly yes -default no -type snit::boolean
     option -spool -readonly yes
     option -recycleprocesswindow -readonly yes
     option -parent -readonly yes -default .
@@ -403,15 +396,8 @@ snit::type QWKReplyProcess {
     variable done
     variable status
     variable numPacked
-    option -replace -readonly yes -default no -validatemethod _CheckBoolean
-    option -quiet -readonly yes -default no -validatemethod _CheckBoolean
-    method _CheckBoolean {option value} {
-        if {[string is boolean -strict "$value"]} {
-            return $value"
-        } else {
-            error "Expected a boolean value for $option, got $value"
-        }
-    }
+    option -replace -readonly yes -default no -type snit::boolean
+    option -quiet -readonly yes -default no -type snit::boolean
     option -spool -readonly yes
     option -recycleprocesswindow -readonly yes
     option -parent -readonly yes -default .
