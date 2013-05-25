@@ -758,7 +758,7 @@ snit::widget ArticleViewer {
         puts $outfp "[$articleBody get 1.0 end-1c]"
         catch "close $outfp" message
         if {[string length "$message"] > 0} {
-            Common::ServerMessageDialog draw \
+            ServerMessageDialog draw \
                   -parent $win \
                   -title "$PrintCommand messages" \
                   -message "$message" \
@@ -1097,7 +1097,7 @@ namespace eval Articles {
       set parent [from args -parent {.}]
       lappend args -parent $parent
       if {[lsearch $args -pattern] < 0} {
-	set pattern [Common::SearchPatternDialog draw \
+	set pattern [SearchPatternDialog draw \
 			-parent $parent \
 			-title "Article Search Pattern" \
 			-pattern .]

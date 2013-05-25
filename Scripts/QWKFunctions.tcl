@@ -46,8 +46,8 @@
 package require Tk;#                 GUI Toolkit
 package require tile;#               Themed Widgets
 package require snit;#               OO Framework
-#package require SpoolFunctions
-#package require CommonFunctions
+package require SpoolFunctions
+package require CommonFunctions
 
 snit::type QWKFileProcess {
     typevariable busyFlag no
@@ -122,7 +122,7 @@ snit::type QWKFileProcess {
             set options(-parent) [from args -parent $spoolWindow]
             #	puts stderr "*** $self constructor: options(-parent) = $options(-parent)"
             install progressWindow using \
-                  Common::BackgroundShellProcessWindow $spoolWindow.getQWKFile%AUTO% \
+                  BackgroundShellProcessWindow $spoolWindow.getQWKFile%AUTO% \
                   -title "Getting QWK file for spool $options(-spool)" \
                   -parent $options(-parent)
         }
@@ -299,7 +299,7 @@ snit::type LoadQWKFile {
                 set window $options(-parent).qwkProcess%AUTO%
             }
             install progressWindow using \
-                  Common::BackgroundShellProcessWindow $window \
+                  BackgroundShellProcessWindow $window \
                   -title "Loading QWK file $options(-file)" \
                   -parent $options(-parent)
         }
@@ -457,7 +457,7 @@ snit::type QWKReplyProcess {
         } else {
             set options(-parent) [from args -parent $spoolWindow]
             install progressWindow using \
-                  Common::BackgroundShellProcessWindow $spoolWindow.makeQWKReply%AUTO% \
+                  BackgroundShellProcessWindow $spoolWindow.makeQWKReply%AUTO% \
                   -title "Getting QWK file for spool $options(-spool)" \
                   -parent $options(-parent)
         }

@@ -46,6 +46,10 @@
 package require Tk
 package require tile
 package require snit
+package require Dialog
+package require ScrollWindow
+package require MainFrame
+package require ButtonBox
 
 snit::type MessageList {
     pragma -hastypedestroy no
@@ -169,82 +173,100 @@ snit::type RFC822 {
     }
 }
 
-namespace eval Common {#dummy}
-
-namespace eval Common {
-  snit::widgetadaptor SearchPatternDialog {
-
+snit::widgetadaptor SearchPatternDialog {
     typevariable dialogsByParent -array {}
-    delegate option -pattern to patternLE as -text
+    option -pattern -default "" -configuremethod _configurePattern \
+          -cgetmethod _cgetPattern
+    method _configurePattern {option value} {
+        if {[info exists pattern] && [winfo exists $pattern]} {
+            $pattern delete 0 end
+            $pattern insert end $value
+        }
+    }
+    method _cgetPattern {option} {
+        if {[info exists pattern] && [winfo exists $pattern]} {
+            return [$pattern get]
+        }
+    }
     option -parent -readonly yes -default .
     delegate option -title to hull
-    component patternLE
+    component labelframe
+    component pattern
     constructor {args} {
-#      puts stderr "*** ${type}::constructor ($self) $args"
-      set options(-parent) [from args -parent]
-      installhull using Dialog::create \
-			-class SearchPatternDialog -bitmap questhead \
-			-default 0 -cancel 1 -modal local -transient yes \
-			-parent $options(-parent) -side bottom 
-#      puts stderr "*** ${type}::constructor ($self): win = $win, parent = $parent"
-#      puts stderr "*** ${type}::constructor ($self): wm transient $win = [wm transient $win]"
-#      puts stderr "*** ${type}::constructor ($self): winfo toplevel [winfo parent $win] = [winfo toplevel [winfo parent $win]]"
-      Dialog::add $win -name ok -text OK -command [mymethod _OK]
-      Dialog::add $win -name cancel -text Cancel -command [mymethod _Cancel]
-      Dialog::add $win -name help -text Help -command [list BWHelp::HelpTopic SearchPatternDialog]
-      wm protocol $win WM_DELETE_WINDOW [mymethod _Cancel]
-      set frame [Dialog::getframe $win]
-      install patternLE using LabelEntry $frame.patternLE -side left \
-					-label "Search Pattern:"
-      pack $patternLE -fill x
-      $self configurelist $args
-      set dialogsByParent($options(-parent)) $self
+        #      puts stderr "*** ${type}::constructor ($self) $args"
+        set options(-parent) [from args -parent]
+        installhull using Dialog \
+              -class SearchPatternDialog -bitmap questhead \
+              -default ok -cancel cancel -modal local -transient yes \
+              -parent $options(-parent) -side bottom 
+        #      puts stderr "*** ${type}::constructor ($self): win = $win, parent = $parent"
+        #      puts stderr "*** ${type}::constructor ($self): wm transient $win = [wm transient $win]"
+        #      puts stderr "*** ${type}::constructor ($self): winfo toplevel [winfo parent $win] = [winfo toplevel [winfo parent $win]]"
+        $hull add ok -text OK -command [mymethod _OK]
+        $hull add cancel -text Cancel -command [mymethod _Cancel]
+        $hull add help -text Help -command [list BWHelp::HelpTopic SearchPatternDialog]
+        wm protocol $win WM_DELETE_WINDOW [mymethod _Cancel]
+        set frame [$hull getframe]
+        install labelframe using ttk::labelframe $frame.labelframe \
+              -text "Search Pattern:" -labelanchor w
+        pack $labelframe -fill x
+        install pattern using ttk::entry $labelframe.pattern
+        pack $pattern -fill x -side left -expand yes
+        $self configurelist $args
+        set dialogsByParent($options(-parent)) $self
     }
     destructor {
-      catch {unset dialogsByParent($options(-parent))}
+        catch {unset dialogsByParent($options(-parent))}
     }
     method _OK {} {
-      Dialog::withdraw $win
-      return [Dialog::enddialog $win ok]
+        $hull withdraw
+        return [$hull enddialog ok]
     }
     method _Cancel {} {
-      Dialog::withdraw $win
-      return [Dialog::enddialog $win cancel]
+        $hull withdraw
+        return [$hull enddialog cancel]
     }
     method _Draw {args} {
-      $self configurelist $args
-      switch -exact [Dialog::draw $win] {
-        ok {return "[$patternLE cget -text]"}
-	cancel {return {}}
-      }
+        $self configurelist $args
+        switch -exact [$hull draw] {
+            ok {return "[$pattern get]"}
+            cancel {return {}}
+        }
     }
     typemethod draw {args} {
-#      puts stderr "*** ${type}::draw $args"
-      set parent [from args -parent {.}]
-#      puts stderr "*** ${type}::draw: parent = $parent"
-      if {[catch "set dialogsByParent($parent)" dialog]} {
-        if {[string equal [string index $parent end] {.}]} {
-	  set dialog ${parent}searchPatternDialog%AUTO%
- 	} else {
-	  set dialog ${parent}.searchPatternDialog%AUTO%
-	}
-        set dialog [eval [list $type \
-				create ${dialog} -parent $parent] \
-			 $args]
-      }
-#      puts stderr "*** ${type}::draw: dialog = $dialog"
-      return "[eval [list $dialog _Draw] $args]"
+        #      puts stderr "*** ${type}::draw $args"
+        set parent [from args -parent {.}]
+        #      puts stderr "*** ${type}::draw: parent = $parent"
+        if {[catch "set dialogsByParent($parent)" dialog]} {
+            if {[string equal [string index $parent end] {.}]} {
+                set dialog ${parent}searchPatternDialog%AUTO%
+            } else {
+                set dialog ${parent}.searchPatternDialog%AUTO%
+            }
+            set dialog [eval [list $type \
+                              create ${dialog} -parent $parent] \
+                              $args]
+        }
+        #      puts stderr "*** ${type}::draw: dialog = $dialog"
+        return "[eval [list $dialog _Draw] $args]"
     }
-  }
 }
 
-proc Common::ServerMessage {parent title message} {
-  ServerMessageDialog draw -message "$message" -parent $parent -title $title
-}
-
-namespace eval Common {
-  snit::widgetadaptor ServerMessageDialog {
-
+snit::widgetadaptor ServerMessageDialog {
+      
+    typemethod Message {parent title message} {
+        $type draw -message "$message" -parent $parent -title $title    
+    }
+    typeconstructor {
+        ttk::style ServerMessageDialog \
+              -aspect 1500 \
+              -justify left \
+              -anchor w \
+              -messagerelief flat \
+              -messageborderwidth 0 \
+              ;
+    }
+    option -style -default ServerMessageDialog
     delegate option -title to hull
     delegate option -parent to hull
     delegate option -geometry to hull
@@ -252,149 +274,154 @@ namespace eval Common {
     delegate method * to hull
     component message
     constructor {args} {
-      installhull using Dialog \
-			-class ServerMessageDialog -bitmap info \
-			-default 0 -cancel 0 -modal none -transient yes \
-			-side bottom
-      Dialog::add $win -name ok -text OK -command [mymethod _OK]
-      set frame [Dialog::getframe $win]
-      install message using message $frame.message \
-		-aspect 1500 -justify left -anchor w
-      pack $message -fill x
-      $self configurelist $args
-      catch {wm transient $win [$self cget -parent]}
-#      update idle
-#      set w [expr [winfo reqwidth $message] + 30]
-#      set h [expr [winfo reqheight $message] + 60]
-      Dialog::draw $win
+        installhull using Dialog \
+              -class ServerMessageDialog -bitmap info \
+              -default ok -cancel ok -modal none -transient yes \
+              -side bottom
+        $hull add ok -text OK -command [mymethod _OK]
+        wm protocol $win WM_DELETE_WINDOW [mymethod _OK]
+        set frame [$hull getframe]
+        install message using message $frame.message
+        pack $message -fill x
+        $self configurelist $args
+        catch {wm transient $win [$self cget -parent]}
+        #      update idle
+        #      set w [expr [winfo reqwidth $message] + 30]
+        #      set h [expr [winfo reqheight $message] + 60]
+        bind $message <<ThemeChanged>> [mymethod _ThemeChanged]
+        $self _ThemeChanged
+        $hull draw
+    }
+    method _ThemeChanged {} {
+        $message configure -aspect [ttk::style lookup $options(-style) -aspect]
+        $message configure -justify [ttk::style lookup $options(-style) -justify]
+        $message configure -anchor [ttk::style lookup $options(-style) -anchor]
+        $message configure -relief [ttk::style lookup $options(-style) -messagerelief]
+        $message configure -borderwidth [ttk::style lookup $options(-style) -messageborderwidth]
     }
     method _OK {} {
-      destroy $self
-      return ok
+        destroy $self
+        return ok
     }
     typemethod draw {args} {
-      set dialog [eval [list $type create .serverMessageDialog%AUTO%] $args]
-#      update
+        set dialog [eval [list $type create .serverMessageDialog%AUTO%] $args]
+        #      update
     }
-  }
 }
 
 
-namespace eval Common {
-  snit::widget BackgroundShellProcessWindow {
-    hulltype toplevel
+
+snit::widget BackgroundShellProcessWindow {
+    hulltype tk::toplevel
     widgetclass BackgroundShellProcessWindow
 
     component mainFrame
     component logScroll
     component logText
     component dismis
-
+    
     variable status
     variable progress
-
+    
     option -title -default {Backgroud Shell Process} -configuremethod _SetTitle
     method _SetTitle {option value} {
-      wm title $win "$value"
-      set options($option) "$value"
+        wm title $win "$value"
+        set options($option) "$value"
     }
     option -parent -default . -configuremethod _SetTransient
     method _SetTransient {option value} {
-      wm transient $win $value
-      set options($option) $value
+        wm transient $win $value
+        set options($option) $value
     }
     option {-abortfunction abortFunction AbortFunction} -default {} \
-			-configuremethod _SetAbort
+          -configuremethod _SetAbort
     method _SetAbort {option value} {
-      set options($option) $value
-      if {[string equal "$value" {}]} {
-        catch {$dismis configure -text "Dismis" -state disabled \
-				  -command [mymethod _Close]}
-      } else {
-	catch {$dismis configure -text "Abort" -state normal \
-				  -command [mymethod _Abort]}
-      }
+        set options($option) $value
+        if {[string equal "$value" {}]} {
+            catch {$dismis configure -text "Dismis" -state disabled \
+                      -command [mymethod _Close]}
+        } else {
+            catch {$dismis configure -text "Abort" -state normal \
+                      -command [mymethod _Abort]}
+        }
     }
     delegate option -progressmax to mainFrame
     delegate option -menu to hull
     delegate option -width to logText
     delegate option -height to logText
     constructor {args} {
-#      puts stderr "*** $type create $self $args"
-      wm maxsize $win 1024 768
-      wm minsize $win 10 10
-      wm protocol $win WM_DELETE_WINDOW [mymethod _Close]
-      install mainFrame using MainFrame $win.mainFrame\
-	 -progressvar [myvar progress] \
-	 -textvariable [myvar status]
-#      puts stderr "*** $self constructor: mainFrame = $mainFrame"
-      pack $mainFrame -expand yes -fill both
-      
-      install logScroll using ScrolledWindow [$mainFrame getframe].logScroll \
-			-scrollbar both -auto both
-#      puts stderr "*** $self constructor: logScroll = $logScroll"
-      pack $logScroll -expand yes -fill both
-      install dismis using Button [$mainFrame getframe].dismis \
-			-text "Dismis" -state disabled \
-			-command [mymethod _Close]
-#      puts stderr "*** $self constructor: dismis = $dismis"
-      pack $dismis -fill x
-      install logText using text [$logScroll getframe].text -wrap none
-#      puts stderr "*** $self constructor: logText = $logText"
-      bindtags $logText [list $logText ROText . all]
-      pack $logText -expand yes -fill both
-      $logScroll setwidget $logText
-      $self configurelist $args
+        #      puts stderr "*** $type create $self $args"
+        wm maxsize $win 1024 768
+        wm minsize $win 10 10
+        wm protocol $win WM_DELETE_WINDOW [mymethod _Close]
+        install mainFrame using MainFrame $win.mainFrame\
+              -progressvar [myvar progress] \
+              -textvariable [myvar status]
+        #      puts stderr "*** $self constructor: mainFrame = $mainFrame"
+        pack $mainFrame -expand yes -fill both
+        
+        install logScroll using ScrolledWindow [$mainFrame getframe].logScroll \
+              -scrollbar both -auto both
+        #      puts stderr "*** $self constructor: logScroll = $logScroll"
+        pack $logScroll -expand yes -fill both
+        install dismis using ttk::button [$mainFrame getframe].dismis \
+              -text "Dismis" -state disabled \
+              -command [mymethod _Close]
+        #      puts stderr "*** $self constructor: dismis = $dismis"
+        pack $dismis -fill x
+        install logText using ROText [$logScroll getframe].text -wrap none
+        #      puts stderr "*** $self constructor: logText = $logText"
+        $logScroll setwidget $logText
+        $self configurelist $args
     }
     method setStatus {text} {set status "$text"}
     method setProgress {value} {set progress $value}
     method setProcessDone {} {$dismis configure -state normal}
     method addTextToLog {text} {
-      $logText insert end "$text\n"
-      $logText see end
+        $logText insert end "$text\n"
+        $logText see end
     }
     method _Close {} {destroy $self}
     method _Abort {} {
-	if {[string equal \
-		[tk_messageBox -type yesno -icon question -parent $win \
-		     -message "Are you sure you want to abort this process?"] \
-		no]} {return}
-	uplevel #0 "$options(-abortfunction)"
-	$dismis configure -text "Dismis" -state disabled \
-			  -command [mymethod _Close]
+	if {[tk_messageBox -type yesno -icon question -parent $win \
+              -message "Are you sure you want to abort this process?"] \
+                  eq no} {return}
+        catch {uplevel #0 "$options(-abortfunction)"}
+        $dismis configure -text "Dismis" -state disabled \
+              -command [mymethod _Close]
     }
-  }
+}
 
-  snit::type WaitExternalProgramASync {
+snit::type WaitExternalProgramASync {
     option -commandline -readonly yes
     variable pipe
     variable processflag
     constructor {args} {
-      $self configurelist $args
-      if {![info exists options(-commandline)] || 
-	  [string length "$options(-commandline)"] == 0} {
-	error "-commandline is a required option!"
-      }
-      set pipe [open "|$options(-commandline)" r]
-      set processflag 1
-      fileevent $pipe readable [mymethod _ReadPipe]
+        $self configurelist $args
+        if {![info exists options(-commandline)] || 
+            [string length "$options(-commandline)"] == 0} {
+            error "-commandline is a required option!"
+        }
+        set pipe [open "|$options(-commandline)" r]
+        set processflag 1
+        fileevent $pipe readable [mymethod _ReadPipe]
     }
     destructor {
-      if {[info exists processflag]} {
-	if {$processflag > 0} {vwait [myvar processflag]}
-      }
+        if {[info exists processflag]} {
+            if {$processflag > 0} {vwait [myvar processflag]}
+        }
     }
     method _ReadPipe {} {
-      if {[gets $pipe line] < 0} {
-	catch {close $pipe}
-	incr processflag -1
-      }
+        if {[gets $pipe line] < 0} {
+            catch {close $pipe}
+            incr processflag -1
+        }
     }
     method wait {} {
-      if {$processflag > 0} {vwait [myvar processflag]}
+        if {$processflag > 0} {vwait [myvar processflag]}
     }
-  }
 }
+
 
 
 package provide CommonFunctions 1.0

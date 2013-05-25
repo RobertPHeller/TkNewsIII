@@ -1220,7 +1220,7 @@ snit::widgetadaptor DirectoryOfAllGroupsDialog {
         set parent [from args -parent {.}]
         lappend args -parent $parent
         if {[lsearch $args -pattern] < 0} {
-            set pattern [Common::SearchPatternDialog draw \
+            set pattern [SearchPatternDialog draw \
                          -parent $parent \
                          -title "Group Search Pattern" \
                          -pattern .]

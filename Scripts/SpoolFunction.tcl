@@ -292,7 +292,7 @@ snit::widget SpoolWindow {
         }
         if {$options(-useserver)} {
             $self _Srv_Connect
-            Common::ServerMessageDialog draw -parent $win \
+            ServerMessageDialog draw -parent $win \
                   -title "$options(-spoolname): $options(-servername):  Connection Response" \
                   -message "[$self srv_recv]" -geometry 600x100
             set options(-spooldirectory) {}
@@ -859,7 +859,7 @@ snit::widget SpoolWindow {
         }
         catch "close $outfp" message
         if {[string length "$message"] > 0} {
-            Common::ServerMessageDialog draw \
+            ServerMessageDialog draw \
                   -parent $win \
                   -title "$PrintCommand messages" \
                   -message "$message" \
@@ -1053,7 +1053,7 @@ snit::widget SpoolWindow {
                 set mnum [expr $highMessage + 1]
                 set saveFile [file join $saveDir $mnum]
                 file copy $draftFile $saveFile
-                Common::ServerMessage $win "Message not sent" "Draft saved in $saveFile"
+                ServerMessageDialog Message $win "Message not sent" "Draft saved in $saveFile"
             }
         }
         file delete $draftFile      
@@ -1132,7 +1132,7 @@ snit::widget SpoolWindow {
                 set mnum [expr $highMessage + 1]
                 set saveFile [file join $saveDir $mnum]
                 file copy $draftFile $saveFile
-                Common::ServerMessage $win "Message not sent" "Draft saved in $saveFile"
+                ServerMessageDialog Message $win "Message not sent" "Draft saved in $saveFile"
             }
         }
         file delete $draftFile
@@ -1295,7 +1295,7 @@ snit::widget SpoolWindow {
                 set mnum [expr $highMessage + 1]
                 set saveFile [file join $saveDir $mnum]
                 file copy $draftFile $saveFile
-                Common::ServerMessage $win "Message not sent" "Draft saved in $saveFile"
+                ServerMessageDialog Message $win "Message not sent" "Draft saved in $saveFile"
             }
         }
         file delete $draftFile
@@ -1402,7 +1402,7 @@ snit::widget SpoolWindow {
                 set mnum [expr $highMessage + 1]
                 set saveFile [file join $saveDir $mnum]
                 file copy $draftFile $saveFile
-                Common::ServerMessage $win "Message not sent" "Draft saved in $saveFile"
+                ServerMessageDialog Message $win "Message not sent" "Draft saved in $saveFile"
             }
         }
         file delete $draftFile
@@ -1481,7 +1481,7 @@ snit::widget SpoolWindow {
                 set mnum [expr $highMessage + 1]
                 set saveFile [file join $saveDir $mnum]
                 file copy $draftFile $saveFile
-                Common::ServerMessage $win "Message not sent" "Draft saved in $saveFile"
+                ServerMessageDialog Message $win "Message not sent" "Draft saved in $saveFile"
             }
         }
         file delete $draftFile
@@ -1546,7 +1546,7 @@ snit::widget SpoolWindow {
             $edit editfile "$draftFile"
             destroy $edit
         } else {
-            set edit [Common::WaitExternalProgramASync create editor%AUTO% \
+            set edit [WaitExternalProgramASync create editor%AUTO% \
                       -commandline "$options(-externaleditor) $draftFile"]
             $edit wait
             $edit destroy
@@ -1809,7 +1809,7 @@ snit::widgetadaptor ArticlePostMenu {
     method draw {} {return [Dialog::draw $win]}
     method _SpellCheck {} {
         Dialog::withdraw $win
-        set spell [Common::WaitExternalProgramASync create spellCheck%AUTO% \
+        set spell [WaitExternalProgramASync create spellCheck%AUTO% \
                    -commandline "[$options(-spool) cget -spellchecker] $options(-draftfile)"]
         $spell wait
         $spell destroy
