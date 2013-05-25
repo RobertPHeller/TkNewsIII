@@ -190,7 +190,8 @@ snit::widgetadaptor SearchPatternDialog {
     }
     option -parent -readonly yes -default .
     delegate option -title to hull
-    component labelframe
+    component patternframe
+    component label
     component pattern
     constructor {args} {
         #      puts stderr "*** ${type}::constructor ($self) $args"
@@ -207,10 +208,12 @@ snit::widgetadaptor SearchPatternDialog {
         $hull add help -text Help -command [list BWHelp::HelpTopic SearchPatternDialog]
         wm protocol $win WM_DELETE_WINDOW [mymethod _Cancel]
         set frame [$hull getframe]
-        install labelframe using ttk::labelframe $frame.labelframe \
-              -text "Search Pattern:" -labelanchor w
-        pack $labelframe -fill x
-        install pattern using ttk::entry $labelframe.pattern
+        install patternframe using ttk::frame $frame.patternframe
+        pack $patternframe -fill x -expand yes
+        install label  using ttk::label $patternframe.label \
+              -text "Search Pattern:" -anchor w
+        pack $label -side left
+        install pattern using ttk::entry $patternframe.pattern
         pack $pattern -fill x -side left -expand yes
         $self configurelist $args
         set dialogsByParent($options(-parent)) $self

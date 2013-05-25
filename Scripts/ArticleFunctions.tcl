@@ -58,10 +58,7 @@ package require ROText
 
 namespace eval AddressBook {#dummy}
 
-
-
-snit::widget ArticleListFrame {
-    hulltype ttk::frame
+snit::macro ArticleListMethods {} {
     typevariable columnheadings -array {
         #0,stretch no
         #0,anchor w
@@ -93,38 +90,8 @@ snit::widget ArticleListFrame {
         size,width 50
     }
     typevariable columns {articlenumber subject from date lines size}
-    typeconstructor {
-        global execbindir
-    }
-    component artlistButtonBox
-    typevariable artlistButtons -array {
-        post {ttk::button -text {Post}  -command "[mymethod _PostToGroup] no"}
-        list {ttk::button -text "List/Search\nArticles" -command "[mymethod _ListSearchArticles]"}
-        read {ttk::button -text "Read\nArticle" -command "[mymethod _ReadSelectedArticle]"}
-        refresh {ttk::button -text "Refresh Article\nList" -command "[mymethod _RefereshArticles]"}
-        manage {ttk::menubutton -text "Manage\nSaved\nArticles" -state disabled}
-    }
-    typevariable artlistButtonsList {post list read refresh manage}
-    component manageSavedArticlesMenu
     component articleListSW
     component   articleList
-    component articleButtonBox
-    typevariable articleButtons -array {
-        followup {-text {Followup} -command "[mymethod _FollowupArticle] no"}
-        mailreply {-text "Mail Reply\nTo Sender" -command "[mymethod _MailReply]"}
-        forwardto {-text {Forward To} -command "[mymethod _ForwardTo]"}
-        save {-text {Save} -command "[mymethod _SaveArticle]"}
-        file {-text {File} -command "[mymethod _FileArticle]"}
-        print {-text {Print} -command "[mymethod _PrintArticle]"}
-    }
-    typevariable articleButtonsList {followup mailreply forwardto save file print}
-    delegate option -height to articleList
-    delegate option -takefocus to articleList
-    delegate method selection to articleList
-    method _ReadArticleAt {x y} {
-        lassign [$articleList identify $x $y] what where detail
-        $spoolwindow _ReadArticle $where
-    }
     variable inreplyto -array {}
     variable messageid -array {}
     variable subjects -array {}
@@ -177,6 +144,140 @@ snit::widget ArticleListFrame {
               -values [list $artnumber $subject $from $date $lines $size] \
               -tags   article
     }
+    method _constructArticleList {parent args} {
+        set selectmode [from args -selectmode browse]
+        install articleListSW using ScrolledWindow $parent.articleListSW \
+              -scrollbar vertical -auto vertical
+        pack $articleListSW -fill both -expand yes
+        install articleList using ttk::treeview \
+              [$articleListSW getframe].articleList -columns $columns \
+              -displaycolumns $columns -show {tree headings} \
+              -selectmode $selectmode
+        $articleListSW setwidget $articleList
+        #parray columnheadings
+        foreach c [concat #0 $columns] {
+            #puts stderr "*** $type create $self: c = $c"
+            set copts [list]
+            if {[info exists columnheadings($c,stretch)]} {
+                lappend copts -stretch $columnheadings($c,stretch)
+            }
+            if {[info exists columnheadings($c,width)]} {
+                lappend copts -width $columnheadings($c,width)
+            }
+            if {[info exists columnheadings($c,anchor)]} {
+                lappend copts -anchor $columnheadings($c,anchor)
+            }
+            #puts stderr "*** $type create $self: copts = $copts"
+            if {[llength $copts] > 0} {
+                eval [list $articleList column $c] $copts
+            }
+            set hopts [list]
+            if {[info exists columnheadings($c,text)]} {
+                lappend hopts -text $columnheadings($c,text)
+            }
+            if {[info exists columnheadings($c,image)]} {
+                lappend hopts -image $columnheadings($c,image)
+            }
+            if {[info exists columnheadings($c,anchor)]} {
+                lappend hopts -anchor $columnheadings($c,anchor)
+            }
+            #puts stderr "*** $type create $self: hopts = $hopts"
+            if {[llength $hopts] > 0} {
+                eval [list $articleList heading $c] $hopts
+            }
+        }
+        $articleList heading #0 -command [mymethod _threadArticleList]
+        $articleList heading articlenumber -command [mymethod _sortByArtNumber]
+        $articleList heading date -command [mymethod _sortByDate]
+        $articleList heading from -command [mymethod _sortBySender]
+        $articleList heading subject -command [mymethod _sortBySubject]
+    }
+    method _threadArticleList {} {
+        #puts stderr "*** $self _threadArticleList"
+        $articleList detach [$articleList children {}]
+        foreach an [lsort -integer [array names messageid]] {
+            set parent $inreplyto($messageid($an))
+            if {![$articleList exists $parent]} {set parent {}}
+            #puts stderr "*** $self _threadArticleList: an = $an, messageid($an) = $messageid($an), inreplyto($messageid($an)) = $inreplyto($messageid($an))"
+            #puts stderr "*** $self _threadArticleList: parent = $parent"
+            $articleList move $messageid($an) $parent end
+            if {$parent ne {}} {$articleList item $parent -open yes}
+        }
+    }
+    method _sortByArtNumber {} {
+        #puts stderr "*** $self _sortByArtNumber"
+        $articleList detach [$articleList children {}]
+        foreach an [lsort -integer [array names messageid]] {
+            $articleList item $messageid($an) -open no
+            $articleList move $messageid($an) {} end
+        }
+    }
+    method _sortByDate {} {
+        #puts stderr "*** $self _sortByDate"
+        $articleList detach [$articleList children {}]
+        foreach date [lsort -integer [array names dates]] {
+            #puts stderr "*** $self _sortByDate: date = $date, dates($date) = $dates($date)"
+            foreach m $dates($date) {
+                $articleList item $m -open no
+                $articleList move $m {} end
+            }
+        }
+    }
+    method _sortBySender {} {
+        #puts stderr "*** $self _sortBySender"
+        $articleList detach [$articleList children {}]
+        foreach from [lsort -dictionary [array names froms]] {
+            foreach m $froms($from) {
+                $articleList item $m -open no
+                $articleList move $m {} end
+            }
+        }
+    }
+    method _sortBySubject {} {
+        #puts stderr "*** $self _sortBySubject"
+        $articleList detach [$articleList children {}]
+        foreach subj [lsort -dictionary [array names subjects]] {
+            foreach m $subjects($subj) {
+                $articleList item $m -open no
+                $articleList move $m {} end
+            }
+        }
+    }
+}    
+
+snit::widget ArticleListFrame {
+    hulltype ttk::frame
+    ArticleListMethods
+    delegate option -height to articleList
+    delegate option -takefocus to articleList
+    delegate method selection to articleList
+    typeconstructor {
+        global execbindir
+    }
+    component artlistButtonBox
+    typevariable artlistButtons -array {
+        post {ttk::button -text {Post}  -command "[mymethod _PostToGroup] no"}
+        list {ttk::button -text "List/Search\nArticles" -command "[mymethod _ListSearchArticles]"}
+        read {ttk::button -text "Read\nArticle" -command "[mymethod _ReadSelectedArticle]"}
+        refresh {ttk::button -text "Refresh Article\nList" -command "[mymethod _RefereshArticles]"}
+        manage {ttk::menubutton -text "Manage\nSaved\nArticles" -state disabled}
+    }
+    typevariable artlistButtonsList {post list read refresh manage}
+    component manageSavedArticlesMenu
+    component articleButtonBox
+    typevariable articleButtons -array {
+        followup {-text {Followup} -command "[mymethod _FollowupArticle] no"}
+        mailreply {-text "Mail Reply\nTo Sender" -command "[mymethod _MailReply]"}
+        forwardto {-text {Forward To} -command "[mymethod _ForwardTo]"}
+        save {-text {Save} -command "[mymethod _SaveArticle]"}
+        file {-text {File} -command "[mymethod _FileArticle]"}
+        print {-text {Print} -command "[mymethod _PrintArticle]"}
+    }
+    typevariable articleButtonsList {followup mailreply forwardto save file print}
+    method _ReadArticleAt {x y} {
+        set selection [$articleList identify row $x $y]
+        $spoolwindow _ReadArticle $article_number($selection)
+    }
     option -spool -readonly yes -validatemethod _CheckSpool
     method _CheckSpool {option value} {
         if {[catch [list $value info type] thetype]} {
@@ -225,14 +326,8 @@ snit::widget ArticleListFrame {
               -label {Flatfile Articles} \
               -command [mymethod _FlatfileArticles]
         $artlistButtonBox configure -state disabled
-        install articleListSW using ScrolledWindow $win.articleListSW \
-              -scrollbar vertical -auto vertical
-        pack $articleListSW -fill both -expand yes
-        install articleList using ttk::treeview \
-              [$articleListSW getframe].articleList -columns $columns \
-              -displaycolumns $columns -show {tree headings}
+        $self _constructArticleList $win
         $articleList tag bind article <Double-ButtonPress-1> [mymethod _ReadArticleAt %x %y]
-        $articleListSW setwidget $articleList
         # Article buttons
         install articleButtonBox using ButtonBox $win.articleButtonBox
         pack $articleButtonBox -fill x
@@ -244,43 +339,6 @@ snit::widget ArticleListFrame {
         $articleButtonBox configure -state disabled
         $self configurelist $args
         set spoolwindow $options(-spool)
-        #parray columnheadings
-        foreach c [concat #0 $columns] {
-            #puts stderr "*** $type create $self: c = $c"
-            set copts [list]
-            if {[info exists columnheadings($c,stretch)]} {
-                lappend copts -stretch $columnheadings($c,stretch)
-            }
-            if {[info exists columnheadings($c,width)]} {
-                lappend copts -width $columnheadings($c,width)
-            }
-            if {[info exists columnheadings($c,anchor)]} {
-                lappend copts -anchor $columnheadings($c,anchor)
-            }
-            #puts stderr "*** $type create $self: copts = $copts"
-            if {[llength $copts] > 0} {
-                eval [list $articleList column $c] $copts
-            }
-            set hopts [list]
-            if {[info exists columnheadings($c,text)]} {
-                lappend hopts -text $columnheadings($c,text)
-            }
-            if {[info exists columnheadings($c,image)]} {
-                lappend hopts -image $columnheadings($c,image)
-            }
-            if {[info exists columnheadings($c,anchor)]} {
-                lappend hopts -anchor $columnheadings($c,anchor)
-            }
-            #puts stderr "*** $type create $self: hopts = $hopts"
-            if {[llength $hopts] > 0} {
-                eval [list $articleList heading $c] $hopts
-            }
-        }
-        $articleList heading #0 -command [mymethod _threadArticleList]
-        $articleList heading articlenumber -command [mymethod _sortByArtNumber]
-        $articleList heading date -command [mymethod _sortByDate]
-        $articleList heading from -command [mymethod _sortBySender]
-        $articleList heading subject -command [mymethod _sortBySubject]
         bind $win <Configure> [mymethod _ConfigureHeight %h]
     }
     proc _heightOfChildren {w} {
@@ -326,131 +384,6 @@ snit::widget ArticleListFrame {
             }
         }        
     }
-    method _threadArticleList {} {
-        #puts stderr "*** $self _threadArticleList"
-        $articleList detach [$articleList children {}]
-        foreach an [lsort -integer [array names messageid]] {
-            set parent $inreplyto($messageid($an))
-            if {![$articleList exists $parent]} {set parent {}}
-            #puts stderr "*** $self _threadArticleList: an = $an, messageid($an) = $messageid($an), inreplyto($messageid($an)) = $inreplyto($messageid($an))"
-            #puts stderr "*** $self _threadArticleList: parent = $parent"
-            $articleList move $messageid($an) $parent end
-            if {$parent ne {}} {$articleList item $parent -open yes}
-        }
-        #if {[lsearch -exact [$articleList cget -show] tree] < 0} {
-        #    set widthneeded [winfo width [winfo parent $win]]
-        #    $articleList configure -show {tree headings}
-        #    adjustHeadWidth $articleList $widthneeded
-        #}
-    }
-    method _sortByArtNumber {} {
-        #puts stderr "*** $self _sortByArtNumber"
-        $articleList detach [$articleList children {}]
-        foreach an [lsort -integer [array names messageid]] {
-            $articleList item $messageid($an) -open no
-            $articleList move $messageid($an) {} end
-        }
-        #if {[lsearch -exact [$articleList cget -show] tree] >= 0} {
-        #    set widthneeded [winfo width [winfo parent $win]]
-        #    $articleList configure -show {headings}
-        #    adjustHeadWidth $articleList $widthneeded
-        #}
-    }
-    method _sortByDate {} {
-        #puts stderr "*** $self _sortByDate"
-        $articleList detach [$articleList children {}]
-        foreach date [lsort -integer [array names dates]] {
-            #puts stderr "*** $self _sortByDate: date = $date, dates($date) = $dates($date)"
-            foreach m $dates($date) {
-                $articleList item $m -open no
-                $articleList move $m {} end
-            }
-        }
-        #if {[lsearch -exact [$articleList cget -show] tree] >= 0} {
-        #    set widthneeded [winfo width [winfo parent $win]]
-        #    $articleList configure -show {headings}
-        #    adjustHeadWidth $articleList $widthneeded
-        #}
-    }
-    method _sortBySender {} {
-        #puts stderr "*** $self _sortBySender"
-        $articleList detach [$articleList children {}]
-        foreach from [lsort -dictionary [array names froms]] {
-            foreach m $froms($from) {
-                $articleList item $m -open no
-                $articleList move $m {} end
-            }
-        }
-        #if {[lsearch -exact [$articleList cget -show] tree] >= 0} {
-        #    set widthneeded [winfo width [winfo parent $win]]
-        #    $articleList configure -show {headings}
-        #    adjustHeadWidth $articleList $widthneeded
-        #}
-    }
-    method _sortBySubject {} {
-        #puts stderr "*** $self _sortBySubject"
-        $articleList detach [$articleList children {}]
-        foreach subj [lsort -dictionary [array names subjects]] {
-            foreach m $subjects($subj) {
-                $articleList item $m -open no
-                $articleList move $m {} end
-            }
-        }
-        #if {[lsearch -exact [$articleList cget -show] tree] >= 0} {
-        #    set widthneeded [winfo width [winfo parent $win]]
-        #    $articleList configure -show {headings}
-        #    adjustHeadWidth $articleList $widthneeded
-        #}
-    }
-    proc computeHeadWidth {artlist} {
-        set width 0
-        foreach c [$artlist cget -displaycolumns] {
-            set cw [$artlist column $c -width]
-            incr width $cw
-        }
-        if {[lsearch [$artlist cget -show] tree] >= 0} {
-            set cw [$artlist column #0 -width]
-            incr width $cw
-        }
-        return $width
-    }
-    proc adjustHeadWidth {artlist widthneeded} {
-        #puts stderr "*** ArticleList::adjustHeadWidth $artlist $widthneeded"
-        set reqwidth [computeHeadWidth $artlist]
-        #puts stderr "*** -: reqwidth = $reqwidth"
-        set diff [expr {$widthneeded - $reqwidth}]
-        #puts stderr "*** -: diff = $diff"
-        set fract [expr {double($diff) / double($reqwidth)}]
-        #puts stderr "*** -: fract = $fract"
-        set stretchablecols [list]
-        if {[lsearch [$artlist cget -show] tree] >= 0} {
-            if {[$artlist column #0 -stretch]} {
-                lappend stretchablecols #0
-            }
-        }
-        set totalstretch 0
-        foreach c [$artlist cget -displaycolumns] {
-            if {[$artlist column $c -stretch]} {
-                lappend stretchablecols $c
-                incr totalstretch [$artlist column $c -width]
-            }
-        }
-        if {[llength $stretchablecols] == 0} {return}
-        set stretch [expr {$diff / [llength $stretchablecols]}]
-        #puts stderr "*** -: stretch = $stretch"
-        foreach c $stretchablecols {
-            set cwf [expr {[$artlist column $c -width] + $stretch}]
-            set percentstretch [expr {double([$artlist column $c -width]) / double($totalstretch)}]
-            set stretchp [expr {int($diff * $percentstretch)}]
-            #set stretchp [expr {int([$artlist column $c -width] * $fract)}]
-            #puts stderr "*** -: ($c) stretchp = $stretchp"
-            set cwp [expr {[$artlist column $c -width] + $stretchp}]
-            #puts stderr "*** -: ($c) cwf = $cwf"
-            #puts stderr "*** -: ($c) cwp = $cwp"
-            $artlist column $c -width $cwp
-        }
-    }
-        
 }
 
 
@@ -1060,21 +993,21 @@ snit::widgetadaptor SelectFolderDialog {
 }
 
 
-namespace eval Articles {
+snit::widgetadaptor SearchArticlesDialog {
 
-  snit::widgetadaptor SearchArticlesDialog {
+    ArticleListMethods
+    component selectedArticleFrame
+    component   selectedArticleLabel
+    component   selectedArticle
 
-    component articleListSW
-    component articleList
-    component selectedArticleLE
-
-    option {-grouplist groupList GroupList} -readonly yes \
-					    -validatemethod _CheckGroupList
-    method _CheckGroupList {option value} {
+    
+    option {-grouptree groupTree GroupTree} -readonly yes \
+					    -validatemethod _CheckGroupTree
+    method _CheckGroupTree {option value} {
       if {[catch [list $value info type] thetype]} {
-	error "Expected a ::Groups::groupList for $option, but got $value ($thetype)"
-      } elseif {![string equal "$thetype" ::Groups::groupList]} {
-	error "Expected a ::Groups::groupList for $option, but got a $thetype ($value)"
+	error "Expected a ::GroupTreeFrame for $option, but got $value ($thetype)"
+      } elseif {![string equal "$thetype" ::GroupTreeFrame]} {
+	error "Expected a ::GroupTreeFrame for $option, but got a $thetype ($value)"
       } else {
  	return $value
       }
@@ -1086,165 +1019,162 @@ namespace eval Articles {
     option -parent -readonly yes -default .
     delegate option -title to hull
     constructor {args} {
-      installhull using Dialog -parent [from args -parent] \
-			       -class SearchArticlesDialog \
-			       -bitmap questhead -default 0 -cancel 0 \
-			       -modal none -transient yes -side bottom
-      Dialog::add $win -name dismis -text Dismis -command [mymethod _Dismis]
-      Dialog::add $win -name read   -text {Read Selected Article} \
-			     -command [mymethod _ReadArticle]
-      Dialog::add $win -name help   -text Help   \
-		-command [list BWHelp::HelpTopic SearchArticlesDialog]
-      wm protocol $win WM_DELETE_WINDOW [mymethod _Dismis]
-      install articleListSW using ScrolledWindow \
-					[Dialog::getframe $win].articleListSW \
-		-scrollbar both -auto both
-      pack   $articleListSW -expand yes -fill both
-      install articleList using ListBox \
-			[ScrolledWindow::getframe $articleListSW].articleList \
-		-selectmode single -selectfill yes
-      pack $articleList -fill both -expand yes
-      $articleListSW setwidget $articleList
-      $articleList bindText <space> [mymethod _SelectArticle]
-      $articleList bindText <1> [mymethod _SelectArticle]
-      install selectedArticleLE using LabelEntry \
-		[Dialog::getframe $win].selectedArticleLE \
-		-label {Selected Article:} -side left -editable no
-      pack $selectedArticleLE -fill x
-      $self configurelist $args
-      if {[string equal "$options(-readarticle)" {}]} {
-	Dialog::itemconfigure $win read -state disabled
-      } else {
-        $articleList bindText <Double-Button-1> [mymethod _SelectAndReadArticle]
-        $articleList bindText <Return> [mymethod _SelectAndReadArticle]
-      }
-      if {[string equal "$options(-grouplist)" {}]} {
-	error "-grouplist is a required option!"
-      }
-      if {[string equal "$options(-group)" {}]} {
-	error "-group is a required option!"
-      }
-      $options(-grouplist) insertArticleList $articleList $options(-group) "$options(-pattern)" 1
-      Dialog::draw $win
+        installhull using Dialog -parent [from args -parent] \
+              -class SearchArticlesDialog \
+              -bitmap questhead -default read -cancel dismis \
+              -modal none -transient yes -side bottom
+        $hull add dismis -text Dismis -command [mymethod _Dismis]
+        $hull add read   -text {Read Selected Article} \
+              -command [mymethod _ReadArticle]
+        $hull add  help   -text Help   \
+              -command [list BWHelp::HelpTopic SearchArticlesDialog]
+        wm protocol $win WM_DELETE_WINDOW [mymethod _Dismis]
+        $self _constructArticleList [$hull getframe]
+        $articleList tag bind article <space> [mymethod _SelectArticle %x %y]
+        $articleList tag bind article <1> [mymethod _SelectArticle %x %y]
+        install selectedArticleFrame using ttk::frame \
+              [$hull getframe].selectedArticleFrame
+        pack $selectedArticleFrame -fill x
+        install selectedArticleLabel using ttk::label \
+              $selectedArticleFrame.selectedArticleLabel \
+              -text {Selected Article:} -anchor w
+        pack $selectedArticleLabel -side left
+        install selectedArticle using ttk::entry \
+              $selectedArticleFrame.selectedArticle -state readonly \
+              -textvariable [myvar currentArticleNumber]
+        pack $selectedArticle -side left -fill x -expand yes
+        $self configurelist $args
+        if {[string equal "$options(-readarticle)" {}]} {
+            $hull itemconfigure read -state disabled
+        } else {
+            $articleList tag bind article <Double-Button-1> [mymethod _SelectAndReadArticle %x %y]
+            $articleList tag bind article <Return> [mymethod _SelectAndReadArticle %x %y]
+        }
+        if {[string equal "$options(-grouptree)" {}]} {
+            error "-grouptree is a required option!"
+        }
+        if {[string equal "$options(-group)" {}]} {
+            error "-group is a required option!"
+        }
+        $options(-grouptree) insertArticleList $self $options(-group) "$options(-pattern)" 1
+        $hull draw
     }
     method _Dismis {} {
-      destroy $self
+        destroy $self
     }
-    method _SelectArticle {selection} {
-      $selectedArticleLE configure \
-				-text [$articleList itemcget $selection -data]
+    method _SelectArticle {x y} {
+        set selection [$articleList identify row $x $y]
+        set currentArticleNumber $article_number($selection)
     }
-    method _SelectAndReadArticle {selection} {
-      $self _SelectArticle $selection
-      $self _ReadArticle
+    method _SelectAndReadArticle {x y} {
+        $self _SelectArticle $x $y
+        $self _ReadArticle
     }
     method _ReadArticle {} {
-      set artNumber "[$selectedArticleLE cget -text]"
-      if {[string length "$artNumber"] == 0} {return}
-      uplevel #0 "eval $options(-readarticle) $artNumber"
+        set artNumber $currentArticleNumber
+        if {[string length "$artNumber"] == 0} {return}
+        catch {uplevel #0 "eval $options(-readarticle) $artNumber"}
     }
     typemethod draw {args} {
-      set parent [from args -parent {.}]
-      lappend args -parent $parent
-      if {[lsearch $args -pattern] < 0} {
-	set pattern [SearchPatternDialog draw \
-			-parent $parent \
-			-title "Article Search Pattern" \
-			-pattern .]
-	if {[string length "$pattern"] == 0} {return}
-	lappend args -pattern "$pattern"
-      }
-      if {[string equal [string index "$parent" end] {.}]} {
-	set window ${parent}searchArticlesDialog%AUTO%
-      } else {
-	set window ${parent}.searchArticlesDialog%AUTO%
-      }
-      return [eval [list $type create $window] $args]
+        set parent [from args -parent {.}]
+        lappend args -parent $parent
+        if {[lsearch $args -pattern] < 0} {
+            set pattern [SearchPatternDialog draw \
+                         -parent $parent \
+                         -title "Article Search Pattern" \
+                         -pattern .]
+            if {[string length "$pattern"] == 0} {return}
+            lappend args -pattern "$pattern"
+        }
+        if {[string equal [string index "$parent" end] {.}]} {
+            set window ${parent}searchArticlesDialog%AUTO%
+        } else {
+            set window ${parent}.searchArticlesDialog%AUTO%
+        }
+        return [eval [list $type create $window] $args]
     }
-  }
-  snit::widgetadaptor SelectArticlesDialog {
-    component articleListSW
-    component articleList
-    option {-grouplist groupList GroupList} -readonly yes \
-					    -validatemethod _CheckGroupList
-    method _CheckGroupList {option value} {
-      if {[catch [list $value info type] thetype]} {
-	error "Expected a ::Groups::groupList for $option, but got $value ($thetype)"
-      } elseif {![string equal "$thetype" ::Groups::groupList]} {
-	error "Expected a ::Groups::groupList for $option, but got a $thetype ($value)"
-      } else {
- 	return $value
-      }
+}
+  
+snit::widgetadaptor SelectArticlesDialog {
+    ArticleListMethods
+    option {-grouptree groupTree GroupTree} -readonly yes \
+          -validatemethod _CheckGroupTree
+    method _CheckGroupTree {option value} {
+        if {[catch [list $value info type] thetype]} {
+            error "Expected a ::GroupTreeFrame for $option, but got $value ($thetype)"
+        } elseif {![string equal "$thetype" ::GroupTreeFrame]} {
+            error "Expected a ::GroupTreeFrame for $option, but got a $thetype ($value)"
+        } else {
+            return $value
+        }
     }
     option -group -readonly yes
-    option -selectmode -readonly yes -default single
+    option -selectmode -readonly yes -default browse \
+          -type {snit::enum -values {browse extended}}
     option -parent -readonly yes -default .
     delegate option -title to hull
     delegate option -geometry to hull
     constructor {args} {
-      installhull using Dialog -parent [from args -parent] \
-			       -class SearchArticlesDialog \
-			       -bitmap questhead -default 0 -cancel 1 \
-			       -modal local -transient yes -side bottom
-      Dialog::add $win -name ok -text OK -command [mymethod _OK]
-      Dialog::add $win -name cancel -text Dismis -command [mymethod _Cancel]
-      Dialog::add $win -name help   -text Help   \
-		-command [list BWHelp::HelpTopic SelectArticlesDialog]
-      wm protocol $win WM_DELETE_WINDOW [mymethod _Cancel]
-      install articleListSW using ScrolledWindow \
-					[Dialog::getframe $win].articleListSW \
-		-scrollbar both -auto both
-      pack   $articleListSW -expand yes -fill both
-      install articleList using ListBox \
-			[ScrolledWindow::getframe $articleListSW].articleList \
-		-selectfill yes -selectmode [from args -selectmode]
-      pack $articleList -fill both -expand yes
-      $articleListSW setwidget $articleList
-      $self configurelist $args
-      if {[string equal "$options(-grouplist)" {}]} {
-	error "-grouplist is a required option!"
-      }
-      if {[string equal "$options(-group)" {}]} {
-	error "-group is a required option!"
-      }
-      $articleList delete [$articleList items]
-      $options(-grouplist) insertArticleList $articleList $options(-group)
+        installhull using Dialog -parent [from args -parent] \
+              -class SearchArticlesDialog \
+              -bitmap questhead -default ok -cancel cancel \
+              -modal local -transient yes -side bottom
+        $hull add ok -text OK -command [mymethod _OK]
+        $hull add cancel -text Dismis -command [mymethod _Cancel]
+        $hull add help   -text Help   \
+              -command [list BWHelp::HelpTopic SelectArticlesDialog]
+        wm protocol $win WM_DELETE_WINDOW [mymethod _Cancel]
+        set options(-selectmode) [from args -selectmode]
+        $self _constructArticleList [$hull getframe] \
+              -selectmode $options(-selectmode)
+        $self configurelist $args
+        if {[string equal "$options(-grouptree)" {}]} {
+            error "-grouptree is a required option!"
+        }
+        if {[string equal "$options(-group)" {}]} {
+            error "-group is a required option!"
+        }
+        $self deleteall
+        $options(-grouptree) insertArticleList $self $options(-group)
     }
     method _OK {} {
-      Dialog::withdraw $win
-      return [Dialog::enddialog $win ok]
+        $hull withdraw
+        return [$hull enddialog ok]
     }
     method _Cancel {} {
-      Dialog::withdraw $win
-      return [Dialog::enddialog $win cancel]
+        $hull withdraw
+        return [$hull enddialog cancel]
     }
-    method _Draw {} {return [Dialog::draw $win]}
+    method _Draw {} {return [$hull draw]}
     method _SelectedArticleNumbers {} {
-      set result {}
-      foreach sel [$articleList selection get] {
-	lappend result [$articleList itemcget $sel -data]
-      }
-      return $result
+        set result {}
+        foreach sel [$articleList selection] {
+            lappend result [$self articlenumber $sel]
+        }
+        return $result
     }
     typemethod draw {args} {
-      set parent [from args -parent .]
-      if {[string equal "$parent" {.}]} {
-	set dialog [eval [list $type .selectArticlesDialog%AUTO% \
-				-parent $parent] $args]
-      } else {
-	set dialog [eval [list $type ${parent}.selectArticlesDialog%AUTO% \
-				-parent $parent] $args]
-      }
-      set answer [$dialog _Draw]
-      if {[string equal $answer ok]} {
-	set arts [$dialog _SelectedArticleNumbers]
-      } else {
-	set arts {}
-      }
-      destroy $dialog
-      return $arts
+        set parent [from args -parent .]
+        if {[string equal "$parent" {.}]} {
+            set dialog [eval [list $type .selectArticlesDialog%AUTO% \
+                              -parent $parent] $args]
+        } else {
+            set dialog [eval [list $type ${parent}.selectArticlesDialog%AUTO% \
+                              -parent $parent] $args]
+        }
+        set answer [$dialog _Draw]
+        if {[string equal $answer ok]} {
+            set arts [$dialog _SelectedArticleNumbers]
+        } else {
+            set arts {}
+        }
+        destroy $dialog
+        return $arts
     }
-  }
+}
+    
+namespace eval Articles {
+
   snit::widgetadaptor EnterPassPhraseDialog {
     typevariable dialogsByParent -array {}
     option -parent -readonly yes -default .

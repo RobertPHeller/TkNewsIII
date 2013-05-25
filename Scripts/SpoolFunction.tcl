@@ -831,7 +831,7 @@ snit::widget SpoolWindow {
         $newslist write
     }
     method _ListSearchArticles {} {
-        Articles::SearchArticlesDialog draw \
+        SearchArticlesDialog draw \
               -parent $win -grouptree $groupTreeFrame \
               -group $currentGroup -readarticle [mymethod _ReadArticleN]
     }
@@ -892,9 +892,9 @@ snit::widget SpoolWindow {
     method _DeleteSelectedArticles {} {
         if {[catch "set savedDirectories($currentGroup)" mdir]} {return}
         # -- Delete selected articles. (Needs a Dialog w/ListBox)
-        set artList [Articles::SelectArticlesDialog draw \
+        set artList [SelectArticlesDialog draw \
                      -parent $win -grouptree $groupTreeFrame \
-                     -group $currentGroup -selectmode multiple \
+                     -group $currentGroup -selectmode extended \
                      -title "Articles to delete" -geometry 750x400]
         foreach a $artList {
 	    set mfile [file join $mdir $a]
@@ -933,9 +933,9 @@ snit::widget SpoolWindow {
     }
     method _RecodeArticle {} {
         if {[catch "set savedDirectories($currentGroup)" mdir]} {return}
-        set artList [Articles::SelectArticlesDialog draw \
+        set artList [SelectArticlesDialog draw \
                          -parent $win -grouptree $groupTreeFrame \
-                         -group $currentGroup -selectmode single]
+                         -group $currentGroup -selectmode browse]
         if {[llength $artList] == 0} {return}
         
     }
