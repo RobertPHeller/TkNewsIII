@@ -1205,7 +1205,82 @@ snit::widgetadaptor EnterPassPhraseDialog {
     }
 }
 
+snit::widget SimpleDraftEditor {
+    hulltype tk::toplevel
+
+    component editBufferSW
+    component   editBuffer
+    component editButtons
+    variable  filename {}
+    variable  done 0
+    
+    typeconstructor {
+        ttk::style configure SimpleDraftEditor.editBuffer \
+              -background while \
+              -forground  black \
+              -relief     flat \
+              -borderwidth 0
+    }
+    
+    option -parent -default . -readonly yes -type snit::window
+    constructor {args} {
+        set options(-parent) [from args -parent]
+        wm transient $win [winfo toplevel $options(-parent)]
+        wm protocol $win WM_DELETE_WINDOW [mymethod _Dismis]
+        wm withdraw $win
+        install editBufferSW using ScrolledWindow $win.editBufferSW \
+              -scrollbar both -auto both
+        pack $editBufferSW -expand yes -fill both
+        install editBuffer using text [$editBufferSW getframe].editBuffer
+        $editBufferSW setwidget $editBuffer
+        bind $editBuffer <<ThemeChanged>> [mymethod _editBuffer_ThemeChanged]
+        install editButtons using ButtonBox $$win.editButtons \
+              -orient horizontal
+        pack $editButtons -fill x
+        $editButtons add ttk::button dismis -text Dismis -command [mymethod _Dismis]
+        $editButtons add ttk::button save   -text Save -command [mymethod _Save]
+        $editButtons add ttk::button saveexit -text {Save and Exit} [mymethod _SaveExit]
+        $self _editBuffer_ThemeChanged
+    }
+    method editfile {draftfile} {
+        $editBuffer delete 0 end
+        if {![catch {open $draftfile r} fp]} {
+            $editBuffer insert end [read $fp]
+            close $fp
+        }
+        set filename $draftfile
+        wm deiconify $win
+        set done 0
+        tkwait variable [myvar done]
+    }
+    method _Dismis {} {
+        wm withdraw $win
+        incr done
+    }
+    method _Save {} {
+        if {![catch {open $filename w} fp]} {
+            puts $fp [$editBuffer get 0 end-1c]
+            close $fp
+        }
+    }
+    method _SaveExit {} {
+        $self _Save
+        $self _Dismis
+    }
+    method _editBuffer_ThemeChanged {} {
+        $editBuffer configure \
+              -background [ttk::style lookup SimpleDraftEditor.editBuffer \
+                           -background] \
+              -forground [ttk::style lookup SimpleDraftEditor.editBuffer \
+                          -forground] \
+              -relief [ttk::style lookup SimpleDraftEditor.editBuffer \
+                        -relief] \
+              -borderwidth [ttk::style lookup SimpleDraftEditor.editBuffer \
+                            -borderwidth]
+    }
+}
 
 
 
 package provide ArticleFunctions 1.0
+

@@ -618,7 +618,6 @@ snit::widget SpoolWindow {
         frame $groupWindow -class $groupClass
         set IsEmail [option get $groupWindow isEmail IsEmail]
         destroy $groupWindow
-        ### Here
         if {$IsEmail} {
             $main menu entryconfigure file 1 -command "[mymethod _PostToGroup] yes"
             $articleListFrame artlistButtonBox itemconfigure post \
@@ -1057,7 +1056,7 @@ snit::widget SpoolWindow {
         if {[string length "$organizationString"] > 0} {
             puts $draftFp "Organization: $organizationString"
         }
-        puts $draftFp "X-Newsreader: TkNews 2.0 ($::BUILDSYMBOLS::VERSION)"
+        puts $draftFp "X-Newsreader: TkNews 3.0 ($::BUILDSYMBOLS::VERSION)"
         puts $draftFp "Subject: "
         #      puts stderr "*** $self _PostToGroup: isEmail = $isEmail"
         if {$isEmail} {
@@ -1137,7 +1136,7 @@ snit::widget SpoolWindow {
         if {[string length "$organizationString"] > 0} {
             puts $draftFp "Organization: $organizationString"
         }
-        puts $draftFp "X-Newsreader: TkNews 2.0 ($::BUILDSYMBOLS::VERSION)"
+        puts $draftFp "X-Newsreader: TkNews 3.0 ($::BUILDSYMBOLS::VERSION)"
         set subject [$articleViewWindow getHeader subject]
         if {[regexp -nocase {^Re:} "$subject"] < 1} {set subject "Re: $subject"}
         puts $draftFp "Subject: $subject"
@@ -1297,7 +1296,7 @@ snit::widget SpoolWindow {
         if {[string length "$organizationString"] > 0} {
             puts $draftFp "Organization: $organizationString"
         }
-        puts $draftFp "X-Newsreader: TkNews 2.0 ($::BUILDSYMBOLS::VERSION)"
+        puts $draftFp "X-Newsreader: TkNews 3.0 ($::BUILDSYMBOLS::VERSION)"
         set subject [$articleViewWindow getHeader subject]
         if {[regexp -nocase {^Re:} "$subject"] < 1} {set subject "Re: $subject"}
         puts $draftFp "Subject: $subject"
@@ -1404,7 +1403,7 @@ snit::widget SpoolWindow {
         if {[string length "$organizationString"] > 0} {
             puts $draftFp "Organization: $organizationString"
         }
-        puts $draftFp "X-Newsreader: TkNews 2.0 ($::BUILDSYMBOLS::VERSION)"
+        puts $draftFp "X-Newsreader: TkNews 3.0 ($::BUILDSYMBOLS::VERSION)"
         set subject [$articleViewWindow getHeader subject]
         set subject "Fwd: $subject"
         puts $draftFp "Subject: $subject"
@@ -1492,7 +1491,7 @@ snit::widget SpoolWindow {
         } else {
             set attachmentList {}
         }
-        set articlePostMenu [Spool::ArticlePostMenu $win.articlePostMenu%AUTO% \
+        set articlePostMenu [ArticlePostMenu $win.articlePostMenu%AUTO% \
                              -parent $win -draftfile $draftFile \
                              -group $group -groupwindow $groupWindow \
                              -spool $self -useemail $useEmailProgram \
@@ -1513,7 +1512,7 @@ snit::widget SpoolWindow {
     }
     method editDraft {draftFile} {
         if {[string equal "$options(-externaleditor)" {}]} {
-            set edit [Articles::SimpleDraftEditor \
+            set edit [SimpleDraftEditor \
                       create $win.articleEditor%AUTO% -parent $win]
             $edit editfile "$draftFile"
             destroy $edit
@@ -1633,79 +1632,91 @@ snit::widget SpoolWindow {
     }
 }
 
+################
+
 snit::type GetSpoolNameDialog {
     pragma -hastypedestroy no
     pragma -hasinstances no
     pragma -hastypeinfo no
     
     typecomponent dialog
-    typecomponent spoolListBox
-    typecomponent spoolNameLE
+    typecomponent spoolTree
+    typecomponent spoolNameFrame
+    typecomponent   spoolNameLabel
+    typecomponent   spoolNameEntry
     
     typeconstructor {
-#        set dialog [Dialog::create .getSpoolNameDialog \
-#                    -class GetSpoolNameDialog -bitmap questhead \
-#                    -default 0 -cancel 1 -modal local -transient yes \
-#                    -parent . -side bottom -title {Select a spool}]
-#        $dialog add -name ok -text OK -command [mytypemethod _OK]
-#        $dialog add -name cancel -text Cancel -command [mytypemethod _Cancel]
-#        $dialog add -name help -text Help -command [list BWHelp::HelpTopic GetSpoolNameDialog]
-#        set frame [$dialog getframe]
-#        set spoolListBox $frame.spoolListBox
-#        set spoolNameLE $frame.spoolNameLE
-#        pack [ListBox::create $spoolListBox -selectmode single] \
-#              -expand yes -fill both
-#        $spoolListBox bindText <1> [mytypemethod _SelectFromList]
-#        $spoolListBox bindText <space> [mytypemethod _SelectFromList]
-#        $spoolListBox bindText <Double-Button-1> [mytypemethod _ReturnFromList]
-#        $spoolListBox bindText <Return> [mytypemethod _ReturnFromList]
-#        pack [LabelEntry::create $spoolNameLE -label "Spool:" -side left] -fill x
-#        $spoolNameLE bind <Return> [mytypemethod _OK]
+        set dialog [Dialog .getSpoolNameDialog \
+                    -class GetSpoolNameDialog -bitmap questhead \
+                    -default ok -cancel cancel -modal local -transient yes \
+                    -parent . -side bottom -title {Select a spool}]
+        $dialog add ok -text OK -command [mytypemethod _OK]
+        $dialog add cancel -text Cancel -command [mytypemethod _Cancel]
+        $dialog add help -text Help -command [list BWHelp::HelpTopic GetSpoolNameDialog]
+        set frame [$dialog getframe]
+        set spoolTree $frame.spoolTree
+        set spoolNameFrame $frame.spoolNameFrame
+        set spoolNameLabel $spoolNameFrame.spoolNameLabel
+        set spoolNameEntry $spoolNameFrame.spoolNameEntry
+        pack [ttk::treeview $spoolTree -selectmode browse -show {tree}] \
+              -expand yes -fill both
+        $spoolTree tag bind spool <1> [mytypemethod _SelectFromList %x %y]
+        $spoolTree tag bind spool <space> [mytypemethod _SelectFromList %x %y]
+        $spoolTree tag bind spool <Double-Button-1> [mytypemethod _ReturnFromList %x %y]
+        $spoolTree tag bind spool <Return> [mytypemethod _ReturnFromList %x %y]
+        pack [ttk::frame $spoolNameFrame] -fill x -expand yes
+        pack [ttk::label $spoolNameLabel -text "Spool:" -anchor w] -side left
+        pack [ttk::entry $spoolNameEntry] -side left -fill x -expand yes
+        bind $spoolNameEntry <Return> [mytypemethod _OK]
     }
     typemethod _OK {} {
-        set answer "[$spoolNameLE cget -text]"
-        Dialog::withdraw $dialog
-        return [Dialog::enddialog $dialog "$answer"]
+        set answer "[$spoolNameEntry get]"
+        $dialog withdraw
+        return [$dialog enddialog "$answer"]
     }
     typemethod _Cancel {} {
-        Dialog::withdraw $dialog
-        return [Dialog::enddialog $dialog {}]
+        $dialog withdraw
+        return [$dialog enddialog {}]
     }
-    typemethod _SelectFromList {selection} {
-        $spoolNameLE configure -text [$spoolListBox itemcget $selection -text]
+    typemethod _SelectFromList {x y} {
+        set selection [$spoolTree identify row $x $y]
+        $spoolNameEntry delete 0 end
+        $spoolNameEntry insert end $selection
     }
-    typemethod _ReturnFromList {selection} {
-        $spoolNameLE configure -text [$spoolListBox itemcget $selection -text]
+    typemethod _ReturnFromList {x y} {
+        $self _SelectFromList $x $y
         $type _OK
     }
     typemethod draw {args} {
         set default [from args -defaultSpool {}]
-        $spoolNameLE configure -text "$default"
+        $spoolNameEntry delete 0 end
+        $spoolNameEntry insert end "$default"
         set loadedP [from args -loaded no]
-        $spoolListBox delete [$spoolListBox items]
+        $spoolTree delete [$spoolTree children {}]
         if {$loadedP} {
             set spoolList [SpoolWindow loadedSpools]
         } else {
             set spoolList [option get . spoolList SpoolList]
         }
         foreach sp $spoolList {
-            $spoolListBox insert end $sp -text $sp
+            $spoolTree insert insert {} end -id $sp -text $sp
         }
         set parent [from args -parent .]
         $dialog configure -parent $parent
         wm transient [winfo toplevel $dialog] $parent
-        return [Dialog::draw $dialog]
+        return [$dialog draw]
     }
 }
+
 snit::widgetadaptor ArticlePostMenu {
     
-    option -parent -readonly yes -default .
-    option -draftfile -readonly yes
+    option -parent -readonly yes -default . -type snit::window
+    option -draftfile -readonly yes -type File
     option -group -readonly yes
-    option {-groupwindow groupWindow GroupWindow} -readonly yes
-    option -spool -readonly yes
-    option -attachments {}
-    option {-useemail useEmail UseEmail} -readonly yes -default no
+    option {-groupwindow groupWindow GroupWindow} -readonly yes -type snit::window
+    option -spool -readonly yes -type SpoolWindow
+    option -attachments -default {} -type snit::list
+    option {-useemail useEmail UseEmail} -readonly yes -default no -type snit::boolean
     
     component   whomlistSW
     component   whomlist
@@ -1719,73 +1730,78 @@ snit::widgetadaptor ArticlePostMenu {
         }
     }
     constructor {args} {
+        puts stderr "*** $type create $self: $args"
         set options(-parent) [from args -parent .]
-        installhull using Dialog::create -parent $options(-parent) \
-              -class ArticlePostMenu -default 1 -cancel 3 -modal local \
-              -transient yes -side bottom -bitmap questhead \
+        installhull using Dialog -parent $options(-parent) \
+              -class ArticlePostMenu -default send -cancel dismis\
+              -modal local -transient yes -side bottom -bitmap questhead \
               -title {What Now?}
-        Dialog::add $win -name spell \
+        puts stderr "*** $type create $self: after installhull"
+        $hull add spell \
               -text {Spell Check} \
               -command [mymethod _SpellCheck]
-        Dialog::add $win -name send \
+        $hull add send \
               -text {Send} \
               -command [mymethod _SendMessage]
-        Dialog::add $win -name sendencrypted \
+        $hull add sendencrypted \
               -text "Send\nEncrypted" \
               -command [mymethod _SendMessageEncrypted]
-        Dialog::add $win -name dismis \
+        $hull add dismis \
               -text {Dismis} \
               -command [mymethod _Dismis]
-        Dialog::add $win -name reedit \
+        $hull add reedit \
               -text {Reedit} \
               -command [mymethod _Reedit]
+        puts stderr "*** $type create $self: buttons added"
         wm protocol $win WM_DELETE_WINDOW [mymethod _Dismis]
+        puts stderr "*** $type create $self: wm protocol WM_DELETE_WINDOW done"
         $self configurelist $args
         $self _ValidateRequiredOption -draftfile
         $self _ValidateRequiredOption -group
         $self _ValidateRequiredOption -groupwindow
         $self _ValidateRequiredOption -spool
-        install whomlistSW using ScrolledWindow::create \
-              [Dialog::getframe $win].whomlistSW \
+        puts stderr "*** $type create $self: required options checked"
+        install whomlistSW using ScrolledWindow \
+              [$hull getframe].whomlistSW \
               -scrollbar vertical -auto vertical
         pack $whomlistSW -expand yes -fill both -side left
-        set wl [ScrolledWindow::getframe $whomlistSW].whomlist
-        install whomlist using ListBox::create $wl \
-              -selectmode none
-        pack $whomlist -expand yes -fill both
+        set wl [$whomlistSW getframe].whomlist
+        install whomlist using ttk::treeview $wl \
+              -selectmode none -show tree
         $whomlistSW setwidget $whomlist
         $self fillWhomList
         if {$options(-useemail)} {
-            install attachmentsSW using ScrolledWindow::create \
-                  [Dialog::getframe $win].attachmentsSW \
+            install attachmentsSW using ScrolledWindow \
+                  [$hull getframe].attachmentsSW \
                   -scrollbar both -auto both
             pack $attachmentsSW  -expand yes -fill both -side left
-            set al [ScrolledWindow::getframe $attachmentsSW].attachments
-            install attachments using ListBox::create $al -selectmode none
-            pack $attachments -expand yes -fill both
+            set al [$attachmentsSW getframe].attachments
+            install attachments using ttk::treeview $al -selectmode none \
+                  -show tree -columns {ctype descr encoding filename} \
+                  -displaycolumns {}
             $attachmentsSW setwidget $attachments
-            $attachments bindText <3> [mymethod _ShowAttachment]
+            $attachments tag bind attachment <3> [mymethod _ShowAttachment]
             $self fillAttachmentList
-            Dialog::add $win -name attach \
+            $hull add attach \
                   -text {Attach File} \
                   -command [mymethod _AttachFile] 
         }
 	
     }
-    method _ShowAttachment {item} {
-        set attachment [$attachments itemcget $item -data]
+    method _ShowAttachment {x y} {
+        set attachment [$attachments item [$attachments identify row $x $y] -columns]
         foreach {ctype descr encoding filename} $attachment {
             tk_messageBox -type ok -icon info -message "$filename: $ctype; $encoding; $descr" -parent $win
         }
     }
-    method draw {} {return [Dialog::draw $win]}
+    method draw {} {return [$hull draw]}
     method _SpellCheck {} {
-        Dialog::withdraw $win
+        $win withdraw
         set spell [WaitExternalProgramASync create spellCheck%AUTO% \
                    -commandline "[$options(-spool) cget -spellchecker] $options(-draftfile)"]
         $spell wait
         $spell destroy
-        return [Dialog::enddialog $win -1]
+        return [$hull enddialog -1]
     }
     method _SendMessage1 {} {
         if {$options(-useemail)} {
@@ -1860,13 +1876,13 @@ snit::widgetadaptor ArticlePostMenu {
         close $iFp
     }
     method _SendMessage {} {
-        Dialog::withdraw $win
+        $hull withdraw
         
         if {[catch {$self _SendMessage1} message]} {
-            Dialog::enddialog $win 0
+            $hull enddialog 0
             error "Error Sending message: $message"
         }
-        return [Dialog::enddialog $win 1]
+        return [$hull enddialog 1]
     }
     method _SendMessageEncrypted1 {} { 
 	if {$options(-useemail)} {
@@ -2081,17 +2097,17 @@ snit::widgetadaptor ArticlePostMenu {
         gpgme_release $ctx
     }
     method _SendMessageEncrypted {} {
-        Dialog::withdraw $win
+        $hull withdraw
         
         if {[catch {$self _SendMessageEncrypted1} message]} {
             if {$::errorCode eq "RETURN"} {
-                return [Dialog::enddialog $win -1]
+                return [$hull enddialog -1]
             } else {
-                Dialog::enddialog $win 0
+                $hull enddialog 0
                 error "Error Sending message: $message" $::errorInfo $::errorCode
             }
         }
-        return [Dialog::enddialog $win 1]
+        return [$hull enddialog 1]
     }
     variable _baseCID {}
     variable _CIDindex -1
@@ -2106,16 +2122,16 @@ snit::widgetadaptor ArticlePostMenu {
         return "[exec hostname].[pid].[clock format [clock scan now] -format {%a.%b.%d.%H.%M.%S.%Z.%Y}]"
     }
     method _Dismis {} {
-        Dialog::withdraw $win
-        return [Dialog::enddialog $win 0]
+        $hull withdraw
+        return [$hull enddialog 0]
     }
     method _Reedit {} {
-        Dialog::withdraw $win
+        $hull withdraw
         $options(-spool) editDraft $options(-draftfile)
-        return [Dialog::enddialog $win -1]
+        return [$hull enddialog -1]
     }
     method _AttachFile {} {
-        set attachment [Spool::GetAttachment draw -parent $win]
+        set attachment [GetAttachment draw -parent $win]
         #      puts stderr "*** $self _AttachFile:  attachment = $attachment"
         if {[llength $attachment] > 0} {
             lappend options(-attachments) $attachment
@@ -2187,97 +2203,103 @@ snit::type GetAttachment {
     pragma -hastypeinfo no
     
     typecomponent dialog
-    typecomponent filenameLF
+    typecomponent filenameF
+    typecomponent   filenameL
     typecomponent   filenameE
     typecomponent   filenameB
-    typecomponent encodingLF
+    typecomponent encodingF
+    typecomponent   encodingL
     typecomponent   encodingCB
-    typecomponent descrLE
-    typecomponent contentTypeLF
+    typecomponent descrF    
+    typecomponent   descrL    
+    typecomponent   descrE    
+    typecomponent contentTypeF
+    typecomponent   contentTypeL
     typecomponent   contentTypeE
     typecomponent   contentTypeB
     typevariable  _labelWidth 15
     
     typeconstructor {
-#        set dialog [Dialog::create .getAttachment \
-#                    -class GetAttachment -bitmap questhead \
-#                    -default 0 -cancel 1 -modal local -transient yes \
-#                    -parent . -side bottom -title {Attach a file}]
-#        $dialog add -name attach -text Attach -command [mytypemethod _Attach]
-#        $dialog add -name cancel -text Cancel -command [mytypemethod _Cancel]
-#        $dialog add -name help -text Help -command [list BWHelp::HelpTopic GetAttachment]
-#        set frame [$dialog getframe]
-#        set filenameLF [LabelFrame::create $frame.filenameLF \
-#                        -width $_labelWidth \
-#                        -text "Filename:" \
-#                        -side left]
-#        pack $filenameLF -fill x
-#        set fnfr [$filenameLF getframe]
-#        set filenameE [Entry::create $fnfr.filenameE]
-#        pack $filenameE -expand yes -fill x -side left
-#        set filenameB [Button::create $fnfr.filenameB \
-#                       -text Browse \
-#                       -command [mytypemethod _BrowseFile]]
-#        pack $filenameB -side right
-#        set encodingLF [LabelFrame::create $frame.encodingLF \
-#                        -width $_labelWidth \
-#                        -text "Encoding:" \
-#                        -side left]
-#        pack $encodingLF -fill x
-#        set enfr [$encodingLF getframe]
-#        set encodingCB [ComboBox::create $enfr.encodingCB \
-#                        -values {7bit quoted-printable base64} \
-#                        -editable no]
-#        $encodingCB setvalue first
-#        pack $encodingCB -expand yes -fill x
-#        set descrLE [LabelEntry::create $frame.descrLE \
-#                     -labelwidth $_labelWidth \
-#                     -label "Description:" \
-#                     -side left]
-#        pack $descrLE -fill x
-#        set contentTypeLF [LabelFrame::create $frame.contentTypeLF \
-#                           -width $_labelWidth \
-#                           -text "Content Type:" \
-#                           -side left]
-#        pack $contentTypeLF -fill x
-#        set ctfr [$contentTypeLF getframe]
-#        set contentTypeE [Entry::create $ctfr.contentTypeE]
-#        pack $contentTypeE -expand yes -fill x -side left
-#        set contentTypeB [Button::create $ctfr.contentTypeB \
-#                          -text "Get Type" \
-#                          -command [mytypemethod _GetType]]
-#        pack $contentTypeB -side right
+        set dialog [Dialog .getAttachment \
+                    -class GetAttachment -bitmap questhead \
+                    -default attach -cancel cancel -modal local -transient yes \
+                    -parent . -side bottom -title {Attach a file}]
+        $dialog add attach -text Attach -command [mytypemethod _Attach]
+        $dialog add cancel -text Cancel -command [mytypemethod _Cancel]
+        $dialog add help -text Help -command [list BWHelp::HelpTopic GetAttachment]
+        set frame [$dialog getframe]
+        set filenameF [ttk::frame $frame.filenameF]
+        pack $filenameF -fill x -expand yes
+        set filenameL [ttk::label $filenameF.filenameL \
+                       -text "Filename:" -anchor w -width $_labelWidth]
+        pack $filenameL -side left
+        set filenameE [ttk::entry $filenameF.filenameE]
+        pack $filenameE -expand yes -fill x -side left
+        set filenameB [ttk::button $filenameF.filenameB \
+                       -text Browse \
+                       -command [mytypemethod _BrowseFile]]
+        pack $filenameB -side right
+        set encodingF [ttk::frame $frame.encodingF]
+        pack $encodingF -fill x
+        set encodingL [ttk::label $encodingF.encodingL -width $_labelWidth \
+                       -text "Encoding:" -anchor w]
+        pack $encodingL -side left
+        set encodingCB [ttk::combobox $encodingF.encodingCB \
+                        -values {7bit quoted-printable base64} \
+                        -state readonly]
+        $encodingCB set 7bit
+        pack $encodingCB -expand yes -fill x
+        set descrF [ttk::frame $frame.descrF]
+        pack $descrF -fill x
+        set descrL [ttk::label $descrF.descrL -width $_labelWidth \
+                    -text "Description:" -anchor w]
+        pack $descrL -side left
+        set descrE [ttk::entry $descrF.descrE]
+        pack $descrE -side left -fill x -expand yes
+        set contentTypeF [ttk::frame $frame.contentTypeF]
+        pack $contentTypeF -fill x
+        set contentTypeL [ttk::label $contentTypeF.contentTypeL \
+                          -width $_labelWidth -text "Content Type:" -anchor w]
+        pack $contentTypeL -side left
+        set contentTypeE [ttk::entry $contentTypeF.contentTypeE]
+        pack $contentTypeE -side left -fill x -expand yes
+        set contentTypeB [ttk::button $contentTypeF.contentTypeB \
+                          -text "Get Type" \
+                          -command [mytypemethod _GetType]]
+        pack $contentTypeB -side right
     }
     typemethod _Attach {} {
-        Dialog::withdraw $dialog
-        return [Dialog::enddialog $dialog [list "[$contentTypeE cget -text]" \
-                                           "[$descrLE cget -text]" \
-                                           "[$encodingCB cget -text]" \
-                                           "[$filenameE cget -text]"]]
+        $dialog withdraw
+        return [$dialog enddialog [list "[$contentTypeE get]" \
+                                           "[$descrE get]" \
+                                           "[$encodingCB get]" \
+                                           "[$filenameE get]"]]
     }
     typemethod _Cancel {} {
-        Dialog::withdraw $dialog
-        return [Dialog::enddialog $dialog {}]
+        $dialog withdraw
+        return [$dialog enddialog {}]
     }
     typemethod _BrowseFile {} {
-        set oldfile "[$filenameE cget -text]"
-        set olddir  "[file dirname $oldfile]"
-        set newfile [tk_getOpenFile -initialdir "$olddir" \
-                     -initialfile  "$oldfile" \
+        set oldfile [$filenameE get]
+        set olddir  [file dirname $oldfile]
+        set newfile [tk_getOpenFile -initialdir $olddir \
+                     -initialfile  $oldfile \
                      -parent $dialog \
                      -title "Name of file to attach"]
-        if {[string length "$newfile"] > 0} {
-            $filenameE configure -text "$newfile"
+        if {$newfile ne ""} {
+            $filenameE delete 0 end
+            $filenameE insert end "$newfile"
         }
     }
     typemethod _GetType {} {
-        set file "[$filenameE cget -text]"
+        set file "[$filenameE get]"
         set ctype [exec [auto_execok file] -ib "$file"]
-        $contentTypeE configure -text "$ctype"
+        $contentTypeE delete 0 end
+        $contentTypeE insert end "$ctype"
         if {[regexp {^text/} "$ctype"] > 0} {
-            $encodingCB configure -text 7bit
+            $encodingCB set 7bit
         } else {
-            $encodingCB configure -text base64
+            $encodingCB set base64
         }
     }
     typemethod draw {args} {
