@@ -129,7 +129,7 @@ set PrintCommand "[option get . printCommand PrintCommand]"
 global MimeCommand
 set MimeCommand "[option get . mimeCommand MimeCommand]"
 
-#AddressBook::LoadAddressBookFile "[option get . addressBookFile AddressBookFile]"
+AddressBook LoadAddressBookFile "[option get . addressBookFile AddressBookFile]"
 #  puts "*** IconicP = $IconicP"
 
 if {$IconicP == 1} {

@@ -55,7 +55,7 @@ LibraryScripts = BUILDSYMBOLS.tcl \
             Scripts/SpoolFunction.tcl Scripts/GroupFunctions.tcl \
             Scripts/ArticleFunctions.tcl Scripts/snitbuttonbox.tcl \
             Scripts/snitdialog.tcl Scripts/CommonFunctions.tcl \
-            Scripts/snitrotext.tcl
+            Scripts/snitrotext.tcl Scripts/AddressBook.tcl
 
 #                Scripts/BWHelp.tcl Scripts/labelselectcolor.tcl \
 #		Scripts/panedw.tcl Scripts/fileentry.tcl \

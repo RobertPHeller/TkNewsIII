@@ -540,11 +540,11 @@ snit::widget ArticleViewer {
       $self _GetHeaderFields
     }
     method _CollectAddresses {} {
-        #set to "[$toLE cget -text]"
-        #if {[string length "$to"] > 0} {AddressBook::CheckNewAddresses "$to"}
-        #set from "[$fromLE cget -text]"
-        #if {[string length "$from"] > 0} {AddressBook::CheckNewAddresses "$from"}
-        #if {[string length "$cc"] > 0} {AddressBook::CheckNewAddresses "$cc"}
+        set to "[$toLE cget -text]"
+        if {[string length "$to"] > 0} {AddressBook CheckNewAddresses "$to"}
+        set from "[$fromLE cget -text]"
+        if {[string length "$from"] > 0} {AddressBook CheckNewAddresses "$from"}
+        if {[string length "$cc"] > 0} {AddressBook CheckNewAddresses "$cc"}
     }
     method _GetHeaderFields {{refetching no}} {
         $articleHeader delete 1.0 end
@@ -612,7 +612,7 @@ snit::widget ArticleViewer {
         update idletasks
         #$articleBody see $EOH.0
         $articleBody yview moveto $fract
-        #AddressBook::WriteAddressBookFileIfDirty
+        AddressBook WriteAddressBookFileIfDirty
     }
     method _PipeToText {} {
         if {[gets $pipeFP line] < 0} {

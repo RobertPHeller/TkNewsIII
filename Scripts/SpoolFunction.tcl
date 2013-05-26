@@ -89,7 +89,7 @@ snit::widget SpoolWindow {
             {command "De-select All" {edit:deselectall edit:havesel} "Select nothing" {} -state disabled}
         }
         "&View" {view:menu} {view} 0 {
-            {command "&Address Book" {view:addrbook} "View / Edit Address book" {} -command AddressBook::ViewEdit}
+            {command "&Address Book" {view:addrbook} "View / Edit Address book" {} -command {AddressBook ViewEdit}}
         }
         "&Options" {options:menu} {options} 0 {
         } 
@@ -979,12 +979,18 @@ snit::widget SpoolWindow {
         puts $draftFp "X-Newsreader: TkNews 2.0 ($::BUILDSYMBOLS::VERSION)"
         puts $draftFp "Subject: $components(subject)"
         if {[string length  "$emailAddress"] == 0} {
-            AddressBook::GetToCcAddresses ToAddrs CCAddrs
-            puts $draftFp "To: [join $ToAddrs {,}]"
-            if {$ccSelf && [string length "$fromString"] > 0} {
-                lappend CCAddrs "$fromString"
+            if {[AddressBook GetToCcAddresses ToAddrs CCAddrs] eq "ok"} {
+                puts $draftFp "To: [join $ToAddrs {,}]"
+                if {$ccSelf && [string length "$fromString"] > 0} {
+                    lappend CCAddrs "$fromString"
+                }
+                puts $draftFp "Cc: [join $CCAddrs {,}]"
+            } else {
+                close $draftFp
+                catch {destroy $groupWindow}
+                file delete $draftFile
+                return
             }
-            puts $draftFp "Cc: [join $CCAddrs {,}]"
         } else {
             puts $draftFp "To: $emailAddress"
             if {$ccSelf && [string length "$fromString"] > 0} {
@@ -1060,12 +1066,18 @@ snit::widget SpoolWindow {
         puts $draftFp "Subject: "
         #      puts stderr "*** $self _PostToGroup: isEmail = $isEmail"
         if {$isEmail} {
-            AddressBook::GetToCcAddresses ToAddrs CCAddrs
-            puts $draftFp "To: [join $ToAddrs {,}]"
-            if {$ccSelf && [string length "$fromString"] > 0} {
-                lappend CCAddrs "$fromString"
+            if {[AddressBook  GetToCcAddresses ToAddrs CCAddrs] eq "ok"} {
+                puts $draftFp "To: [join $ToAddrs {,}]"
+                if {$ccSelf && [string length "$fromString"] > 0} {
+                    lappend CCAddrs "$fromString"
+                }
+                puts $draftFp "Cc: [join $CCAddrs {,}]"
+            } else {
+                close $draftFp
+                catch {destroy $groupWindow}
+                file delete $draftFile
+                return
             }
-            puts $draftFp "Cc: [join $CCAddrs {,}]"
         } elseif {[string length "$followupEmailTo"] > 0} {
             puts $draftFp "To: $followupEmailTo"
         } else {
@@ -1407,13 +1419,19 @@ snit::widget SpoolWindow {
         set subject [$articleViewWindow getHeader subject]
         set subject "Fwd: $subject"
         puts $draftFp "Subject: $subject"
-        AddressBook::GetToCcAddresses ToAddrs CCAddrs
-        puts $draftFp "To: [join $ToAddrs {,}]"
-        if {$ccSelf && [string length "$fromString"] > 0} {
-            lappend CCAddrs "$fromString"
+        if {[AddressBook GetToCcAddresses ToAddrs CCAddrs] eq "ok"} {
+            puts $draftFp "To: [join $ToAddrs {,}]"
+            if {$ccSelf && [string length "$fromString"] > 0} {
+                lappend CCAddrs "$fromString"
+            }
+            puts $draftFp "Cc: [join $CCAddrs {,}]"
+            puts $draftFp {}
+        } else {
+            close $draftFp
+            catch {destroy $groupWindow}
+            file delete $draftFile
+            return
         }
-        puts $draftFp "Cc: [join $CCAddrs {,}]"
-        puts $draftFp {}
         set replyto [$articleViewWindow getHeader reply-to]
         if {[string length "$replyto"] == 0} {
             set replyto [$articleViewWindow getHeader from]

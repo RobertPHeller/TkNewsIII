@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat May 18 09:51:58 2013
-#  Last Modified : <130518.1259>
+#  Last Modified : <130526.1505>
 #
 #  Description	
 #
@@ -44,7 +44,7 @@ snit::widgetadaptor TopWindow {
             {command "&Review Spool" {file:review} "Review Spool File" {Ctrl r} -command {SpoolWindow ReviewSpool}}
             {command "Re&scan" {file:rescan} "Rescan spool directory" {Ctrl s} -command "[mymethod RescanQWKSpool]"}
             {command "Ma&ke QWK Reply" {file:make} "Make QWK Reply" {Ctrl k} -command {QWKReplyProcess MakeQWKReply}}
-            {command "&Export Address Book" {file:exportab} "Export Address Book as CSV" {Ctrl e} -command AddressBook::Export}
+            {command "&Export Address Book" {file:exportab} "Export Address Book as CSV" {Ctrl e} -command {AddressBook Export}}
             {command "&Close" {file:close} "Close the application" {Ctrl q} -command "[mymethod CarefulExit]"}
             {command "E&xit" {file:exit} "Exit the application" {Ctrl q} -command "[mymethod CarefulExit]"}
         }
@@ -60,7 +60,7 @@ snit::widgetadaptor TopWindow {
             {command "De-select All" {edit:deselectall edit:havesel} "Select nothing" {} -state disabled}
         }
         "&View" {view:menu} {view} 0 {
-            {command "&Address Book" {view:addrbook} "View / Edit Address book" {} -command AddressBook::ViewEdit}
+            {command "&Address Book" {view:addrbook} "View / Edit Address book" {} -command {AddressBook ViewEdit}}
         }
         "&Options" {options:menu} {options} 0 {
         }
