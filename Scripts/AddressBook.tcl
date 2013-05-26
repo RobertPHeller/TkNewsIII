@@ -39,7 +39,9 @@ package require Tk
 package require tile
 package require MainFrame
 package require Dialog
+package require ButtonBox
 package require CommonFunctions
+package require IconImage
 package require snit
 
 snit::enum AddressFlags -values {collected hidden}
@@ -63,13 +65,13 @@ snit::type AddressBook {
     option -organization -default {}
     option -phone -default {} \
           -type {snit::stringtype
-        -regexp {^[0-9][0-9][0-9]-[0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]$}}
+        -regexp {^(([[:digit:]]+-)?[0-9][0-9][0-9]-[0-9][0-9][0-9]-[0-9][0-9][0-9][0-9])?$}}
     option -streetaddress -default {}
     option -city -default {}
     option -state -default {}
     option -zipcode -default {} \
           -type {snit::stringtype 
-        -regexp {^[0-9][0-9][0-9][0-9][0-9](-[0-9][0-9][0-9][0-9])?$}}
+        -regexp {^([0-9][0-9][0-9][0-9][0-9](-[0-9][0-9][0-9][0-9])?)?$}}
     option -flags -default {} -type {snit::listtype -type AddressFlags}
     constructor {args} {
         #      puts stderr "*** $type create $self $args"
@@ -123,7 +125,8 @@ snit::type AddressBook {
         }
         close $outfp
         set isdirtyP no
-        catch {$viewEditDirtyInd configure -foreground black}
+        catch {$viewEditDirtyInd configure \
+                  -background black}
     }
     typemethod LoadAddressBookFile {_filename} {
         set filename "$filename"
@@ -203,11 +206,11 @@ snit::type AddressBook {
     typecomponent  viewEditMain
     typevariable menu { 
 	"&File" {file:menu} {file} 0 {
-	    {command "&New" {file:new} "Clear Address Book" {Ctrl n} -command [mytypemethod _ClearAddressBook]}
-	    {command "&Save" {file:save} "Save Address Book" {Ctrl s} -command [mytypemethod WriteAddressBookFileIfDirty]}
-	    {command "&Export" {file:export} "Export Address Book" {Ctrl e} -command [mytypemethod Export -parent $_viewEditDialog]}
+	    {command "&New" {file:new} "Clear Address Book" {Ctrl n} -command "[mytypemethod _ClearAddressBook]"}
+	    {command "&Save" {file:save} "Save Address Book" {Ctrl s} -command "[mytypemethod WriteAddressBookFileIfDirty]"}
+	    {command "&Export" {file:export} "Export Address Book" {Alt e} -command "[mytypemethod Export -parent $_viewEditDialog]"}
 	    {separator}
-	    {command "&Close" {file:close} "Close Address Book" {Ctrl c} -command [mytypemethod _CloseViewEdit]}
+	    {command "&Close" {file:close} "Close Address Book" {Ctrl c} -command "[mytypemethod _CloseViewEdit]"}
 	}
         "&Edit" {edit:menu} {edit} 0 { 
             {command "&Undo" {edit:undo} "Undo last change" {Ctrl z} -state disabled} 
@@ -255,7 +258,7 @@ snit::type AddressBook {
         nickname,anchor w
         nickname,sort nicknames
         email,stretch yes
-        email,text {EMain Address}
+        email,text {EMail Address}
         email,width 100
         email,anchor w
         email,sort addresses
@@ -299,6 +302,7 @@ snit::type AddressBook {
         streetaddress city state zipcode flags}
 
     typecomponent      viewEditAddress
+    typecomponent        viewEditAddressButtons
     typecomponent	 viewEditAddressEmail
     typevariable         viewEditAddressEmail_TV
     typecomponent	 viewEditAddressNickname
@@ -325,9 +329,8 @@ snit::type AddressBook {
     typemethod _CreateViewEditDialog {args} {
         if {![string equal "$_viewEditDialog" {}]} {return}
         set _viewEditDialog [tk::toplevel ._viewEditDialog]
-        global IconBitmap IconBitmapMask
-        wm iconbitmap $_viewEditDialog $IconBitmap
-        wm iconmask   $_viewEditDialog $IconBitmapMask
+        wm iconbitmap $_viewEditDialog [IconBitmap bitmap TkNewsIIIicon]
+        wm iconmask   $_viewEditDialog [IconBitmap bitmap TkNewsIIIicon_mask]
         wm maxsize $_viewEditDialog 1024 768
         wm minsize $_viewEditDialog 640 10
         wm title $_viewEditDialog "TkNews: Address Book"
@@ -339,7 +342,8 @@ snit::type AddressBook {
         }
         set viewEditNowhere [canvas $_viewEditDialog.viewEditNowhere]
         set themenu [subst $menu]
-        set viewEditMain [MainFrame $_viewEditDialog.viewEditMain -menu $menu \
+        set viewEditMain [MainFrame $_viewEditDialog.viewEditMain \
+                          -menu $themenu \
                           -textvariable [mytypevar viewEditMainStatus] \
                           -progressvar [mytypevar viewEditMainProgress] \
                           -progressmax 100]
@@ -359,20 +363,35 @@ snit::type AddressBook {
                -text "Delete Address" -state disabled \
                -command [mytypemethod _DeleteSelectedAddress]]
         pack $viewEditToolBarDeleteAddress -side left
-        set viewEditDirtyInd [$viewEditMain addindicator -bitmap gray50]
+        set viewEditDirtyInd [$viewEditMain addindicator -background black \
+                              -image [IconImage image gray50 \
+                                      -filetype xbm \
+                                      -foreground [ttk::style lookup . \
+                                                   -background] \
+                                      -background {}]]
         set mframe [$viewEditMain getframe]
         set viewEditPane [ttk::panedwindow $mframe.viewEditPane -orient vertical]
         pack $viewEditPane -expand yes -fill both
-        set viewEditTreeSW [ScrolledWindow $viewEditPane -auto both -scrollbar both]
+        set viewEditTreeSW [ScrolledWindow $viewEditPane.viewEditTreeSW -auto both -scrollbar both]
         $viewEditPane add $viewEditTreeSW -weight 1
-        set viewEditTree ttk::treeview [$viewEditTreeSW getframe].viewEditTree \
+        set viewEditTree [ttk::treeview [$viewEditTreeSW getframe].viewEditTree \
               -show {headings} -columns $columns -displaycolumns $columns \
-              -selectmode browse
+              -selectmode browse]
         $viewEditTreeSW setwidget $viewEditTree
-        $viewEditTree tag bind row <Double-Button-1> [mymethod _SelectRow %x %y
+        $viewEditTree tag bind row <Double-Button-1> [mytypemethod _SelectRow %x %y]
         set viewEditAddress [ttk::labelframe $viewEditPane.viewEditAddress]
         $viewEditPane add $viewEditAddress -weight 3
         set vaframe $viewEditAddress
+        set viewEditAddressButtons [ButtonBox $vaframe.viewEditAddressButtons \
+                                    -orient horizontal]
+        pack $viewEditAddressButtons -fill x
+        $viewEditAddressButtons add ttk::button save \
+              -text Save \
+              -command [mytypemethod _UpdateAddress]
+        $viewEditAddressButtons configure -default save
+        $viewEditAddressButtons add ttk::button cancel \
+              -text Cancel \
+              -command [mytypemethod _RestoreAddress]
         foreach w {Email Nickname Name Organization Phone StreetAddress City 
             State Zipcode} {
             if {[string equal "$w" "Email"]} {
@@ -380,7 +399,7 @@ snit::type AddressBook {
             } else {
                 set state normal
             }
-            set f [ttk::frame $vaframe.viewEditAddressFrame]
+            set f [ttk::frame $vaframe.viewEditAddressFrame$w]
             pack $f -fill x
             set l [ttk::label $f.l -text $w -width 20 -anchor w]
             pack $l -side left
@@ -389,9 +408,6 @@ snit::type AddressBook {
                                                   viewEditAddress${w}_TV] \
                                    -state $state]
             pack [set viewEditAddress$w] -fill x -expand yes -side left
-            if {$state eq "normal"} {
-                bind [set viewEditAddress$w] <Return> [mytypemethod _UpdateAddress]
-            }
         }
         set viewEditAddressFlags [ttk::frame $vaframe.viewEditAddressFlags]
         pack $viewEditAddressFlags -fill x
@@ -399,14 +415,12 @@ snit::type AddressBook {
               -anchor w] -side left
         set flframe $viewEditAddressFlags
         set viewEditAddressHiddenFlag [ttk::checkbutton $flframe.viewEditAddressHiddenFlag \
-                                       -command [mytypemethod _UpdateAddress] \
-                                       -indicatoron yes -text hidden \
+                                       -text hidden \
                                        -offvalue no -onvalue yes \
                                        -variable [mytypevar viewEditAddressHiddenFlagVar]]
         pack $viewEditAddressHiddenFlag -side left
         set viewEditAddressCollectedFlag [ttk::checkbutton $flframe.viewEditAddressCollectedFlag \
-                                          -command [mytypemethod _UpdateAddress] \
-                                          -indicatoron yes -text collected \
+                                          -text collected \
                                           -offvalue no -onvalue yes \
                                           -variable [mytypevar viewEditAddressCollectedFlagVar]]
         pack $viewEditAddressCollectedFlag -side left
@@ -451,7 +465,8 @@ snit::type AddressBook {
                            [$id cget -phone] [$id cget -streetaddress] \
                            [$id cget -city] [$id cget -state] \
                            [$id cget -zipcode] \
-                           [_formflags [$id cget -flags]]]
+                           [_formflags [$id cget -flags]]] \
+                  -tags row
         }
     }
     proc _formflags {flaglist} {
@@ -465,8 +480,9 @@ snit::type AddressBook {
         if {$viewEditToolBarShowHidden} {
             $viewEditToolBarShowHideHidden configure -text "Show Hidden"
             set viewEditToolBarShowHidden no
-            if {$SelectedRow > 0 &&
-                $viewEditAddressHiddenFlagVar} {$type _SelectRow 0}
+            if {$SelectedItem ne "" && $viewEditAddressHiddenFlagVar} {
+                $type _SelectItem ""
+            }
             foreach em [array names addresses] {
                 set id $addresses($em)
                 if {[lsearch [$id cget -flags] hidden] >= 0} {
@@ -504,7 +520,9 @@ snit::type AddressBook {
             phones {
                 set idlist [list]
                 foreach n [lsort -dictionary [array names $sortarray]] {
-                    foreach id [set $sortarray]($n) {
+                    #puts stderr "*** $type _sortedidlist: n = $n"
+                    foreach id [set [set sortarray]($n)] {
+                        #puts stderr "*** $type _sortedidlist: id is $id"
                         lappend idlist $id
                     }
                 }
@@ -517,11 +535,34 @@ snit::type AddressBook {
         set sortarray $arrayname
         $viewEditTree detach [$viewEditTree children {}]
         set idlist [$type _sortedidlist]
+        #puts stderr "*** $type _sortcolumn: idlist is $idlist"
         foreach id $idlist {
-            if {$viewEditToolBarShowHidden || 
-                [lsearch [$id cget -flags] hidden] < 0} {
-                $viewEditTree move $id {} end 
+            #puts stderr "*** $type _sortcolumn: id is $id"
+            set flags [$id cget -flags]
+            #puts stderr "*** $type _sortcolumn: flags (of $id) is $flags"
+            set hindex [lsearch $flags hidden]
+            #puts stderr "*** $type _sortcolumn: hindex (of $id) is $hindex"
+            if {$viewEditToolBarShowHidden || $hindex < 0} {
+                if {[$viewEditTree exists $id]} {
+                    $viewEditTree move $id {} end
+                } else {
+                    $viewEditTree insert {} end -id $id \
+                          -values [list [$id cget -nickname] [$id cget -email] \
+                                   [$id cget -name] [$id cget -organization] \
+                                   [$id cget -phone] [$id cget -streetaddress] \
+                                   [$id cget -city] [$id cget -state] \
+                                   [$id cget -zipcode] \
+                                   [_formflags [$id cget -flags]]] \
+                          -tags row
+                    set isdirtyP yes
+                }
             }
+        }
+        #puts stderr "*** $type _sortcolumn: isdirtyP = $isdirtyP"
+        if {$isdirtyP} {
+            $viewEditDirtyInd configure -background red
+        } else {
+            $viewEditDirtyInd configure -background black
         }
     }
     typemethod _UpdateViewEditList {{newid {}}} {
@@ -539,13 +580,15 @@ snit::type AddressBook {
                                [$newid cget -phone] [$newid cget -streetaddress] \
                                [$newid cget -city] [$newid cget -state] \
                                [$newid cget -zipcode] \
-                               [_formflags [$newid cget -flags]]]
+                               [_formflags [$newid cget -flags]]] \
+                      -tags row
             }
         }
+        #puts stderr "*** $type _UpdateViewEditList: isdirtyP = $isdirtyP"
         if {$isdirtyP} {
-            $viewEditDirtyInd configure -foreground red
+            $viewEditDirtyInd configure -background red
         } else {
-            $viewEditDirtyInd configure -foreground black
+            $viewEditDirtyInd configure -background black
         }
     }
     typevariable WatchList -array {}
@@ -596,6 +639,9 @@ snit::type AddressBook {
         if {$SelectedItem eq ""} {return}
         $type _FillAddress $id
         $viewEditToolBarDeleteAddress configure -state normal
+    }
+    typemethod _RestoreAddress {} {
+        $type _SelectItem $SelectedItem
     }
     typemethod _FillAddress {id} {
         set viewEditAddressEmail_TV [$id cget -email]
@@ -760,6 +806,31 @@ snit::type AddressBook {
             $id configure -zipcode $viewEditAddressZipcode_TV
             lappend zipcodes([$id cget -zipcode]) $id
         }
+        set flags [$id cget -flags]
+        set ih [lsearch $flags hidden]
+        if {$viewEditAddressHiddenFlagVar} {
+            if {$ih < 0} {
+                lappend flags hidden
+                set colsupdated yes
+                $id configure -flags $flags
+            }
+        } elseif {$ih >= 0} {
+            set flags [lreplace $flags $ih $ih]
+            set colsupdated yes
+            $id configure -flags $flags
+        }
+        set ic [lsearch $flags collected]
+        if {$viewEditAddressCollectedFlagVar} {
+            if {$ic < 0} {
+                lappend flags collected
+                set colsupdated yes
+                $id configure -flags $flags
+            }
+        } elseif {$ic >= 0} {
+            set flags [lreplace $flags $ic $ic]
+            set colsupdated yes
+            $id configure -flags $flags
+        }        
         set idlist [$type _sortedidlist]
         set index  [lsearch -exact $idlist $id]
         if {$detached} {
@@ -772,7 +843,9 @@ snit::type AddressBook {
                            [$id cget -phone] [$id cget -streetaddress] \
                            [$id cget -city] [$id cget -state] \
                            [$id cget -zipcode] \
-                           [_formflags [$id cget -flags]]]
+                           [_formflags [$id cget -flags]]] \
+                  -tags row
+            set isdirtyP yes
         }
         if {$colsupdated} {
             $viewEditTree item $id \
@@ -782,7 +855,15 @@ snit::type AddressBook {
                            [$id cget -city] [$id cget -state] \
                            [$id cget -zipcode] \
                            [_formflags [$id cget -flags]]]
+            set isdirtyP yes
         }
+        #puts stderr "*** $type _UpdateAddress: isdirtyP = $isdirtyP"
+        if {$isdirtyP} {
+            $viewEditDirtyInd configure -background red
+        } else {
+            $viewEditDirtyInd configure -background black
+        }
+        
     }
     typecomponent _newEMailAddressDialog
     typecomponent   newEMailAddressF

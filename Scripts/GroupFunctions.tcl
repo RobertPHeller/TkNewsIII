@@ -58,7 +58,7 @@ snit::type group {
     typeconstructor {
         global execbindir
         set HeadListProg [auto_execok [file join $execbindir headList]]
-                bind $type <Motion>                [mytypemethod _Motion %W %x %y]
+        bind $type <Motion>                [mytypemethod _Motion %W %x %y]
     }
 
     option -first -type snit::integer -default 1

@@ -19,11 +19,8 @@ package require tile;#                  Themed widgets
 package require snit
 package require MainFrame
 package require IconImage
+package require AddressBook
 
-global HeadListProg
-set HeadListProg [auto_execok [file join $execbindir headList]]
-global QWKReplyProg
-set QWKReplyProg [auto_execok [file join $execbindir qwkReply]]
 
 catch [list source ~/.wishrc]
 option add {*serverName} {localhost} widgetDefault
@@ -123,11 +120,6 @@ wm iconmask . [IconBitmap bitmap TkNewsIIIicon_mask]
 package require TopWindow
 
 pack [TopWindow .main] -expand yes -fill both
-
-global PrintCommand 
-set PrintCommand "[option get . printCommand PrintCommand]"
-global MimeCommand
-set MimeCommand "[option get . mimeCommand MimeCommand]"
 
 AddressBook LoadAddressBookFile "[option get . addressBookFile AddressBookFile]"
 #  puts "*** IconicP = $IconicP"

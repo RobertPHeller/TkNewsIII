@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon May 13 14:24:47 2013
-#  Last Modified : <130524.2041>
+#  Last Modified : <130526.1631>
 #
 #  Description	
 #
@@ -300,6 +300,7 @@ snit::widget MainFrame {
         eval [list ttk::label $indic] $args -relief sunken -takefocus 0 $sbfnt
         pack $indic -side left -anchor w -padx 2 -fill y -expand 1
         incr nindic
+        return $indic
     }
     method getindicator { index } {
         return $indframe.f$index

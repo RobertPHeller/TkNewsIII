@@ -135,8 +135,13 @@ snit::widget SpoolWindow {
             return [eval [list $type $toplevel -spoolname $spoolname] $args]
         }
     }
-
+    
+    typevariable QWKReplyProg
+    typevariable PrintCommand
     typeconstructor {
+        global execbindir
+        set QWKReplyProg [auto_execok [file join $execbindir qwkReply]]
+        set PrintCommand "[option get . printCommand PrintCommand]"
     }
 
     typemethod processURL {args} {
@@ -814,7 +819,6 @@ snit::widget SpoolWindow {
         if {$numMessages == 0} {return}
         set firstMessage [MessageList Lowestnumber $mlist]
         set lastMessage  [MessageList Highestnumber $mlist]
-        global PrintCommand
         set printPipe "|$PrintCommand"
         if {[catch [list open "$printPipe" w] outfp]} {
             error "Cannot create pipeline: $printPipe: $outfp"
@@ -1520,7 +1524,6 @@ snit::widget SpoolWindow {
         return $result
     }
     method replaceKeys {string group} {
-        global QWKReplyProg
         set result "$string"
         regsub -all {\$QWKREPLY} "$result" "$QWKReplyProg" result
         regsub -all {%spool} "$result" "$options(-spooldirectory)" result

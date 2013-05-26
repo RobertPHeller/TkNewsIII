@@ -408,7 +408,9 @@ snit::widget ArticleViewer {
     component bodyButtons
     delegate method {buttons *} to bodyButtons
     
+    typevariable PrintCommand
     typeconstructor {
+        set PrintCommand "[option get . printCommand PrintCommand]"
         ttk::style configure ArticleHeaders -background gray -borderwidth 0 \
               -font "helvetica 8" -foreground black
         ttk::style configure ArticleBody -background white -borderwidth 0 \
@@ -672,7 +674,6 @@ snit::widget ArticleViewer {
         $options(-spool) updateGroupTreeLine $newname
     }
     method _Print {} {
-        global PrintCommand
         set printPipe "|$PrintCommand"
         if {[catch [list open "$printPipe" w] outfp]} {
             error "Cannot create pipeline: $printPipe: $outfp"
