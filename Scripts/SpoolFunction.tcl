@@ -336,7 +336,7 @@ snit::widget SpoolWindow {
             set userName $env(USER)
         }
         $self _LoadNewsRc
-        $self _LoadGroupTree {.} 0 Brief
+        $self _LoadGroupTree {.}
         set currentGroup {}
         
         if {$options(-iconic)} {
@@ -413,8 +413,8 @@ snit::widget SpoolWindow {
         }
         #      puts stderr "*** $self reload: $self _ReLoadActiveList"
         $self _ReLoadActiveList
-        #      puts stderr "*** $self reload: $self _LoadGroupTree {.} 0 Brief"
-        $self _LoadGroupTree {.} 0 Brief
+        #      puts stderr "*** $self reload: $self _LoadGroupTree {.}"
+        $self _LoadGroupTree {.}
     }
     method user {} {return "$userName"}
     method _CloseSpool {} {
@@ -563,13 +563,13 @@ snit::widget SpoolWindow {
     method _WriteNewsRc {} {
         $newslist write
     }
-    method _LoadGroupTree {pattern unsubscribed format} {
+    method _LoadGroupTree {pattern} {
         if {[string length "$options(-savednews)"] > 0} {
             set saved 1
         } else {
             set saved 0
         }
-        $groupTreeFrame loadGroupTree $pattern $unsubscribed $format $saved
+        $groupTreeFrame loadSubscribedGroupTree $pattern $saved
     }
     method _ReadAGroup {} {
         #puts stderr "*** ${type}::_ReadAGroup: selectedGroup = $selectedGroup, currentGroup = $currentGroup"

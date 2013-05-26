@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri May 24 09:50:47 2013
-#  Last Modified : <130525.1203>
+#  Last Modified : <130525.2103>
 #
 #  Description	
 #
@@ -205,7 +205,10 @@ snit::widgetadaptor Dialog {
         set result $res
     }
     method draw {{focus ""} {overrideredirect no} {geometry ""}} {
+        #puts stderr "*** $self draw $focus $overrideredirect $geometry"
         set parent $options(-parent)
+        #puts stderr "*** $self draw: parent = $parent"
+        #puts stderr "*** $self draw: realized = $realized"
         if { !$realized } {
             set realized yes
             if { [llength [winfo children $bbox]] } {
@@ -217,6 +220,7 @@ snit::widgetadaptor Dialog {
                     set pad -pady
                     set fill x
                 }
+                #puts stderr "*** $self draw: packing $bbox -side $side -padx 1m -pady 1m -anchor $options(-anchor)"
                 pack $bbox -side $side -padx 1m -pady 1m \
                       -anchor $options(-anchor)
                 if {[info exists sep] &&
@@ -231,11 +235,14 @@ snit::widgetadaptor Dialog {
                 #puts stderr "*** $self draw: label is $label"
                 pack $label -side left -anchor n -padx 3m -pady 3m
             }
+            #puts stderr "*** $self draw: packing $frame -padx 1m -pady 1m -fill both -expand yes"
             pack $frame -padx 1m -pady 1m -fill both -expand yes
         }
+        #puts stderr "*** $self draw: realized"
         set geom $options(-geometry)
         if {$geometry eq "" && $geom eq ""} {
             set place $options(-place)
+            #puts stderr "*** $self draw: place"
             if {$place ne "none"} {
                 if {[winfo exists $parent]} {
                     _place $win 0 0 $place $parent
@@ -250,13 +257,16 @@ snit::widgetadaptor Dialog {
                 wm geometry $win $geometry
             }
         }
+        #puts stderr "*** $self draw: placed"
         update idletasks
         wm overrideredirect $win $overrideredirect
         wm deiconify $win
+        #puts stderr "*** $self draw: deiconify done"
         if {![winfo exists $parent] ||
             ([wm state [winfo toplevel $parent]] ne "withdrawn")} {
             tkwait visibility $win
         }
+        #puts stderr "*** $self draw: visibility done"
         set savedfocus [focus -displayof $win]
         focus $win
         if {[winfo exists $focus]} {
@@ -264,6 +274,7 @@ snit::widgetadaptor Dialog {
         } else {
             $bbox setfocus default
         }
+        #puts stderr "*** $self draw: visibility focus done"
         if {[set grab $options(-modal)] ne "none"} {
             set savedgrab [grab current]
             if {[winfo exists $savedgrab]} {
@@ -310,10 +321,9 @@ snit::widgetadaptor Dialog {
         set reqh [winfo reqheight $path]
         if { $w == 0 } {set w $reqw}
         if { $h == 0 } {set h $reqh}
-
         set arglen [llength $args]
         if { $arglen > 3 } {
-            return -code error "Dialog::place: bad number of argument"
+            return -code error "Dialog::_place: bad number of arguments"
         }
 
         if { $arglen > 0 } {
@@ -439,7 +449,7 @@ snit::widgetadaptor Dialog {
             ## If there's not a + or - in front of the number, we need to add one.
             if {[string is integer [string index $x 0]]} { set x +$x }
             if {[string is integer [string index $y 0]]} { set y +$y }
-            
+
             wm geometry $path "${w}x${h}${x}${y}"
         } else {
             wm geometry $path "${w}x${h}"

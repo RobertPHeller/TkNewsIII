@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon May 20 10:03:07 2013
-#  Last Modified : <130524.1254>
+#  Last Modified : <130525.2109>
 #
 #  Description	
 #
@@ -79,7 +79,7 @@ snit::widget ButtonBox {
         }
         set buttons($name) [eval [list $const $win.$name] $args]
         grid $buttons($name) -column $col -row $row -sticky news
-        $buttons($name) configure -state $options(-state)
+        #$buttons($name) configure -state $options(-state)
         if {$options(-default) eq $name} {
             $buttons($name) configure -default active
         }

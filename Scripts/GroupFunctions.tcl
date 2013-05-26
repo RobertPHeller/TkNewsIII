@@ -469,7 +469,7 @@ snit::widget GroupTreeFrame {
         $options(-spool) _UnSubscribeGroup
     }
     method _DirectoryOfGroups {} {
-        $type DirectoryOfAllGroupsDialog draw -parent [winfo toplevel $win] \
+        DirectoryOfAllGroupsDialog draw -parent [winfo toplevel $win] \
               -grouptree $self \
               -subscribecallback "$options(-spool) _SubscribeToGroup"
     }
@@ -478,21 +478,24 @@ snit::widget GroupTreeFrame {
         $options(-spool) _LoadGroupTree {.} 0 Brief
     }
     method _EnableGroupButtons {x y} {
-        lassign [$groupTree identify $x $y] what selection detail
+        #puts stderr "*** $self _EnableGroupButtons $x $y"
+        set selection [$groupTree identify row $x $y]
         if {[string length "$selection"] == 0} {return}
-        #puts stderr "*** ${type}::_EnableGroupButtons: selection = $selection"
+        #puts stderr "*** $self _EnableGroupButtons: selection = $selection"
         $options(-spool) setSelectedGroup $selection
-        #puts stderr "*** ${type}::_EnableGroupButtons: selectedGroup = $selectedGroup"
-        #puts stderr "*** ${type}::_EnableGroupButtons: currentGroup = $currentGroup"
+        #puts stderr "*** $self _EnableGroupButtons: selectedGroup = $selectedGroup"
+        #puts stderr "*** $self _EnableGroupButtons: currentGroup = $currentGroup"
         $options(-spool) setmenustate file:read normal
         $groupButtonBox itemconfigure read  -state normal
         bind $options(-spool) <Control-r> "$options(-spool) _ReadAGroup"
     }
     method _ReadGroup {x y} {
-        lassign [$groupTree identify $x $y] what selection detail
-        #puts stderr "*** ${type}::_ReadGroup: selection = $selection"
+        #puts stderr "*** $self _ReadGroup $x $y"
+        set selection [$groupTree identify row $x $y]
+        if {[string length "$selection"] == 0} {return}
+        #puts stderr "*** $self _ReadGroup: selection = $selection"
         $options(-spool) setSelectedGroup $selection
-        #puts stderr "*** ${type}::_ReadGroup:  selectedGroup = $selectedGroup"
+        #puts stderr "*** $self _ReadGroup:  selectedGroup = $selectedGroup"
         $options(-spool) setmenustate file:read normal
         $groupButtonBox itemconfigure read -state normal
         $groupButtonBox itemconfigure unread -state normal
@@ -768,20 +771,20 @@ snit::widget GroupTreeFrame {
     method groupComputeUnread {groupname} {
         return [$groups($groupname) groupComputeUnread]
     }
-    method loadGroupTree {pattern unsubscribedP format {savedP 1}} {
+    method loadSubscribedGroupTree {pattern saved} {
         $groupTree delete [$groupTree children {}]
         set activeGroups [$self activeGroups]
         set savedSpoolDirectory [$options(-spool) cget -savednews]
         if {[string equal "$pattern" {}]} {return}
         foreach name $activeGroups {
             if {[regexp -nocase -- "$pattern" $name]} {
-                if {$unsubscribedP || [$self groupcget $name -subscribed]} {
+                if {[$self groupcget $name -subscribed]} {
                     $groupTree insert {} end \
                           -id $name \
                           -text $name \
                           -values [$self formRealGroupValues $name] \
                           -tags groupitem -open no
-                    if {$savedP} {
+                    if {$saved} {
                         set thisGroupSaved \
                               "$savedSpoolDirectory/[GroupName Path $name]"
                         foreach sg [lsort -dictionary [glob -nocomplain "$thisGroupSaved/*"]] {
@@ -792,30 +795,40 @@ snit::widget GroupTreeFrame {
             }
         }
     }
+    method loadUnsubscribedGroupTree {tv pattern} {
+        $tv delete [$tv children {}]
+        set activeGroups [$self activeGroups]
+        if {[string equal "$pattern" {}]} {return}
+        foreach name $activeGroups {
+            if {[regexp -nocase -- "$pattern" $name]} {
+                $tv insert {} end \
+                      -id $name \
+                      -text $name \
+                      -values [$self formFullRealGroupValues $name] \
+                      -tags groupitem -open no
+            }
+        }
+    }
     method formRealGroupValues {name} {
         return [list [format {%6d-%-6d} \
                       [$self groupcget $name -first] \
                       [$self groupcget $name -last] \
-                      ] [$self groupComputeUnread $name]]
+                      ] \
+                      [$self groupComputeUnread $name] \
+                      ]
     }
-    method formatRealGroupLine {group {format {Brief}}} {
-        set u [$self groupComputeUnread $group]
-        if {$format == {Brief}} {
-            set line [format {%-40s %6d-%-6d, unread: %4d}  \
-                      $group \
-                      [$self groupcget $group -first] \
-                      [$self groupcget $group -last] $u]
-        } else {
-            set subFlag { }
-            set postFlag { }
-            if {[$self groupcget $group -subscribed]} {set subFlag {S}}
-            if {[$self groupcget $group -postable]} {set postFlag {P}}
-            set line [format {%-40s %s%s %6d-%-6d, unread: %4d}  \
-                      $group $subFlag $postFlag  \
-                      [$self groupcget $group -first]\
-                      [$self groupcget $group -last] $u]
-        }
-        return "$line"
+    method formFullRealGroupValues {name} {
+        set subFlag { }
+        set postFlag { }
+        if {[$self groupcget $name -subscribed]} {set subFlag {S}}
+        if {[$self groupcget $name -postable]} {set postFlag {P}}
+        return [list [format {%s%s} $subFlag $postFlag] \
+                [format {%6d-%-6d} \
+                 [$self groupcget $name -first] \
+                 [$self groupcget $name -last] \
+                 ] \
+                [$self groupComputeUnread $name] \
+                ]
     }
     method addSavedGroupLineInTree {parent group} {
         #puts stderr "*** $self addSavedGroupLineInTree $parent $group"
@@ -929,12 +942,6 @@ snit::widget GroupTreeFrame {
         set mcount [MessageList CountMessages [glob -nocomplain "$mdir/*"]]
         return [list {} $mcount]
     }
-    method formatSavedGroupLine {name} {
-        set mdir [$options(-spool) savedDirectory $name]
-        set subname [file tail $mdir]
-        set mcount [MessageList CountMessages [glob -nocomplain "$mdir/*"]]
-        return "[format {%-40s %d saved messages} $subname $mcount]"
-    }
     method insertArticleList {articleList group {pattern "."} {unreadp "0"}} {
         if {[catch {$options(-spool) savedDirectory $group} mdir] == 0} {
             #	puts stderr "*** ${type}::insertArticleList: group = $group, mdir = $mdir"
@@ -953,16 +960,18 @@ snit::widget GroupTreeFrame {
         $groups($group) configure -subscribed no
         $groupTree delete $group
     }
-    method subscribeGroup {tree group {savedP 1}} {
-        #set font [option get $tree font Font]
+    method subscribeGroup {group {savedP 1}} {
         $groups($group) configure -subscribed yes
-        set line [$self formatRealGroupLine $group Brief]
-        $tree insert end root $group -data $group -text "$line" -font $font
+        $groupTree insert {} end \
+              -id $group \
+              -text $group \
+              -values [$self formRealGroupValues $group] \
+              -tags groupitem -open no
         if {$savedP} {
             set savedSpoolDirectory "[$options(-spool) cget -savednews]"
             set thisGroupSaved "$savedSpoolDirectory/[GroupName Path $group]"
             foreach sg [lsort -dictionary [glob -nocomplain "$thisGroupSaved/*"]] {
-                $self _LoadSavedMessagesList $tree $group $sg 
+                $self _LoadSavedMessagesList $group $sg 
             }
         }
     }
@@ -1111,11 +1120,35 @@ snit::type NewsList {
         #      puts stderr "*** $self write: message = $message"
     }
 }
+
 snit::widgetadaptor DirectoryOfAllGroupsDialog {
+    
+    typevariable columnheadings -array {
+        #0,stretch yes
+        #0,text Name
+        #0,anchor w
+        #0,width 200
+        flags,stretch no
+        flags,text FL
+        flags,anchor w
+        flags,width 24
+        range,stretch yes
+        range,text Messages
+        range,anchor w
+        range,width 75
+        unread,stretch no
+        unread,text Unread
+        unread,anchor e
+        unread,width 75
+    }
+    typevariable columns {flags range unread}
     
     component groupTreeSW
     component groupTree
-    component selectedGroupLE
+    component selectedGroupFrame
+    component   selectedGroupLabel
+    component   selectedGroupEntry
+    variable selectedGroup
     
     option {-grouptree groupTree GroupTree} -readonly yes \
           -type GroupTreeFrame
@@ -1128,49 +1161,89 @@ snit::widgetadaptor DirectoryOfAllGroupsDialog {
         set parent [from args -parent]
         installhull using Dialog -parent $parent \
               -class DirectoryOfAllGroupsDialog \
-              -bitmap questhead -default 0 -cancel 0 \
+              -bitmap questhead -default join -cancel dismis \
               -modal none -transient yes -side bottom
-        Dialog::add $win -name dismis -text Dismis -command [mymethod _Dismis]
-        Dialog::add $win -name join   -text {Join Selected Group}   -command [mymethod _Join]
-        Dialog::add $win -name help   -text Help   \
+        $hull add dismis -text Dismis -command [mymethod _Dismis]
+        $hull add join   -text {Join Selected Group}   -command [mymethod _Join]
+        $hull add help   -text Help   \
               -command [list BWHelp::HelpTopic DirectoryOfAllGroupsDialog]
         wm protocol $win WM_DELETE_WINDOW [mymethod _Dismis]
         install groupTreeSW using ScrolledWindow \
-              [Dialog::getframe $win].groupTreeSW \
-              -scrollbar both -auto both
+              [$hull getframe].groupTreeSW \
+              -scrollbar vertical -auto vertical
         pack   $groupTreeSW -expand yes -fill both
-        install groupTree using Tree [ScrolledWindow::getframe $groupTreeSW].groupTree \
-              -selectcommand "[mymethod _SelectGroup] $groupTree" \
-              -width 70 \
+        install groupTree using ttk::treeview \
+              [$groupTreeSW getframe].groupTree \
               -height [option get $parent spoolNumGroups \
                        SpoolNumGroups] \
-              -selectfill yes
-        pack   $groupTree -expand yes -fill both
+              -selectmode browse \
+              -columns $columns -displaycolumns $columns \
+              -show {tree headings}
         $groupTreeSW setwidget $groupTree
-        install selectedGroupLE using LabelEntry \
-              [Dialog::getframe $win].selectedGroupLE \
-              -label {Selected Group:} -side left -editable no
-        pack   $selectedGroupLE -fill x
+        $groupTree tag bind groupitem <Double-ButtonPress-1> [mymethod _SelectGroup %x %y]
+        install selectedGroupFrame using ttk::frame \
+              [$hull getframe].selectedGroupFrame
+        pack $selectedGroupFrame -fill x
+        install selectedGroupLabel using ttk::label \
+              $selectedGroupFrame.selectedGroupLabel \
+              -text {Selected Group:} -anchor w
+        pack $selectedGroupLabel -side left
+        install selectedGroupEntry using ttk::entry \
+              $selectedGroupFrame.selectedGroupEntry \
+              -textvariable [myvar selectedGroup] -state readonly
+        pack $selectedGroupEntry -side left -expand yes -fill x
         $self configurelist $args
+        set cols [concat #0 $columns]
+        foreach c $cols {
+            #puts stderr "*** $type create $self: c = $c"
+            set copts [list]
+            if {[info exists columnheadings($c,stretch)]} {
+                lappend copts -stretch $columnheadings($c,stretch)
+            }
+            if {[info exists columnheadings($c,width)]} {
+                lappend copts -width $columnheadings($c,width)
+            }
+            if {[info exists columnheadings($c,anchor)]} {
+                lappend copts -anchor $columnheadings($c,anchor)
+            }
+            #puts stderr "*** $type create $self: copts = $copts"
+            if {[llength $copts] > 0} {
+                eval [list $groupTree column $c] $copts
+            }
+            set hopts [list]
+            if {[info exists columnheadings($c,text)]} {
+                lappend hopts -text $columnheadings($c,text)
+            }
+            if {[info exists columnheadings($c,image)]} {
+                lappend hopts -image $columnheadings($c,image)
+            }
+            if {[info exists columnheadings($c,anchor)]} {
+                lappend hopts -anchor $columnheadings($c,anchor)
+            }
+            #puts stderr "*** $type create $self: hopts = $hopts"
+            if {[llength $hopts] > 0} {
+                eval [list $groupTree heading $c] $hopts
+            }
+        }
         if {[string equal "$options(-subscribecallback)" {}]} {
             Dialog::itemconfigure $win join -state disabled
         }
         if {[string equal "$options(-grouptree)" {}]} {
-            error "-GroupTree is a required option!"
+            error "-grouptree is a required option!"
         }
-        $options(-grouptree) loadGroupTree $groupTree $options(-pattern) 1 Full 0
-        Dialog::draw $win
+        $options(-grouptree) loadUnsubscribedGroupTree $groupTree $options(-pattern)
+        #puts stderr "*** $type create $self: tree filled, about to display"
+        $hull draw
     }
     method _Dismis {} {
         destroy $self
     }
     method _Join {} {
-        set group "[$selectedGroupLE cget -text]"
-        if {[string length "$group"] == 0} {return}
-        uplevel #0 "eval $options(-subscribecallback) $group"
+        if {[string length "$selectedGroup"] == 0} {return}
+        catch {uplevel #0 "eval $options(-subscribecallback) $selectedGroup"}
     }
-    method _SelectGroup {gt selection} {
-        $selectedGroupLE configure -text "[$gt itemcget $selection -data]"
+    method _SelectGroup {x y} {
+        set selectedGroup [$groupTree identify row $x $y]
     }
     typemethod draw {args} {
         set parent [from args -parent {.}]
@@ -1193,3 +1266,4 @@ snit::widgetadaptor DirectoryOfAllGroupsDialog {
 }
 
 package provide GroupFunctions 1.0
+
