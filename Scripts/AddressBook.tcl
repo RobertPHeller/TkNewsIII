@@ -928,7 +928,7 @@ snit::type AddressBook {
             $addresses($ad) destroy
         }
     }
-    ###################### HERE
+    
     typecomponent _getToCcAddressesDialog
     typecomponent   getToCcAddressesDialogLeft
     typecomponent     getToCcAddressesDialogAllSW
@@ -946,68 +946,80 @@ snit::type AddressBook {
         if {![string equal "$_getToCcAddressesDialog" {}]} {return}
         set _getToCcAddressesDialog [Dialog ._getToCcAddressesDialog \
                                      -class GetToCcAddressesDialog \
-                                     -bitmap questhead -default 0 \
-                                     -cancel 1 -modal local -transient yes \
+                                     -bitmap questhead -default ok \
+                                     -cancel cancel -modal local -transient yes \
                                      -parent . -side bottom]
-        $_getToCcAddressesDialog add -name ok -text OK -command [mytypemethod _GetToCcAddressesDialog_OK]
-        $_getToCcAddressesDialog add -name cancel -text Cancel -command [mytypemethod _GetToCcAddressesDialog_Cancel]
-        $_getToCcAddressesDialog add -name help -text Help -command [list BWHelp::HelpTopic GetToCcAddressesDialog]
+        $_getToCcAddressesDialog add ok -text OK -command [mytypemethod _GetToCcAddressesDialog_OK]
+        $_getToCcAddressesDialog add cancel -text Cancel -command [mytypemethod _GetToCcAddressesDialog_Cancel]
+        $_getToCcAddressesDialog add help -text Help -command [list BWHelp::HelpTopic GetToCcAddressesDialog]
         set frame [$_getToCcAddressesDialog getframe]
-        set getToCcAddressesDialogLeft [frame $frame.getToCcAddressesDialogLeft -relief flat]
+        set getToCcAddressesDialogLeft [ttk::frame $frame.getToCcAddressesDialogLeft -relief flat]
         pack $getToCcAddressesDialogLeft -side left -expand yes -fill both
         set getToCcAddressesDialogAllSW [ScrolledWindow $getToCcAddressesDialogLeft.getToCcAddressesDialogAllSW -auto both -scrollbar both]
         pack $getToCcAddressesDialogAllSW -fill both -expand yes
-        set getToCcAddressesDialogAll [ListBox [$getToCcAddressesDialogAllSW getframe].getToCcAddressesDialogAll -selectmode multiple]
-        pack $getToCcAddressesDialogAll -fill both -expand yes
+        set getToCcAddressesDialogAll [ttk::treeview [$getToCcAddressesDialogAllSW getframe].getToCcAddressesDialogAll -selectmode extended -show {tree}]
         $getToCcAddressesDialogAllSW setwidget $getToCcAddressesDialogAll
-        set getToCcAddressesDialogRight [frame $frame.getToCcAddressesDialogRight -relief flat]
+        set getToCcAddressesDialogRight [ttk::frame $frame.getToCcAddressesDialogRight -relief flat]
         pack $getToCcAddressesDialogRight -side right -expand yes -fill both
-        set getToCcAddressesDialogToBF [frame $getToCcAddressesDialogRight.getToCcAddressesDialogToBF -relief flat]
+        set getToCcAddressesDialogToBF [ttk::frame $getToCcAddressesDialogRight.getToCcAddressesDialogToBF -relief flat]
         pack $getToCcAddressesDialogToBF -expand yes -fill both
-        set getToCcAddressesDialogToButton [Button $getToCcAddressesDialogToBF.getToCcAddressesDialogToButton -text ">> To:" -command [mytypemethod _MoveAddressToToList]]
+        set getToCcAddressesDialogToButton [ttk::button $getToCcAddressesDialogToBF.getToCcAddressesDialogToButton -text ">> To:" -command [mytypemethod _MoveAddressToToList]]
         pack $getToCcAddressesDialogToButton -side left
         set getToCcAddressesDialogToListSW [ScrolledWindow $getToCcAddressesDialogToBF.getToCcAddressesDialogToListSW -auto both -scrollbar both]
         pack $getToCcAddressesDialogToListSW -side right -expand yes -fill both
-        set getToCcAddressesDialogToList [ListBox [$getToCcAddressesDialogToListSW getframe].getToCcAddressesDialogToList -selectmode none]
-        pack $getToCcAddressesDialogToList -expand yes -fill both
+        set getToCcAddressesDialogToList [ttk::treeview [$getToCcAddressesDialogToListSW getframe].getToCcAddressesDialogToList -selectmode none -show {tree}]
         $getToCcAddressesDialogToListSW setwidget $getToCcAddressesDialogToList
         set getToCcAddressesDialogCcBF [frame $getToCcAddressesDialogRight.getToCcAddressesDialogCcBF -relief flat]
         pack $getToCcAddressesDialogCcBF -expand yes -fill both
-        set getToCcAddressesDialogCcButton [Button $getToCcAddressesDialogCcBF.getToCcAddressesDialogCcButton -text ">> Cc:" -command [mytypemethod _MoveAddressToCcList]]
+        set getToCcAddressesDialogCcButton [ttk::button $getToCcAddressesDialogCcBF.getToCcAddressesDialogCcButton -text ">> Cc:" -command [mytypemethod _MoveAddressToCcList]]
         pack $getToCcAddressesDialogCcButton -side left
         set getToCcAddressesDialogCcListSW [ScrolledWindow $getToCcAddressesDialogCcBF.getToCcAddressesDialogCcListSW -auto both -scrollbar both]
         pack $getToCcAddressesDialogCcListSW -side right -expand yes -fill both
-        set getToCcAddressesDialogCcList [ListBox [$getToCcAddressesDialogCcListSW getframe].getToCcAddressesDialogCcList -selectmode none]
-        pack $getToCcAddressesDialogCcList -expand yes -fill both
+        set getToCcAddressesDialogCcList [ttk::treeview [$getToCcAddressesDialogCcListSW getframe].getToCcAddressesDialogCcList -selectmode none -show {tree}]
         $getToCcAddressesDialogCcListSW setwidget $getToCcAddressesDialogCcList
     }
     typemethod _MoveAddressToToList {} {
-        set selection [$getToCcAddressesDialogAll selection get]
-        foreach s $selection {
-            $getToCcAddressesDialogToList insert end $s -text [$getToCcAddressesDialogAll itemcget $s -text] -data [$getToCcAddressesDialogAll itemcget $s -data]
-            $getToCcAddressesDialogAll delete $s
+        set selection [$getToCcAddressesDialogAll selection]
+        foreach id $selection {
+            $getToCcAddressesDialogToList insert {} end -id $id \
+                  -text "[$id cget -name] <[$id cget -email]>"
+            $getToCcAddressesDialogAll delete $id
         }
     }
     typemethod _MoveAddressToCcList {} {
-        set selection [$getToCcAddressesDialogAll selection get]
-        foreach s $selection {
-            $getToCcAddressesDialogCcList insert end $s -text [$getToCcAddressesDialogAll itemcget $s -text] -data [$getToCcAddressesDialogAll itemcget $s -data]
-            $getToCcAddressesDialogAll delete $s
+        set selection [$getToCcAddressesDialogAll selection]
+        foreach id $selection {
+            $getToCcAddressesDialogCcList insert {} end -id $id \
+                  -text "[$id cget -name] <[$id cget -email]>"
+            $getToCcAddressesDialogAll delete $id
         }
     }
     typemethod GetToCcAddresses {ToAddrsVar CCAddrsVar args} {
         if {[string equal "$_getToCcAddressesDialog" {}]} {$type _CreateGetToCcAddressesDialog}
-        $getToCcAddressesDialogAll delete [$getToCcAddressesDialogAll items]
-        foreach a [lsort -command [mytypemethod _SortByNickname] [array names addresses]] {
-            set ad $addresses($a)
-            if {[lsearch [$ad cget -flags] hidden] < 0 && 
-                [string length "[$ad cget -nickname]"] > 0} {
-                $getToCcAddressesDialogAll insert end $a -text "[$ad cget -nickname] ([$ad cget -name]) <$a>" \
-                      -data "[$ad cget -name] <$a>"
+        $getToCcAddressesDialogAll delete [$getToCcAddressesDialogAll children {}]
+        set allwidth 0
+        set toccwidth 0
+        set tvFont [ttk::style lookup Treeview -font]
+        foreach n [lsort -dictionary [array names nicknames]] {
+            foreach ad $nicknames($n) {
+                if {[lsearch [$ad cget -flags] hidden] < 0 && 
+                    [string length "[$ad cget -nickname]"] > 0} {
+                    set alltext "[$ad cget -nickname] ([$ad cget -name]) <[$ad cget -email]>"
+                    set tocctext "[$ad cget -name] <[$ad cget -email]>"
+                    set wall [font measure $tvFont -displayof $_getToCcAddressesDialog $alltext]
+                    if {$wall > $allwidth} {set allwidth $wall}
+                    set wtc [font measure $tvFont -displayof $_getToCcAddressesDialog $tocctext]
+                    if {$wtc > $toccwidth} {set toccwidth $wtc}
+                    $getToCcAddressesDialogAll insert {} end -id $ad \
+                          -text $alltext
+                }
             }
         }
-        $getToCcAddressesDialogToList delete [$getToCcAddressesDialogToList items]
-        $getToCcAddressesDialogCcList delete [$getToCcAddressesDialogCcList items]
+        $getToCcAddressesDialogAll column #0 -minwidth $allwidth
+        $getToCcAddressesDialogToList delete [$getToCcAddressesDialogToList children {}]
+        $getToCcAddressesDialogCcList delete [$getToCcAddressesDialogCcList children {}]
+        $getToCcAddressesDialogToList column #0 -minwidth $toccwidth
+        $getToCcAddressesDialogCcList column #0 -minwidth $toccwidth
         set parent [from args -parent .]
         $_getToCcAddressesDialog configure -parent $parent
         wm transient [winfo toplevel $_getToCcAddressesDialog] $parent
@@ -1015,13 +1027,15 @@ snit::type AddressBook {
         if {$result eq "ok"} {
             upvar #0 $ToAddrsVar tolist
             set tolist {}
-            foreach to [$getToCcAddressesDialogToList items] {
-                lappend tolist "[$getToCcAddressesDialogToList itemcget $to -data]"
+            foreach to [$getToCcAddressesDialogToList children {}] {
+                lappend tolist \
+                      "[$to cget -name] <[$ad cget -email]>"
             }
             upvar #0 $CCAddrsVar cclist
             set cclist {}
-            foreach cc [$getToCcAddressesDialogCcList items] {
-                lappend cclist "[$getToCcAddressesDialogCcList itemcget $cc -data]"
+            foreach cc [$getToCcAddressesDialogCcList children {}] {
+                lappend cclist \
+                      [$cc cget -name] <[$cc cget -email]>"
             }
         }
         return $result
