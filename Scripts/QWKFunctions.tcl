@@ -117,16 +117,21 @@ snit::type QWKFileProcess {
             install progressWindow using \
                   BackgroundShellProcessWindow $spoolWindow.getQWKFile%AUTO% \
                   -title "Getting QWK file for spool $options(-spool)" \
-                  -parent $options(-parent)
+                  -parent $options(-parent) -height 15
         }
         #      puts stderr "*** $self: progressWindow = $progressWindow"
         if {![string equal [wm state $spoolWindow] normal]} {
             wm deiconify $spoolWindow
             wm deiconify $progressWindow
         }
-        regsub {^[0-9x]*} [wm geometry $progressWindow] 725x400 geo
+        update idletasks
+        #puts stderr "*** $type create $self: wm geometry $progressWindow = [wm geometry $progressWindow]"
+        regsub {^[0-9]+x} [wm geometry $progressWindow] 725x geo
+        #puts stderr "*** $type create $self: geo is $geo"
         regsub {^[0-9x]*} [wm geometry [winfo toplevel [winfo parent $progressWindow]]] {} parentGeo
+        #puts stderr "*** $type create $self: parentGeo = $parentGeo"
         regsub {\+0\+0} "$geo" $parentGeo geo
+        #puts stderr "*** $type create $self: geo is $geo"
         wm geometry $progressWindow $geo
         raise $progressWindow
         #      puts stderr "*** $self constructor: progressWindow = $progressWindow"
@@ -294,19 +299,25 @@ snit::type LoadQWKFile {
             install progressWindow using \
                   BackgroundShellProcessWindow $window \
                   -title "Loading QWK file $options(-file)" \
-                  -parent $options(-parent)
+                  -parent $options(-parent) -height 15
         }
         if {![string equal [wm state $progressWindow] normal]} {
             wm deiconify $progressWindow
         }
-        regsub {^[0-9x]*} [wm geometry $progressWindow] 725x400 geo
+        update idletasks
+        #puts stderr "*** $type create $self: wm geometry $progressWindow = [wm geometry $progressWindow]"
+        regsub {^[0-9]+x} [wm geometry $progressWindow] 725x geo
+        #puts stderr "*** $type create $self: geo is $geo"
         regsub {^[0-9x]*} [wm geometry [winfo toplevel [winfo parent $progressWindow]]] {} parentGeo
+        #puts stderr "*** $type create $self: parentGeo = $parentGeo"
         regsub {\+0\+0} "$geo" $parentGeo geo
+        #puts stderr "*** $type create $self: geo is $geo"
         wm geometry $progressWindow $geo
         $self configurelist $args
         
         if {![QWKList MakeWorkDir]} {return}
         QWKList CleanWorkDir
+        #puts stderr "*** $type create $self: about to unarchive"
         set here [pwd]
         if {[catch {$self _unarchiverprocess} error]} {
             cd $here
@@ -316,19 +327,20 @@ snit::type LoadQWKFile {
             error $error
             return
         }
+        
         cd $here
         set control [QWKList ControlFile]
         if {$control eq {}} {
             $progressWindow setStatus "Control file missing!"
             $progressWindow setProgress -1
-            if {$myprog} {$progressWindow setProcessDone}
+            #if {$myprog} {$progressWindow setProcessDone}
             error "Control file missing!"
         }
         set messages [QWKList MessagesFile]
         if {$messages eq {}} {
             $progressWindow setStatus "Messages file missing!"
             $progressWindow setProgress -1
-            if {$myprog} {$progressWindow setProcessDone}
+            #if {$myprog} {$progressWindow setProcessDone}
             error "Messages file missing!"
         }
         set command [QWKList QWKToSpoolCommand $control $messages \
@@ -342,7 +354,8 @@ snit::type LoadQWKFile {
         }
         #      puts stderr "*** ${self}::constructor: stdoutPipeFp = $stdoutPipeFp"
         #      puts stderr "*** ${self}::constructor: fconfigure $stdoutPipeFp = [fconfigure $stdoutPipeFp]"
-        $progressWindow setStatus "Running: $QWKToSpoolProg ..."
+        #puts "*** $type create $self: command is $command"
+        $progressWindow setStatus "Running: $command ..."
         $progressWindow setProgress 0
         incr processRunning 
         #      puts stderr "*** ${self}::constructor: processRunning = $processRunning"
@@ -358,24 +371,28 @@ snit::type LoadQWKFile {
     method _unarchiverprocess {} {
         QWKList CdWorkDir
         set unarchiver [QWKList Unarchiver $options(-file)]
+        #puts stderr "*** $self _unarchiverprocess: unarchiver = $unarchiver"
         set stdoutPipeFp [open "|$unarchiver" r]
         $progressWindow setStatus "Running: $unarchiver"
         $progressWindow setProgress -1
         incr processRunning
-        #	puts stderr "*** ${self}::constructor: processRunning = $processRunning"
+        #puts stderr "*** ${self}::constructor: processRunning = $processRunning"
         fileevent $stdoutPipeFp readable "[mymethod _PipeToLog] no"
-        #	puts stderr "*** ${self}::constructor: processRunning = $processRunning"
+        #puts stderr "*** ${self}::constructor: processRunning = $processRunning"
         if {$processRunning > 0} {tkwait variable [myvar processRunning]}
-        #	puts stderr "*** ${self}::constructor: processRunning = $processRunning"
+        #puts stderr "*** ${self}::constructor: processRunning = $processRunning"
+        #puts stderr "*** ${self}::constructor: [pwd]: [glob -nocomplain *]"
     }
     destructor {
-        catch {if {!$done} {destroy $progressWindow}}
+        #catch {if {!$done} {destroy $progressWindow}}
         QWKList CleanWorkDir
     }
     method getUserName {} {return $username}
     method _PipeToLog {captureUsernameP} {
-        #      puts stderr "*** ${self}::_PipeToLog: captureUsernameP = $captureUsernameP, stdoutPipeFp = $stdoutPipeFp"
+        #puts stderr "*** ${self}::_PipeToLog: captureUsernameP = $captureUsernameP, stdoutPipeFp = $stdoutPipeFp"
         if {[gets $stdoutPipeFp line] >= 0} {
+            #puts stderr "*** $self _PipeToLog: line is $line"
+            #puts stderr "*** $self _PipeToLog: [pwd]: [glob -nocomplain *]"
             if {[regexp {^###([0-9.]*)$} $line -> progress] > 0} {
                 $progressWindow setProgress [expr int($progress * 100)]
             } else {
@@ -385,6 +402,7 @@ snit::type LoadQWKFile {
         } else {
             catch "close $stdoutPipeFp"
             incr processRunning -1
+            #puts stderr "*** $self _PipeToLog: [pwd]: [glob -nocomplain *]"
         }
         update idle
     }
@@ -577,6 +595,7 @@ snit::widgetadaptor QWKList {
         return [file join $QWKWorkDir "${spool}.msg"]
     }
     typemethod CdWorkDir {} {
+        #puts stderr "*** $type CdWorkDir: QWKWorkDir = $QWKWorkDir"
         cd $QWKWorkDir
     }
     typemethod ControlFile {} {
@@ -591,8 +610,10 @@ snit::widgetadaptor QWKList {
         }
     }
     typemethod MessagesFile {} {
-        set messagesfile1 [file join $QWKWorkDir messaes.dat]
+        #puts stderr "*** $type MessagesFile: [glob -nocomplain [file join $QWKWorkDir *]]"
+        set messagesfile1 [file join $QWKWorkDir messages.dat]
         set messagesfile2 [file join $QWKWorkDir MESSAGES.DAT]
+        
         if {[file exists $messagesfile1]} {
             return $messagesfile1
         } elseif {[file exists $messagesfile2]} {
@@ -618,6 +639,7 @@ snit::widgetadaptor QWKList {
         set QWKWorkDir [file normalize [option get . qwkWorkDir QWKWorkDir]]
         set QWKArchiver "[option get . qwkArchiver QWKArchiver]"
         set QWKUnarchiver "[option get . qwkUnarchiver QWKUnarchiver]"
+        #puts stderr "*** $type typeconstructor: QWKToSpoolProg = $QWKToSpoolProg"
         bind $type <Motion>                [mytypemethod _Motion %W %x %y]
         bind $type <B1-Leave>              { #nothing }
         bind $type <Leave>                 [mytypemethod _ActivateHeading {} {}]
@@ -758,7 +780,9 @@ snit::widgetadaptor QWKList {
         return [expr {$BTime - $ATime}]
     }
     typemethod CleanWorkDir {} {
+        #puts stderr "*** $type CleanWorkDir"
         set files [glob -nocomplain $QWKWorkDir/*]
+        #puts stderr "*** $type CleanWorkDir: files = $files"
         catch {eval [list file delete -force] $files}
     }
 }

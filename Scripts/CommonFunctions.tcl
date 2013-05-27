@@ -399,7 +399,12 @@ snit::widgetadaptor ServerMessageDialog {
 snit::widget BackgroundShellProcessWindow {
     hulltype tk::toplevel
     widgetclass BackgroundShellProcessWindow
-
+    
+    typeconstructor {
+        ttk::style configure ProcessLog -background white -borderwidth 0 \
+                        -font "Courier 12" -foreground black
+    }
+    
     component mainFrame
     component logScroll
     component logText
@@ -444,20 +449,27 @@ snit::widget BackgroundShellProcessWindow {
               -textvariable [myvar status]
         #      puts stderr "*** $self constructor: mainFrame = $mainFrame"
         pack $mainFrame -expand yes -fill both
-        
-        install logScroll using ScrolledWindow [$mainFrame getframe].logScroll \
+        set frame [$mainFrame getframe]
+        install logScroll using ScrolledWindow $frame.logScroll \
               -scrollbar both -auto both
         #      puts stderr "*** $self constructor: logScroll = $logScroll"
         pack $logScroll -expand yes -fill both
-        install dismis using ttk::button [$mainFrame getframe].dismis \
+        install logText using ROText [$logScroll getframe].text -wrap none \
+              -style ProcessLog
+        #      puts stderr "*** $self constructor: logText = $logText"
+        $logScroll setwidget $logText
+        install dismis using ttk::button $frame.dismis \
               -text "Dismis" -state disabled \
               -command [mymethod _Close]
         #      puts stderr "*** $self constructor: dismis = $dismis"
-        pack $dismis -fill x
-        install logText using ROText [$logScroll getframe].text -wrap none
-        #      puts stderr "*** $self constructor: logText = $logText"
-        $logScroll setwidget $logText
+        pack $dismis -fill x -expand yes
         $self configurelist $args
+        $logText _themeUpdated
+        wm withdraw $win
+        update idletasks
+        set h [winfo reqheight $win]
+        set w [winfo reqwidth  $win]
+        wm geometry $win =${w}x${h}
     }
     method setStatus {text} {set status "$text"}
     method setProgress {value} {set progress $value}

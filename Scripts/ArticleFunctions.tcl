@@ -133,7 +133,7 @@ snit::macro ArticleListMethods {} {
         set nreads($_messageid) $nread
         lappend subjects($subject) $_messageid
         lappend froms($from) $_messageid
-        if {[regexp {^(.*)[[:space:]]([+-][02][0-9][0-9][0-9])} $date => gmt offset] > 0} {
+        if {[regexp {^(.*)[[:space:]]([+-][012][0-9][0-9][0-9])} $date => gmt offset] > 0} {
             set timestamp [clock scan $gmt -gmt yes]
         } else {
             set timestamp [clock scan $date]
@@ -412,9 +412,9 @@ snit::widget ArticleViewer {
     typeconstructor {
         set PrintCommand "[option get . printCommand PrintCommand]"
         ttk::style configure ArticleHeaders -background gray -borderwidth 0 \
-              -font "helvetica 8" -foreground black
+              -font "Courier 12" -foreground black
         ttk::style configure ArticleBody -background white -borderwidth 0 \
-              -font "helvetica 10" -foreground black
+              -font "Courier 12" -foreground black
     }
     constructor {args} {
         set options(-parent) [from args -parent]

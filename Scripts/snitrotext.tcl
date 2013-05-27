@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri May 24 15:07:12 2013
-#  Last Modified : <130524.1523>
+#  Last Modified : <130526.2348>
 #
 #  Description	
 #
@@ -292,11 +292,26 @@ bind ROText <Shift-Option-Down> {
 snit::widgetadaptor ROText {
     delegate method * to hull
     delegate option * to hull
+    option -style -default ROText
+    method _themeUpdated {} {
+        #puts stderr "*** $self _themeUpdated"
+        foreach o {-background -borderwidth -font -foreground 
+            -highlightbackground -highlightcolor -highlightthickness -relief 
+            -insertbackground -selectbackground -insertborderwidth 
+            -selectborderwidth -selectforeground -padx -pady} {
+            if {![catch {ttk::style lookup $options(-style) $o} ov]} {
+                #if {"$ov" eq ""} {continue}
+                #puts stderr "*** $self _themeUpdated: $o $ov"
+                catch {$hull configure $o $ov}
+            }
+        }
+    }
     constructor {args} {
         installhull using text
         $self configurelist $args
         set indx [lsearch [bindtags $win] Text]
         bindtags $win [lreplace [bindtags $win] $indx $indx ROText]
+        bind $win <<ThemeChanged>> [mymethod _themeUpdated]
     }
 }
 

@@ -245,7 +245,7 @@ snit::type group {
         } else {
             while {[gets $pipe line] != -1} {
                 scan "$line" {%6d } artNumber
-                $articleList insert end $artNumber -text "$line" -data $artNumber
+                eval [list $articleList insertArticleHeader] $line
             }
         }
         close $pipe
@@ -853,9 +853,9 @@ snit::widget GroupTreeFrame {
         $artList deleteall
         $self insertArticleList $artList $group
     }
-    method cleanGroup {groupTree artList group} {
+    method cleanGroup {artList group} {
         $groups($group) cleanGroup
-        $self updateGroupLineInTree $groupTree $group
+        $self updateGroupLineInTree $group
         if {![string equal "$artList" {}]} {
             $artList deleteall
             $self insertArticleList $artList $group
