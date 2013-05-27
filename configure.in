@@ -51,6 +51,7 @@ TEA_CONFIG_CFLAGS
 TEA_PUBLIC_TCL_HEADERS
 AC_SUBST(SHLIB_SUFFIX)
 
+AX_PKG_DOXYGEN(1.6.0, [], [ AC_MSG_ERROR([DOXYGEN 1.6.0 or later is required to build..]) ])
 
 AC_PATH_PROG(PDFLATEX,pdflatex,/bin/true)
 AC_PATH_PROG(MAKEINDEX,makeindex,/bin/true)
@@ -95,4 +96,6 @@ dnl Checks for library functions.
 AC_CHECK_FUNCS(mkdir regcomp)
 
 AC_OUTPUT(Makefile C/Makefile Scripts/Makefile BuildData/Makefile \
-          Docs/Makefile BuildScripts/Makefile GpgME/Makefile BUILDSYMBOLS.tcl)
+          Docs/Makefile Docs/Doxyfile BuildScripts/Makefile GpgME/Makefile \
+          BUILDSYMBOLS.tcl)
+

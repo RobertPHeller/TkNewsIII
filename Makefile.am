@@ -47,6 +47,7 @@ docdir = $(datadir)/$(PACKAGE)-$(VERSION)/documentation
 
 bin_SCRIPTS = TkNewsIII$(EXEEXT) Split_flatmessagefile$(EXEEXT)
 SUBDIRS = BuildScripts BuildData C Scripts Docs GpgME
+doc_DATA = refman.pdf
 
 LibraryScripts = BUILDSYMBOLS.tcl \
             Scripts/DynamicHelp.tcl Scripts/IconsAndImages.tcl \
@@ -55,7 +56,8 @@ LibraryScripts = BUILDSYMBOLS.tcl \
             Scripts/SpoolFunction.tcl Scripts/GroupFunctions.tcl \
             Scripts/ArticleFunctions.tcl Scripts/snitbuttonbox.tcl \
             Scripts/snitdialog.tcl Scripts/CommonFunctions.tcl \
-            Scripts/snitrotext.tcl Scripts/AddressBook.tcl
+            Scripts/snitrotext.tcl Scripts/AddressBook.tcl \
+            Scripts/snitHTMLHelp.tcl
 
 #                Scripts/BWHelp.tcl Scripts/labelselectcolor.tcl \
 #		Scripts/panedw.tcl Scripts/fileentry.tcl \
@@ -74,15 +76,14 @@ LibraryImages = Scripts/unknown.xpm Scripts/DeepwoodsBanner.png
 LibraryXBMS =  Scripts/TkNewsIIIicon.xbm  Scripts/TkNewsIIIicon_mask.xbm \
                 Scripts/questhead.xbm Scripts/info.xbm Scripts/gray50.xbm
 TkNewsIIIDATA = $(LibraryScripts) $(LibraryImages) $(LibraryXBMS)
-Split_flatmessagefileDATA = 
-
-#               Scripts/CommonFunctions.tcl
+Split_flatmessagefileDATA =  Scripts/CommonFunctions.tcl
 
 EXTRA_DIST = Rules.make  BUILDSYMBOLS.tcl.in bootstrap
 CLEANFILES = TkNewsIII Split_flatmessagefile
 TkNewsIII$(EXEEXT): Scripts/TkNewsIII.src $(TkNewsIIIDATA) \
 			$(LibraryGIFS) $(LibraryXBMS) \
-			GpgME/gpgme.la GpgME/pkgIndex.tcl
+			GpgME/gpgme.la GpgME/pkgIndex.tcl \
+			html/index.html
 	-rm -f  TkNewsIII.kit
 	-rm -f  TkNewsIII$(EXEEXT)
 	-rm -rf TkNewsIII.vfs
@@ -106,17 +107,10 @@ TkNewsIII$(EXEEXT): Scripts/TkNewsIII.src $(TkNewsIIIDATA) \
 		lib/Common $(TkNewsIIIDATA)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/MakePkgIndex.kit TkNewsIII \
 		Common
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit TkNewsIII \
+		HTML html/*.html html/*.css html/*.png
 	$(TCLKIT) $(SDX) wrap TkNewsIII$(EXEEXT) -runtime $(TCLKITRUN)
 	-rm -rf  TkNewsIII.vfs
-
-$(top_builddir)/Help/hh.index : \
-	$(top_builddir)/Help/*.hh
-	$(MAKE) -C $(top_builddir)/Help/hh.index
-
-$(top_builddir)/Help/index.hh : \
-	$(top_builddir)/Help/*.hh
-	$(MAKE) -C $(top_builddir)/Help/index.hh
-
 
 Split_flatmessagefile$(EXEEXT): Scripts/Split_flatmessagefile.src \
 			$(Split_flatmessagefileDATA)
@@ -141,3 +135,15 @@ GpgME/gpgme.la : GpgME/gpgme.i
 	
 GpgME/pkgIndex.tcl : GpgME/gpgme.la
 	$(MAKE) -C GpgME pkgIndex.tcl
+
+html/index.html : FORCE
+	$(MAKE) -C Docs ../html/index.html
+
+latex/refman.tex : FORCE
+	$(MAKE) -C Docs ../latex/refman.tex
+
+refman.pdf : latex/refman.tex
+	$(MAKE) -C latex refman.pdf
+	-cp latex/refman.pdf ./
+
+FORCE:

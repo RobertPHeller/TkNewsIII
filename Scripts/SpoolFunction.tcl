@@ -59,7 +59,8 @@ package require GroupFunctions
 package require ArticleFunctions
 package require Dialog
 package require CommonFunctions
-#package require AddressBook                                                    
+package require AddressBook                                                    
+package require HTMLHelp
 
 snit::widget SpoolWindow {
     widgetclass SpoolWindow
@@ -94,15 +95,12 @@ snit::widget SpoolWindow {
         "&Options" {options:menu} {options} 0 {
         } 
         "&Help" {help:menu} {help} 0 {
-            {command "On &Context..." {help:context} "Help on context" {} -command BWHelp::HelpContext}
-            {command "On &Help..." {help:help} "Help on help" {} -command "BWHelp::HelpTopic Help"}
-            {command "On &Window..." {help:window} "Help on the current window" {} -command "BWHelp::HelpWindow"}
-            {command "On &Keys..." {help:keys} "Help on keyboard accelerators" {} -command "BWHelp::HelpTopic Keys"}
-            {command "&Index..." {help:index} "Help index" {} -command "BWHelp::HelpTopic Index"}
-            {command "&Tutorial..." {help:tutorial} "Tutorial" {}  -command "BWHelp::HelpTopic Tutorial"}
-            {command "On &Version" {help:version} "Version" {} -command "BWHelp::HelpTopic Version"}
-            {command "Warranty" {help:warranty} "Warranty" {} -command "BWHelp::HelpTopic Warranty"}
-            {command "Copying" {help:copying} "Copying" {} -command "BWHelp::HelpTopic Copying"}
+            {command "On &Help..." {help:help} "Help on help" {} -command "HTMLHelp help Help"}
+            {command "&Index..." {help:index} "Help index" {} -command "HTMLHelp help Index"}
+            {command "&Tutorial..." {help:tutorial} "Tutorial" {}  -command "HTMLHelp help Tutorial"}
+            {command "On &Version" {help:version} "Version" {} -command "HTMLHelp help Version"}
+            {command "Warranty" {help:warranty} "Warranty" {} -command "HTMLHelp help Warranty"}
+            {command "Copying" {help:copying} "Copying" {} -command "HTMLHelp help Copying"}
         }
     }
     typevariable _LoadedSpools -array {}
@@ -170,7 +168,7 @@ snit::widget SpoolWindow {
         return [GetSpoolNameDialog draw -defaultSpool "$default" -loaded $LoadedP -parent .]
     }
     typemethod ReviewSpool {{spool {}} {iconic 0}} {
-        if {$spool == {}} {set spool [GetSpoolNameDialog GetSpoolName local 0]}
+        if {$spool == {}} {set spool [$type GetSpoolName local 0]}
         if {$spool == {}} {return}
         $type getOrMakeSpoolByName $spool -iconic $iconic -reload yes
     }
@@ -1673,7 +1671,7 @@ snit::type GetSpoolNameDialog {
                     -parent . -side bottom -title {Select a spool}]
         $dialog add ok -text OK -command [mytypemethod _OK]
         $dialog add cancel -text Cancel -command [mytypemethod _Cancel]
-        $dialog add help -text Help -command [list BWHelp::HelpTopic GetSpoolNameDialog]
+        $dialog add help -text Help -command [list HTMLHelp help "Get Spool Name Dialog"]
         set frame [$dialog getframe]
         set spoolTree $frame.spoolTree
         set spoolNameFrame $frame.spoolNameFrame
@@ -1720,7 +1718,7 @@ snit::type GetSpoolNameDialog {
             set spoolList [option get . spoolList SpoolList]
         }
         foreach sp $spoolList {
-            $spoolTree insert insert {} end -id $sp -text $sp
+            $spoolTree insert {} end -id $sp -text $sp
         }
         set parent [from args -parent .]
         $dialog configure -parent $parent
@@ -2247,7 +2245,7 @@ snit::type GetAttachment {
                     -parent . -side bottom -title {Attach a file}]
         $dialog add attach -text Attach -command [mytypemethod _Attach]
         $dialog add cancel -text Cancel -command [mytypemethod _Cancel]
-        $dialog add help -text Help -command [list BWHelp::HelpTopic GetAttachment]
+        $dialog add help -text Help -command [list HTMLHelp help GetAttachment]
         set frame [$dialog getframe]
         set filenameF [ttk::frame $frame.filenameF]
         pack $filenameF -fill x -expand yes

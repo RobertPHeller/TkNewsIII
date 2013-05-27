@@ -55,8 +55,8 @@ package require ButtonBox;#          Button Box
 package require CommonFunctions
 package require Dialog
 package require ROText
-
-namespace eval AddressBook {#dummy}
+package require HTMLHelp
+package require snit
 
 snit::macro ArticleListMethods {} {
     typevariable columnheadings -array {
@@ -849,7 +849,7 @@ snit::widgetadaptor SelectFolderDialog {
         #      puts stderr "*** $self constructor: hull = $hull, win = $win, winfo class $win = [winfo class $win]"
         $hull add  ok -text OK -command [mymethod _OK]
         $hull add cancel -text Cancel -command [mymethod _Cancel]
-        $hull add help -text Help -command [list BWHelp::HelpTopic SelectFolderDialog]
+        $hull add help -text Help -command [list HTMLHelp help "Select Folder Dialog"]
         wm protocol $win WM_DELETE_WINDOW [mymethod _Cancel]
         install folderTreeSW using ScrolledWindow \
               [$hull getframe].folderTreeSW \
@@ -994,7 +994,7 @@ snit::widgetadaptor SearchArticlesDialog {
         $hull add read   -text {Read Selected Article} \
               -command [mymethod _ReadArticle]
         $hull add  help   -text Help   \
-              -command [list BWHelp::HelpTopic SearchArticlesDialog]
+              -command [list HTMLHelp help "Search Articles Dialog"]
         wm protocol $win WM_DELETE_WINDOW [mymethod _Dismis]
         $self _constructArticleList [$hull getframe]
         $articleList tag bind article <space> [mymethod _SelectArticle %x %y]
@@ -1080,7 +1080,7 @@ snit::widgetadaptor SelectArticlesDialog {
         $hull add ok -text OK -command [mymethod _OK]
         $hull add cancel -text Dismis -command [mymethod _Cancel]
         $hull add help   -text Help   \
-              -command [list BWHelp::HelpTopic SelectArticlesDialog]
+              -command [list HTMLHelp help "Select Articles Dialog"]
         wm protocol $win WM_DELETE_WINDOW [mymethod _Cancel]
         set options(-selectmode) [from args -selectmode]
         $self _constructArticleList [$hull getframe] \

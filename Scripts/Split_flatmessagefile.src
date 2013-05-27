@@ -64,7 +64,7 @@ if {![file writable "$savedmessagedirectory"]} {
   usage "$savedmessagedirectory is not writable!"
 }
 
-set highestmessage [Common::Highestnumber \
+set highestmessage [MessageList Highestnumber \
 			[glob -nocomplain \
 				[file join "$savedmessagedirectory" *]]]
 

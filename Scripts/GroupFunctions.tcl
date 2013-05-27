@@ -51,6 +51,8 @@ package require ArticleFunctions
 package require ScrollWindow
 package require ButtonBox
 package require Dialog
+package require HTMLHelp
+package require snit
 
 snit::type group {
     typevalidator
@@ -1166,7 +1168,7 @@ snit::widgetadaptor DirectoryOfAllGroupsDialog {
         $hull add dismis -text Dismis -command [mymethod _Dismis]
         $hull add join   -text {Join Selected Group}   -command [mymethod _Join]
         $hull add help   -text Help   \
-              -command [list BWHelp::HelpTopic DirectoryOfAllGroupsDialog]
+              -command [list HTMLHelp help DirectoryOfAllGroupsDialog]
         wm protocol $win WM_DELETE_WINDOW [mymethod _Dismis]
         install groupTreeSW using ScrolledWindow \
               [$hull getframe].groupTreeSW \

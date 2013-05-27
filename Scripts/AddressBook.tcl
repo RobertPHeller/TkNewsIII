@@ -42,6 +42,7 @@ package require Dialog
 package require ButtonBox
 package require CommonFunctions
 package require IconImage
+package require HTMLHelp
 package require snit
 
 snit::enum AddressFlags -values {collected hidden}
@@ -228,15 +229,18 @@ snit::type AddressBook {
         "&Options" {options:menu} {options} 0 {
         }
         "&Help" {help:menu} {help} 0 {
-            {command "On &Context..." {help:context} "Help on context" {} -command BWHelp::HelpContext}
-            {command "On &Help..." {help:help} "Help on help" {} -command "BWHelp::HelpTopic Help"}
-            {command "On &Window..." {help:window} "Help on the current window" {} -command "BWHelp::HelpWindow"}
-            {command "On &Keys..." {help:keys} "Help on keyboard accelerators" {} -command "BWHelp::HelpTopic Keys"}
-            {command "&Index..." {help:index} "Help index" {} -command "BWHelp::HelpTopic Index"}
-            {command "&Tutorial..." {help:tutorial} "Tutorial" {}  -command "BWHelp::HelpTopic Tutorial"}
-            {command "On &Version" {help:version} "Version" {} -command "BWHelp::HelpTopic Version"}
-            {command "Warranty" {help:warranty} "Warranty" {} -command "BWHelp::HelpTopic Warranty"}
-            {command "Copying" {help:copying} "Copying" {} -command "BWHelp::HelpTopic Copying"}
+            {command "On &Help..." {help:help} "Help on help" {} 
+                -command "HTMLHelp help Help"}
+            {command "&Index..." {help:index} "Help index" {} 
+                -command "HTMLHelp help Index"}
+            {command "&Tutorial..." {help:tutorial} "Tutorial" {}  
+                -command "HTMLHelp help Tutorial"}
+            {command "On &Version" {help:version} "Version" {} 
+                -command "HTMLHelp help Version"}
+            {command "Warranty" {help:warranty} "Warranty" {} 
+                -command "HTMLHelp help Warranty"}
+            {command "Copying" {help:copying} "Copying" {} 
+                -command "HTMLHelp help Copying"}
         } 
     }
     typecomponent    viewEditNowhere
@@ -878,7 +882,7 @@ snit::type AddressBook {
                                     -parent $_viewEditDialog -side bottom]
         $_newEMailAddressDialog add create -text Create -command [mytypemethod _CreateANewEmailAddress]
         $_newEMailAddressDialog add cancel -text Cancel -command [mytypemethod _CancelANewEmailAddress]
-        $_newEMailAddressDialog add help -text Help -command [list BWHelp::HelpTopic NewEMailAddressDialog]
+        $_newEMailAddressDialog add help -text Help -command [list HTMLHelp help "New EMail Address Dialog"]
         set frame [$_newEMailAddressDialog getframe]
         pack [set newEMailAddressF [ttk::frame $frame.newEMailAddressF]] \
               -fill x
@@ -951,7 +955,7 @@ snit::type AddressBook {
                                      -parent . -side bottom]
         $_getToCcAddressesDialog add ok -text OK -command [mytypemethod _GetToCcAddressesDialog_OK]
         $_getToCcAddressesDialog add cancel -text Cancel -command [mytypemethod _GetToCcAddressesDialog_Cancel]
-        $_getToCcAddressesDialog add help -text Help -command [list BWHelp::HelpTopic GetToCcAddressesDialog]
+        $_getToCcAddressesDialog add help -text Help -command [list HTMLHelp help "Get To and Cc Addresses Dialog"]
         set frame [$_getToCcAddressesDialog getframe]
         set getToCcAddressesDialogLeft [ttk::frame $frame.getToCcAddressesDialogLeft -relief flat]
         pack $getToCcAddressesDialogLeft -side left -expand yes -fill both

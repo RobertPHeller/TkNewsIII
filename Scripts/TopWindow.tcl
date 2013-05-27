@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat May 18 09:51:58 2013
-#  Last Modified : <130526.1505>
+#  Last Modified : <130527.1227>
 #
 #  Description	
 #
@@ -29,11 +29,15 @@
 ##############################################################################
 
 
+package require Tk
+package require tile
+package require snit
 package require MainFrame
 package require ScrollWindow
 package require QWKFunctions
 package require SpoolFunctions
-#package require AddressBook
+package require AddressBook
+package require HTMLHelp
 
 snit::widgetadaptor TopWindow {
     typevariable _menu {
@@ -65,15 +69,12 @@ snit::widgetadaptor TopWindow {
         "&Options" {options:menu} {options} 0 {
         }
         "&Help" {help:menu} {help} 0 {
-            {command "On &Context..." {help:context} "Help on context" {} -command BWHelp::HelpContext}
-            {command "On &Help..." {help:help} "Help on help" {} -command "BWHelp::HelpTopic Help"}
-            {command "On &Window..." {help:window} "Help on the current window" {} -command "BWHelp::HelpWindow"}
-            {command "On &Keys..." {help:keys} "Help on keyboard accelerators" {} -command "BWHelp::HelpTopic Keys"}
-            {command "&Index..." {help:index} "Help index" {} -command "BWHelp::HelpTopic Index"}
-            {command "&Tutorial..." {help:tutorial} "Tutorial" {}  -command "BWHelp::HelpTopic Tutorial"}
-            {command "On &Version" {help:version} "Version" {} -command "BWHelp::HelpTopic Version"}
-            {command "Warranty" {help:warranty} "Warranty" {} -command "BWHelp::HelpTopic Warranty"}
-            {command "Copying" {help:copying} "Copying" {} -command "BWHelp::HelpTopic Copying"}
+            {command "On &Help..." {help:help} "Help on help" {} -command "HTMLHelp help Help"}
+            {command "&Index..." {help:index} "Help index" {} -command "HTMLHelp help Index"}
+            {command "&Tutorial..." {help:tutorial} "Tutorial" {}  -command "HTMLHelp help Tutorial"}
+            {command "On &Version" {help:version} "Version" {} -command "HTMLHelp help Version"}
+            {command "Warranty" {help:warranty} "Warranty" {} -command "HTMLHelp help Warranty"}
+            {command "Copying" {help:copying} "Copying" {} -command "HTMLHelp help Copying"}
         }
     }
     component qwkList
@@ -105,6 +106,12 @@ snit::widgetadaptor TopWindow {
         bind [winfo toplevel $win] <Control-s> [mymethod RescanQWKSpool]
         bind [winfo toplevel $win] <Control-k> {QWKReplyProcess MakeQWKReply}
         bind [winfo toplevel $win] <Control-q> [mymethod CarefulExit]
+        # from <exename>/lib/common/TopWindow.tcl to
+        # from <exename>/HTML:
+        set HTMLdir [file join [file dirname \
+                                [file dirname \
+                                 [file dirname [info script]]]] HTML]
+        HTMLHelp setDefaults $HTMLdir toc.html
         wm protocol [winfo toplevel $win] WM_DELETE_WINDOW [mymethod CarefulExit]
         wm title [winfo toplevel $win] "Tk News III $::BUILDSYMBOLS::VERSION"
     }

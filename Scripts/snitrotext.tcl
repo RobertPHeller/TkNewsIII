@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri May 24 15:07:12 2013
-#  Last Modified : <130526.2348>
+#  Last Modified : <130527.1120>
 #
 #  Description	
 #
@@ -312,6 +312,7 @@ snit::widgetadaptor ROText {
         set indx [lsearch [bindtags $win] Text]
         bindtags $win [lreplace [bindtags $win] $indx $indx ROText]
         bind $win <<ThemeChanged>> [mymethod _themeUpdated]
+        $self _themeUpdated
     }
 }
 

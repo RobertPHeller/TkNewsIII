@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri May 24 09:50:47 2013
-#  Last Modified : <130525.2103>
+#  Last Modified : <130527.1137>
 #
 #  Description	
 #
@@ -299,9 +299,11 @@ snit::widgetadaptor Dialog {
         return ""
     }
     method withdraw {} {
-        focus $savedfocus
+        if {[info exists savedfocus] && [winfo exists $savedfocus]} {
+            focus $savedfocus
+        }
         if {[winfo exists $win]} {grab release $win}
-        if {[winfo exists $savedgrab]} {
+        if {[info exists savedgrab] && [winfo exists $savedgrab]} {
             if {$savedgrabopt eq "global"} {
                 grab -global $savedgrab
             } else {

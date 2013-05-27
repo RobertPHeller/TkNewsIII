@@ -50,6 +50,7 @@ package require Dialog
 package require ScrollWindow
 package require MainFrame
 package require ButtonBox
+package require HTMLHelp
 
 snit::macro typevalidator {} {
     typemethod validate {value} {
@@ -287,7 +288,7 @@ snit::widgetadaptor SearchPatternDialog {
         #      puts stderr "*** ${type}::constructor ($self): winfo toplevel [winfo parent $win] = [winfo toplevel [winfo parent $win]]"
         $hull add ok -text OK -command [mymethod _OK]
         $hull add cancel -text Cancel -command [mymethod _Cancel]
-        $hull add help -text Help -command [list BWHelp::HelpTopic SearchPatternDialog]
+        $hull add help -text Help -command [list HTMLHelp help "Search Pattern Dialog"]
         wm protocol $win WM_DELETE_WINDOW [mymethod _Cancel]
         set frame [$hull getframe]
         install patternframe using ttk::frame $frame.patternframe
@@ -464,7 +465,6 @@ snit::widget BackgroundShellProcessWindow {
         #      puts stderr "*** $self constructor: dismis = $dismis"
         pack $dismis -fill x -expand yes
         $self configurelist $args
-        $logText _themeUpdated
         wm withdraw $win
         update idletasks
         set h [winfo reqheight $win]
