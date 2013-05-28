@@ -244,9 +244,10 @@ void LoadArticleHead(char *spooldir, char *grouppath, int artnumber,
                 key[plen] = '\0';
                 /*fprintf(stderr,"*** LoadArticleHead: key = |%s|\n",key);*/
                 pmatch1 = pmatch2+1;
-                while (isspace(*pmatch1)) pmatch1++;
+                while (isspace(*pmatch1) && pmatch1) pmatch1++;
                 pmatch2 = strchr(pmatch1,'\n');
                 plen = pmatch2 - pmatch1;
+                if (plen < 0) plen = 0;
                 /*fprintf(stderr,"*** LoadArticleHead: value is |%s|\n",pmatch1);*/
                 if (strcasecmp(key,"x-qwk-subject") == 0)
                 {

@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Mon May 13 14:24:47 2013
-#  Last Modified : <130526.1631>
+#  Last Modified : <130528.1211>
 #
 #  Description	
 #
@@ -47,6 +47,7 @@ snit::widget MainFrame {
     delegate option -statusbarfont to statusLabel as -font
     delegate option -progressmax to progress as -maximum
     delegate option -progressvar to progress as -variable
+    option -sizegrip -default yes -readonly yes -type snit::boolean
     
     component userframe
     component topframe
@@ -105,6 +106,10 @@ snit::widget MainFrame {
             $self _create_menubar $options(-menu)
         }
         $self configurelist $args
+        if {$options(-sizegrip)} {
+            pack [ttk::sizegrip $botframe.sizegrip] -side right
+        }
+
     }
     method _create_menubar {descmenu} {
         foreach {v x} {mbfnt -menubarfont mefnt -menuentryfont} {

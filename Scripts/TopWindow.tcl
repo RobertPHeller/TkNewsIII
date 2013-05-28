@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat May 18 09:51:58 2013
-#  Last Modified : <130527.1227>
+#  Last Modified : <130528.1215>
 #
 #  Description	
 #
@@ -87,6 +87,7 @@ snit::widgetadaptor TopWindow {
         set menu [subst $_menu]
         installhull using MainFrame -menu $menu -textvariable [myvar status] \
               -width 500 -height 250
+        $hull showstatusbar status
         set uframe [$hull getframe]
         set sw [ScrolledWindow $uframe.sw -scrollbar vertical -auto vertical]
         pack $sw -expand yes -fill both

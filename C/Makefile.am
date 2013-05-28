@@ -42,6 +42,8 @@ scriptlibdir = $(datadir)/$(PACKAGE)-$(VERSION)/scriptlib
 docdir = $(datadir)/$(PACKAGE)-$(VERSION)/documentation
 
 execbin_PROGRAMS = QWKToSpool qwkReply SpoolToReply headList
+#CFlags = -g
+#LDFlags = -g
 
 QWKToSpool_SOURCES = QWKToSpool.c qwk.h
 qwkReply_SOURCES = qwkReply.c qwk.h

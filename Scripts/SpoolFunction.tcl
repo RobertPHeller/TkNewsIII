@@ -211,7 +211,7 @@ snit::widget SpoolWindow {
     
     delegate option * to hull
     delegate method {main *} to main
-    method setstatus {string} {set string $string}
+    method setstatus {string} {set status $string}
     method setprogress {n} {set progress $n}
     constructor {args} {
         wm iconbitmap $win [IconBitmap bitmap TkNewsIIIicon]
@@ -295,6 +295,7 @@ snit::widget SpoolWindow {
         # Main window
         install main using MainFrame $win.main -menu $menu \
               -textvariable [myvar status] -progressvar [myvar progress] -progressmax 100
+        $main showstatusbar progression
         pack $main -expand yes -fill both
         install panes using ttk::panedwindow [$main getframe].panes \
               -orient vertical 
