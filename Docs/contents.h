@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : Mon May 27 12:15:46 2013
-//  Last Modified : <130527.1745>
+//  Last Modified : <130529.1123>
 //
 //  Description	
 //
@@ -34,23 +34,26 @@
 /**
  * @page toc Table Of Contents
  * This is the table of contents
- * @li @ref Help "help"
- * Help on using help
- * @li @ref toc "Index"
- * Table Of Contents
- * @li @ref Tutorial "Tutorial"
- * Brief intro on how to use TkNews 3
- * @li @ref Version "Version"
- * @li @ref Warranty "Warranty"
- * @li @ref Copying "Copying"
- * @li @ref NewEMailAddressDialog "New EMail Address Dialog"
- * @li @ref GetToCcAddressesDialog "Get To and Cc Addresses Dialog"
- * @li @ref SelectFolderDialog "Select Folder Dialog"
- * @li @ref SearchArticlesDialog "Search Articles Dialog"
- * @li @ref SelectArticlesDialog "Select Articles Dialog"
- * @li @ref SearchPatternDialog "Search Pattern Dialog"
- * @li @ref GetSpoolNameDialog "Get Spool Name Dialog"
- * @li @ref GetAttachment "Get Attachment"
+ * -# @ref toc "Index"
+ * -# @ref Tutorial "Tutorial"
+ * -# @ref Copying "Copying"
+ *    -# @ref Warranty "Warranty"
+ *    -# @ref Version "Version"
+ * -# @ref AddressBook "Address Book Reference
+ *    -# @ref NewEMailAddressDialog "New EMail Address Dialog"
+ *    -# @ref GetToCcAddressesDialog "Get To and Cc Addresses Dialog"
+ * -# @ref ArticleFunctions "Article Reference"
+ *    -# @ref SelectFolderDialog "Select Folder Dialog"
+ *    -# @ref SearchArticlesDialog "Search Articles Dialog"
+ *    -# @ref SelectArticlesDialog "Select Articles Dialog"
+ * -# @ref SpoolFunction "Spool Window Reference
+ *    -# @ref GetSpoolNameDialog "Get Spool Name Dialog"
+ *    -# @ref GetAttachment "Get Attachment"
+ *    -# @ref DirectoryOfAllGroupsDialog "Directory Of All Groups Dialog"
+ * -# @ref TopWindow "Main Window Reference
+ * -# @ref CommonFunctions "Other Features"
+ *    -# @ref SearchPatternDialog "Search Pattern Dialog"
+ *    -# @ref Help "help"
  */
 
 #endif // __CONTENTS_H

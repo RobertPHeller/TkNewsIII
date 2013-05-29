@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : Mon May 27 17:44:22 2013
-//  Last Modified : <130527.1745>
+//  Last Modified : <130529.1126>
 //
 //  Description	
 //
@@ -41,6 +41,9 @@
  * 
  * @anchor GetAttachment
  * @section GetAttachment Get Attachment
+ *
+ * @anchor DirectoryOfAllGroupsDialog
+ * @section DirectoryOfAllGroupsDialog Directory Of All Groups Dialog
  * 
  */
 

@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : Mon May 27 17:46:01 2013
-//  Last Modified : <130527.1746>
+//  Last Modified : <130529.1115>
 //
 //  Description	
 //
@@ -34,7 +34,7 @@
 /**
  * @page CommonFunctions
  * 
- * Common Functions
+ * Other Features
  * 
  * @anchor SearchPatternDialog
  * @section SearchPatternDialog Search Pattern Dialog

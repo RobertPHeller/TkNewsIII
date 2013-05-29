@@ -1168,7 +1168,7 @@ snit::widgetadaptor DirectoryOfAllGroupsDialog {
         $hull add dismis -text Dismis -command [mymethod _Dismis]
         $hull add join   -text {Join Selected Group}   -command [mymethod _Join]
         $hull add help   -text Help   \
-              -command [list HTMLHelp help DirectoryOfAllGroupsDialog]
+              -command [list HTMLHelp help "Directory Of All Groups Dialog"]
         wm protocol $win WM_DELETE_WINDOW [mymethod _Dismis]
         install groupTreeSW using ScrolledWindow \
               [$hull getframe].groupTreeSW \
