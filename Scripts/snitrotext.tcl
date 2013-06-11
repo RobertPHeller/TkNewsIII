@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri May 24 15:07:12 2013
-#  Last Modified : <130527.1120>
+#  Last Modified : <130611.0918>
 #
 #  Description	
 #
@@ -317,3 +317,4 @@ snit::widgetadaptor ROText {
 }
 
 package provide ROText 1.0
+

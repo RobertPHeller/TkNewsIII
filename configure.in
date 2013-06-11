@@ -5,7 +5,7 @@ AC_CANONICAL_HOST
 AC_SUBST(build)
 AC_CANONICAL_TARGET
 AC_SUBST(target)
-AM_INIT_AUTOMAKE([TkNewsIII],0.0.0)
+AM_INIT_AUTOMAKE([TkNewsIII],1.0.0)
 PACKAGE_NAME="TkNewsIII"
 
 if test "x${prefix}" = "xNONE"; then

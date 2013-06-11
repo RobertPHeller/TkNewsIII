@@ -403,7 +403,7 @@ snit::widget BackgroundShellProcessWindow {
     
     typeconstructor {
         ttk::style configure ProcessLog -background white -borderwidth 0 \
-                        -font "Courier 12" -foreground black
+                        -font "Courier 8" -foreground black
     }
     
     component mainFrame
@@ -463,13 +463,14 @@ snit::widget BackgroundShellProcessWindow {
               -text "Dismis" -state disabled \
               -command [mymethod _Close]
         #      puts stderr "*** $self constructor: dismis = $dismis"
-        pack $dismis -fill x -expand yes
+        pack $dismis -fill x
         $self configurelist $args
         wm withdraw $win
         update idletasks
         set h [winfo reqheight $win]
         set w [winfo reqwidth  $win]
         wm geometry $win =${w}x${h}
+        wm deiconify $win
     }
     method setStatus {text} {set status "$text"}
     method setProgress {value} {set progress $value}
