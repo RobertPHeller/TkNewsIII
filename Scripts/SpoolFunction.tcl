@@ -2162,7 +2162,7 @@ snit::widgetadaptor ArticlePostMenu {
         }
     }
     method fillAttachmentList {} {
-        $attachments delete [$attachments items]
+        $attachments delete [$attachments children]
         foreach attachment $options(-attachments) {
             foreach {ctype descr encoding filename} $attachment {
                 $attachments insert {} end -text [file tail "$filename"] \
