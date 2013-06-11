@@ -2156,8 +2156,8 @@ snit::widgetadaptor ArticlePostMenu {
         if {[llength $attachment] > 0} {
             lappend options(-attachments) $attachment
             foreach {ctype descr encoding filename} $attachment {
-                $attachments insert end #auto -text [file tail "$filename"] \
-                      -data $attachment
+                $attachments insert {} end  -text [file tail "$filename"] \
+                      -values $attachment
             }
         }
     }
@@ -2165,8 +2165,8 @@ snit::widgetadaptor ArticlePostMenu {
         $attachments delete [$attachments items]
         foreach attachment $options(-attachments) {
             foreach {ctype descr encoding filename} $attachment {
-                $attachments insert end #auto -text [file tail "$filename"] \
-                      -data $attachment
+                $attachments insert {} end -text [file tail "$filename"] \
+                      -values $attachment
             }
         }
     }
@@ -2188,7 +2188,7 @@ snit::widgetadaptor ArticlePostMenu {
                             set w [string trim "$w"]
                             set address [RFC822 Name "$w"]
                             if {![$whomlist exists $address]} {
-                                $whomlist insert end $address -text "MailTo: $w"
+                                $whomlist insert {} end -id $address -text "MailTo: $w"
                             }
                         }
                     } elseif {[regexp -nocase {^bcc:[[:space:]]+(.*)$} "$hbuffer" -> towhome] > 0} {
@@ -2197,7 +2197,7 @@ snit::widgetadaptor ArticlePostMenu {
                             set w [string trim "$w"]
                             set address [RFC822 Name "$w"]
                             if {![$whomlist exists $address]} {
-                                $whomlist insert end $address -text "MailTo (blind): $w"
+                                $whomlist insert {} end $address -text "MailTo (blind): $w"
                             }
                         }
                     } elseif {[regexp -nocase {^newsgroups: (.*)$} "$hbuffer" -> groups] > 0} {
@@ -2205,7 +2205,7 @@ snit::widgetadaptor ArticlePostMenu {
                         foreach ng $groups {
                             set ng [string trim "$ng"]
                             if {![$whomlist exists $ng]} {
-                                $whomlist insert end $ng -text "NewsGroup: $ng"
+                                $whomlist insert {} end $ng -text "NewsGroup: $ng"
                             }
                         }
                     }
