@@ -1735,7 +1735,7 @@ snit::widgetadaptor ArticlePostMenu {
     option -group -readonly yes
     option {-groupwindow groupWindow GroupWindow} -readonly yes -type snit::window
     option -spool -readonly yes -type SpoolWindow
-    option -attachments -default {} -type snit::list
+    option -attachments -default {} -type snit::listtype
     option {-useemail useEmail UseEmail} -readonly yes -default no -type snit::boolean
     
     component   whomlistSW
