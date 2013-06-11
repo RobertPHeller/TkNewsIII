@@ -2171,7 +2171,7 @@ snit::widgetadaptor ArticlePostMenu {
         }
     }
     method fillWhomList {} {
-        $whomlist delete [$whomlist items]
+        $whomlist delete [$whomlist children {}]
         if {[catch [list open "$options(-draftfile)" r] draftFp]} {return}
         set hbuffer {}
         while {[gets $draftFp line] >= 0} {
