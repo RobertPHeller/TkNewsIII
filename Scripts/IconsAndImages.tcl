@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 16 13:48:41 2013
-#  Last Modified : <130525.1157>
+#  Last Modified : <130701.1711>
 #
 #  Description	
 #
@@ -33,6 +33,8 @@ package require snit
 package require Img
 
 snit::type IconImage {
+    pragma -hastypeinfo no
+    pragma -hastypedestroy no
     typevariable icondir
     typevariable unknownimg
     typevariable imagemap -array {}
@@ -96,7 +98,7 @@ snit::type IconImage {
         if {[info exists imagemap($name)]} {
             return $imagemap($name)
         } else {
-            eval [list $type $name] $args
+            eval [list $type create $name] $args
             #puts stderr "*** $type image: imagemap($name) is $imagemap($name)"
             return $imagemap($name)
         }
