@@ -1028,14 +1028,15 @@ snit::type AddressBook {
         $_getToCcAddressesDialog configure -parent $parent
         wm transient [winfo toplevel $_getToCcAddressesDialog] $parent
         set result [$_getToCcAddressesDialog draw]
+        #puts stderr "*** $type GetToCcAddresses: result = $result"
         if {$result eq "ok"} {
-            upvar #0 $ToAddrsVar tolist
+            upvar $ToAddrsVar tolist
             set tolist {}
             foreach to [$getToCcAddressesDialogToList children {}] {
                 lappend tolist \
-                      "[$to cget -name] <[$ad cget -email]>"
+                      "[$to cget -name] <[$to cget -email]>"
             }
-            upvar #0 $CCAddrsVar cclist
+            upvar $CCAddrsVar cclist
             set cclist {}
             foreach cc [$getToCcAddressesDialogCcList children {}] {
                 lappend cclist \

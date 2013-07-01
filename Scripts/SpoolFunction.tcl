@@ -1750,13 +1750,13 @@ snit::widgetadaptor ArticlePostMenu {
         }
     }
     constructor {args} {
-        puts stderr "*** $type create $self: $args"
+        #puts stderr "*** $type create $self: $args"
         set options(-parent) [from args -parent .]
         installhull using Dialog -parent $options(-parent) \
               -class ArticlePostMenu -default send -cancel dismis\
               -modal local -transient yes -side bottom -bitmap questhead \
               -title {What Now?}
-        puts stderr "*** $type create $self: after installhull"
+        #puts stderr "*** $type create $self: after installhull"
         $hull add spell \
               -text {Spell Check} \
               -command [mymethod _SpellCheck]
@@ -1772,15 +1772,15 @@ snit::widgetadaptor ArticlePostMenu {
         $hull add reedit \
               -text {Reedit} \
               -command [mymethod _Reedit]
-        puts stderr "*** $type create $self: buttons added"
+        #puts stderr "*** $type create $self: buttons added"
         wm protocol $win WM_DELETE_WINDOW [mymethod _Dismis]
-        puts stderr "*** $type create $self: wm protocol WM_DELETE_WINDOW done"
+        #puts stderr "*** $type create $self: wm protocol WM_DELETE_WINDOW done"
         $self configurelist $args
         $self _ValidateRequiredOption -draftfile
         $self _ValidateRequiredOption -group
         $self _ValidateRequiredOption -groupwindow
         $self _ValidateRequiredOption -spool
-        puts stderr "*** $type create $self: required options checked"
+        #puts stderr "*** $type create $self: required options checked"
         install whomlistSW using ScrolledWindow \
               [$hull getframe].whomlistSW \
               -scrollbar vertical -auto vertical
@@ -2162,7 +2162,7 @@ snit::widgetadaptor ArticlePostMenu {
         }
     }
     method fillAttachmentList {} {
-        $attachments delete [$attachments children]
+        $attachments delete [$attachments children {}]
         foreach attachment $options(-attachments) {
             foreach {ctype descr encoding filename} $attachment {
                 $attachments insert {} end -text [file tail "$filename"] \

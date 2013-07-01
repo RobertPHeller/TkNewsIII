@@ -420,6 +420,7 @@ snit::type QWKReplyProcess {
     option -recycleprocesswindow -readonly yes
     option -parent -readonly yes -default .
     constructor {args} {
+        #puts stderr "*** $type create $self $args"
         set myprog yes
         set done 0
         set processRunning 0
@@ -432,6 +433,7 @@ snit::type QWKReplyProcess {
         set options(-replace) [from args -replace]
         set options(-quiet) [from args -quiet]
         set archive [QWKList QWKReply "$options(-spool)"]
+        #puts stderr "*** $type create $self: archive = $archive"
         if {[file exists $archive]} {
             if {!$options(-replace)} {
                 if {!$options(-quiet)} {
@@ -451,6 +453,7 @@ snit::type QWKReplyProcess {
         if {![QWKList MakeWorkDir]} {return}
         QWKList CleanWorkDir
         set msgFile [QWKList MessageFile "$options(-spool)"]
+        #puts stderr "*** $type create $self: msgFile = $msgFile"
         set spoolWindow [SpoolWindow getOrMakeSpoolByName $options(-spool)]
         set options(-recycleprocesswindow) [from args -recycleprocesswindow {}]
         if {[string length $options(-recycleprocesswindow)] > 0 &&
@@ -480,6 +483,7 @@ snit::type QWKReplyProcess {
         set command [QWKList SpoolToReplyCommand "$activeFile" \
                      "$spoolDirectory" "$options(-spool)" "$name" \
                      "$msgFile"]
+        #puts stderr "*** $type create $self: activeFile = $activeFile, spoolDirectory = $spoolDirectory, name = $name, command = '$command'"
         if {[catch {open "|$command" r} stdoutPipeFp]} {
             set status "Could not fork $command: $stdoutPipeFp"
             error "Could not fork $command: $stdoutPipeFp"
@@ -490,6 +494,7 @@ snit::type QWKReplyProcess {
         incr processRunning
         fileevent $stdoutPipeFp readable "[mymethod _PipeToLog] yes"
         if {$processRunning > 0} {tkwait variable [myvar processRunning]}
+        #puts stderr "*** $type create $self: numPacked = $numPacked"
         if {$numPacked == 0} {
             $progressWindow setStatus "Done"
             if {$myprog} {$progressWindow setProcessDone}
@@ -497,6 +502,7 @@ snit::type QWKReplyProcess {
             return
         }
         set command [QWKList Archiver $archive $msgFile]
+        #puts stderr "*** $type create $self: command = '$command'"
         if {[catch [list open "|$command" r] stdoutPipeFp]} {
             set status "Could not fork $command: $stdoutPipeFp"
             error "Could not fork $command: $stdoutPipeFp"
@@ -632,14 +638,21 @@ snit::widgetadaptor QWKList {
     }
     typeconstructor {
         global execbindir
+        #puts stderr "*** $type typeconstructor: execbindir = $execbindir"
         set QWKToSpoolProg [auto_execok [file join $execbindir QWKToSpool]]
-        set SpoolToReplyProg [auto_execok [file join $execbindir SpoolToReplyProg]]
-        set QWKInSpool [file normalize [option get . qwkInSpool QWKInSpool]]
-        set QWKOutSpool [file normalize [option get . qwkOutSpool QWKOutSpool]]
-        set QWKWorkDir [file normalize [option get . qwkWorkDir QWKWorkDir]]
-        set QWKArchiver "[option get . qwkArchiver QWKArchiver]"
-        set QWKUnarchiver "[option get . qwkUnarchiver QWKUnarchiver]"
         #puts stderr "*** $type typeconstructor: QWKToSpoolProg = $QWKToSpoolProg"
+        set SpoolToReplyProg [auto_execok [file join $execbindir SpoolToReply]]
+        #puts stderr "*** $type typeconstructor: SpoolToReplyProg = $SpoolToReplyProg"
+        set QWKInSpool [file normalize [option get . qwkInSpool QWKInSpool]]
+        #puts stderr "*** $type typeconstructor: QWKInSpool = $QWKInSpool"
+        set QWKOutSpool [file normalize [option get . qwkOutSpool QWKOutSpool]]
+        #puts stderr "*** $type typeconstructor: QWKOutSpool = $QWKOutSpool"
+        set QWKWorkDir [file normalize [option get . qwkWorkDir QWKWorkDir]]
+        #puts stderr "*** $type typeconstructor: QWKWorkDir = $QWKWorkDir"
+        set QWKArchiver "[option get . qwkArchiver QWKArchiver]"
+        #puts stderr "*** $type typeconstructor: QWKArchiver = $QWKArchiver"
+        set QWKUnarchiver "[option get . qwkUnarchiver QWKUnarchiver]"
+        #puts stderr "*** $type typeconstructor: QWKUnarchiver = $QWKUnarchiver"
         bind $type <Motion>                [mytypemethod _Motion %W %x %y]
         bind $type <B1-Leave>              { #nothing }
         bind $type <Leave>                 [mytypemethod _ActivateHeading {} {}]
