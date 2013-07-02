@@ -2204,7 +2204,7 @@ snit::widgetadaptor ArticlePostMenu {
                         foreach ng $groups {
                             set ng [string trim "$ng"]
                             if {![$whomlist exists $ng]} {
-                                $whomlist insert {} end $ng -text "NewsGroup: $ng"
+                                $whomlist insert {} end -id $ng -text "NewsGroup: $ng"
                             }
                         }
                     }
