@@ -1806,7 +1806,6 @@ snit::widgetadaptor ArticlePostMenu {
                   -text {Attach File} \
                   -command [mymethod _AttachFile] 
         }
-	
     }
     method _ShowAttachment {x y} {
         set attachment [$attachments item [$attachments identify row $x $y] -columns]
@@ -1816,7 +1815,7 @@ snit::widgetadaptor ArticlePostMenu {
     }
     method draw {} {return [$hull draw]}
     method _SpellCheck {} {
-        $win withdraw
+        $hull withdraw
         set spell [WaitExternalProgramASync create spellCheck%AUTO% \
                    -commandline "[$options(-spool) cget -spellchecker] $options(-draftfile)"]
         $spell wait
