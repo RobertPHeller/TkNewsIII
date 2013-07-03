@@ -412,9 +412,9 @@ snit::widget ArticleViewer {
     typeconstructor {
         set PrintCommand "[option get . printCommand PrintCommand]"
         ttk::style configure ArticleHeaders -background gray -borderwidth 0 \
-              -font "Courier 12" -foreground black
+              -font "Courier 8" -foreground black
         ttk::style configure ArticleBody -background white -borderwidth 0 \
-              -font "Courier 12" -foreground black
+              -font "Courier 8" -foreground black
     }
     constructor {args} {
         set options(-parent) [from args -parent]
