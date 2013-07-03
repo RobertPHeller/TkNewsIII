@@ -999,6 +999,7 @@ snit::widgetadaptor SearchArticlesDialog {
         $self _constructArticleList [$hull getframe]
         $articleList tag bind article <space> [mymethod _SelectArticle %x %y]
         $articleList tag bind article <1> [mymethod _SelectArticle %x %y]
+        
         install selectedArticleFrame using ttk::frame \
               [$hull getframe].selectedArticleFrame
         pack $selectedArticleFrame -fill x
@@ -1015,6 +1016,7 @@ snit::widgetadaptor SearchArticlesDialog {
             $hull itemconfigure read -state disabled
         } else {
             $articleList tag bind article <Double-Button-1> [mymethod _SelectAndReadArticle %x %y]
+            bind $articleList <Double-Button-1> {break}
             $articleList tag bind article <Return> [mymethod _SelectAndReadArticle %x %y]
         }
         if {[string equal "$options(-grouptree)" {}]} {

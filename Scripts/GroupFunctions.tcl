@@ -547,7 +547,8 @@ snit::widget GroupTreeFrame {
               -columns $columns \
               -displaycolumns $columns -show {tree headings}
         $groupTree tag bind groupitem <ButtonPress-1> [mymethod _EnableGroupButtons %x %y]
-        $groupTree tag bind groupitem <Double-ButtonPress-1> [mymethod _ReadGroup %x %y]
+        $groupTree tag bind groupitem <Double-ButtonPress-1> "[mymethod _ReadGroup %x %y]"
+        bind $groupTree <Double-ButtonPress-1> {break}
         $groupTreeSW setwidget $groupTree
         install groupLabelFrame using ttk::labelframe $win.groupLabelFrame
         pack $groupLabelFrame -fill x
