@@ -75,7 +75,7 @@ snit::type AddressBook {
         -regexp {^([0-9][0-9][0-9][0-9][0-9](-[0-9][0-9][0-9][0-9])?)?$}}
     option -flags -default {} -type {snit::listtype -type AddressFlags}
     constructor {args} {
-        #      puts stderr "*** $type create $self $args"
+        #puts stderr "*** $type create $self $args"
         $self configurelist $args
         set options(-email) [string tolower "$options(-email)"]
         if {[string length "$options(-email)"] > 0 && 
@@ -102,12 +102,16 @@ snit::type AddressBook {
         }
     }
     typemethod CheckNewAddresses {tofield} {
+        #puts stderr "*** $type CheckNewAddresses $tofield"
         set tolist [RFC822 SmartSplit [string trim "$tofield"] ","]
+        #puts stderr "*** $type CheckNewAddresses: tolist is $tolist"
         foreach to $tolist {
             set to [string trim "$to"]
             set toEM [string tolower [RFC822 EMail "$to"]]
             set toName [RFC822 Name "$to"]
+            #puts stderr "*** $type CheckNewAddresses: to = $to, toEM = $toEM, toName = $toName"
             if {![RFC822 validate "$toEM"]} {continue}
+            #puts stderr "*** $type CheckNewAddresses: $toEM validates"
             if {[catch {set addresses($toEM)} old]} {
                 $type create %AUTO% -email "$toEM" -name "$toName" -flags collected
             }
@@ -524,8 +528,10 @@ snit::type AddressBook {
             phones {
                 set idlist [list]
                 foreach n [lsort -dictionary [array names $sortarray]] {
-                    #puts stderr "*** $type _sortedidlist: n = $n"
-                    foreach id [set [set sortarray]($n)] {
+                    #puts stderr "*** $type _sortedidlist: n = |$n|"
+                    set nlist [set [set sortarray]($n)]
+                    #puts stderr "*** $type _sortedidlist: nlist = $nlist"
+                    foreach id $nlist {
                         #puts stderr "*** $type _sortedidlist: id is $id"
                         lappend idlist $id
                     }
@@ -570,7 +576,7 @@ snit::type AddressBook {
         }
     }
     typemethod _UpdateViewEditList {{newid {}}} {
-        #      puts stderr "*** $type _UpdateViewEditList"
+        #puts stderr "*** $type _UpdateViewEditList $newid"
         if {[string equal "$_viewEditDialog" {}]} {return}
         if {$newid ne ""} {
             set idlist [$type _sortedidlist]

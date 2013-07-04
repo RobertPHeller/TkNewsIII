@@ -541,12 +541,28 @@ snit::widget ArticleViewer {
       close $file
       $self _GetHeaderFields
     }
-    method _CollectAddresses {} {
-        set to "[$toLE cget -text]"
-        if {[string length "$to"] > 0} {AddressBook CheckNewAddresses "$to"}
-        set from "[$fromLE cget -text]"
-        if {[string length "$from"] > 0} {AddressBook CheckNewAddresses "$from"}
-        if {[string length "$cc"] > 0} {AddressBook CheckNewAddresses "$cc"}
+    method _collectAddresses {} {
+        set lastline [expr {$EOH + 1}]
+        set headerbuffer {}
+        for {set iline 1} {$iline <= $lastline} {incr iline} {
+            set line [$articleBody get "${iline}.0" "${iline}.0 lineend"]
+            if {[regexp {^[[:space:]]} $line] > 0} {
+                append headerbuffer "\n$line"
+                continue
+            } elseif {$headerbuffer ne ""} {
+                #puts stderr "*** $self _collectAddresses: headerbuffer = '$headerbuffer'"
+                if {[regexp {^([^:]+):[[:space:]]+(.*)$} $headerbuffer => key value] > 0} {
+                    if {[lsearch {to cc from} [string tolower $key]] >= 0} {
+                        #puts stderr "*** $self _collectAddresses: key = $key, value = '$value'"
+                        AddressBook CheckNewAddresses "$value"
+                    }
+                }
+                set headerbuffer $line
+                if {[string equal "$headerbuffer" {}]} {
+                    break
+                }
+            }
+        }
     }
     method _GetHeaderFields {{refetching no}} {
         $articleHeader delete 1.0 end
