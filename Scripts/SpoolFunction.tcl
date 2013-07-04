@@ -388,8 +388,6 @@ snit::widget SpoolWindow {
     }
     destructor {
         #      puts stderr "*** ${type}::destructor"
-        catch {$self _WriteNewsRc} message
-        #      puts stderr "*** ${type}::destructor: $self _WriteNewsRc done: $message"
         catch {$newslist destroy}
         #      puts stderr "*** ${type}::destructor: $newslist destroy done: $message"
         if {$options(-useserver)} {catch {$self _Srv_NetClose}}
@@ -421,12 +419,18 @@ snit::widget SpoolWindow {
         $self _LoadGroupTree {.}
     }
     method user {} {return "$userName"}
-    method _CloseSpool {} {
-        set answer [tk_messageBox -icon question \
-                    -type yesno \
-                    -message {Really close this spool?} \
-                    -parent $win]
+    method _CloseSpool {{dontask no}} {
+        if {!$dontask} {
+            set answer [tk_messageBox -icon question \
+                        -type yesno \
+                        -message {Really close this spool?} \
+                        -parent $win]
+        } else {
+            set answer yes
+        }
         if {[string equal "$answer" no]} {return}
+        catch {$self _WriteNewsRc} message
+        #puts stderr "*** $self _CloseSpool: $self _WriteNewsRc done: $message"
         destroy $self
     }
     typevariable _NNTPPort 119
@@ -789,6 +793,8 @@ snit::widget SpoolWindow {
             if {[string equal -nocase "$group" reply]} {continue}
             $groupTreeFrame cleanGroup {} $group
         }
+        catch {$self _WriteNewsRc} message
+        #puts stderr "*** $self _CleanAllGroups: $self _WriteNewsRc done: $message"
     }
     method _UnSubscribeGroup {} {
         if {[catch "set savedDirectories($currentGroup)" mdir]} {

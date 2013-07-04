@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Sat May 18 09:51:58 2013
-#  Last Modified : <130528.1215>
+#  Last Modified : <130704.1647>
 #
 #  Description	
 #
@@ -140,7 +140,7 @@ snit::widgetadaptor TopWindow {
             if {$ans eq "yes"} {
                 foreach spoolname $loadedSpools {
                     set spool [SpoolWindow getSpoolByName $spoolname]
-                    destroy $spool
+                    $spool _CloseSpool yes
                 }
                 set dontask yes
             }

@@ -1063,6 +1063,7 @@ snit::type NewsList {
         close $File
     }
     method write {} {
+        #puts stderr "*** $self write"
         set newsrc       "$options(-file)"
         set backupNewsrc "$options(-file)~"
         set newNewsrc    "$options(-file).new"
@@ -1085,6 +1086,7 @@ snit::type NewsList {
             }
         } else {
             while {[gets $newsIn line] != -1} {
+                #puts stderr "*** $self write: line is '$line'"
                 set splitC {:}
                 if {[string first {!} $line] >= 0} {
                     set splitC {!}
@@ -1093,8 +1095,11 @@ snit::type NewsList {
                     continue
                 }
                 set list [split $line $splitC]
+                #puts stderr "*** $self write: list is $list (split on $splitC)"
                 set name [lindex $list 0]
+                #puts stderr "*** $self write: name is $name"
                 puts -nonewline $newsOut "$name"
+                #puts stderr "*** $self write: \[$groups isActiveGroup $name\] => [$groups isActiveGroup $name]"
                 if {[$groups isActiveGroup $name]} {
                     set subflag [$groups groupcget $name -subscribed]
                     set ranges [$groups groupgetranges $name]
@@ -1102,6 +1107,7 @@ snit::type NewsList {
                     set subflag 0
                     set ranges {}
                 }
+                #puts stderr "*** $self write: subflag is $subflag, ranges = $ranges"
                 if {$subflag} {
                     set comma {:}
                 } else {
@@ -1118,9 +1124,9 @@ snit::type NewsList {
         }
         close $newsOut
         catch "file rename -force $newsrc $backupNewsrc" message
-        #      puts stderr "*** $self write: message = $message"
+        #puts stderr "*** $self write: message = $message"
         catch "file rename -force $newNewsrc $newsrc"    message
-        #      puts stderr "*** $self write: message = $message"
+        #puts stderr "*** $self write: message = $message"
     }
 }
 
