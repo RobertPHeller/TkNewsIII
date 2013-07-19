@@ -903,13 +903,13 @@ snit::type AddressBook {
     }
     typemethod _CreateANewEmailAddress {} {
         #      puts stderr "*** $type _CreateANewEmailAddress"
-        set EM [string tolower "[$newEMailAddressLE cget -text]"]
+        set EM [string tolower "[$newEMailAddressE get]"]
         #      puts stderr "*** $type _CreateANewEmailAddress: EM = $EM"
         $_newEMailAddressDialog withdraw
         #      puts stderr "*** $type _CreateANewEmailAddress: \[RFC822 validate \{$EM\}\] => [RFC822 validate $EM]"
         #      puts stderr "*** $type _CreateANewEmailAddress: \[catch {set addresses($EM)} old\] => [catch {set addresses($EM)} old]"
         if {[RFC822 validate "$EM"] && ![info exists addresses($EM)]} {
-            set id [$type create %AUTO% -email [$newEMailAddressLE cget -text]]
+            set id [$type create %AUTO% -email [$newEMailAddressE get]]
             $type _SelectItem $id
         }
         return [$_newEMailAddressDialog enddialog create]
@@ -1046,7 +1046,7 @@ snit::type AddressBook {
             set cclist {}
             foreach cc [$getToCcAddressesDialogCcList children {}] {
                 lappend cclist \
-                      [$cc cget -name] <[$cc cget -email]>"
+                      "[$cc cget -name] <[$cc cget -email]>"
             }
         }
         return $result

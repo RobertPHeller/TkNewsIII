@@ -236,6 +236,9 @@ snit::type RFC822 {
             set quote1Pos [string first {"} "$remainder" $start]
             if {$quote1Pos >= $start} {
                 set quote2Pos [string first {"} "$remainder" [expr {$quote1Pos + 1}]]
+                if {$quote2Pos < $quote1Pos} {
+                    set quote2Pos $quote1Pos
+                }
             } else {
                 set quote2Pos $quote1Pos
             }
