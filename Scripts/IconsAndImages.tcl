@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Thu May 16 13:48:41 2013
-#  Last Modified : <130701.1711>
+#  Last Modified : <130721.1110>
 #
 #  Description	
 #
@@ -95,7 +95,7 @@ snit::type IconImage {
         #parray imagemap
         set name [namespace tail $name]
         #puts stderr "*** $type image: $name"
-        if {[info exists imagemap($name)]} {
+        if {[::info exists imagemap($name)]} {
             return $imagemap($name)
         } else {
             eval [list $type create $name] $args
