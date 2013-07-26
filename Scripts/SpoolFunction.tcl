@@ -2028,6 +2028,9 @@ snit::widgetadaptor ArticlePostMenu {
         set clearTextFile /usr/tmp/$options(-groupwindow).[pid].clearTextFile
         set eFp [open $clearTextFile w]
 	if {[llength $options(-attachments)] == 0} {
+            puts $eFp "MIME-Version: 1.0"
+            puts $eFp "Content-type: text/plain"
+            puts $eFp {}
             fcopy $dFp $eFp
 	} else {
             puts $eFp "MIME-Version: 1.0"
