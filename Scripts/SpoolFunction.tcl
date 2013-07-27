@@ -1846,8 +1846,10 @@ snit::widgetadaptor ArticlePostMenu {
         if {[llength $options(-attachments)] == 0} {
             fcopy $dFp $iFp
         } else {
-            while {[gets $dFp line] > 0} {
+            puts stderr "*** $self _SendMessage: copying base headers"
+            while {[gets $dFp line] > 0 && [string trim "$line"] ne ""} {
                 puts $iFp "$line"
+                puts stderr "*** $self _SendMessage: line = '$line'"
             }
             puts $iFp "MIME-Version: 1.0"
             puts $iFp "Content-type: multipart/mixed;"
