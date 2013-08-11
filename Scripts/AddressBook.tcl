@@ -81,17 +81,23 @@ snit::type AddressBook {
         if {[string length "$options(-email)"] > 0 && 
             [catch {set addresses([$options(-email)])}]} {
             set addresses($options(-email)) $self
-            lappend nicknames($options(-nickname)) $self
-            lappend names($options(-name)) $self
-            lappend organizations($options(-organization)) $self
-            lappend phones($options(-phone)) $self
-            lappend zipcodes($options(-zipcode)) $self
-            lappend cities($options(-city)) $self
+            lappendUnique nicknames($options(-nickname)) $self
+            lappendUnique names($options(-name)) $self
+            lappendUnique organizations($options(-organization)) $self
+            lappendUnique phones($options(-phone)) $self
+            lappendUnique zipcodes($options(-zipcode)) $self
+            lappendUnique cities($options(-city)) $self
             set isdirtyP yes
             $type _UpdateViewEditList $self
         } else {
             error "Duplicate or empty Address: $options(-email)"
         }
+    }
+    proc lappendUnique {listvar element} {
+        upvar $listvar var
+        if {![catch {set var} oldlist] &&
+            [lsearch -exact $oldlist $element]} {return}
+        lappend var $element
     }
     destructor {
         if {"$_viewEditDialog" ne "" && [winfo exists $_viewEditDialog]} {
@@ -467,6 +473,7 @@ snit::type AddressBook {
         }
         set idlist [$type _sortedidlist]
         foreach id $idlist {
+            #puts stderr "*** $type _CreateViewEditDialog: id = $id"
             $viewEditTree insert {} end -id $id \
                   -values [list [$id cget -nickname] [$id cget -email] \
                            [$id cget -name] [$id cget -organization] \
@@ -556,6 +563,7 @@ snit::type AddressBook {
                 if {[$viewEditTree exists $id]} {
                     $viewEditTree move $id {} end
                 } else {
+                    #puts stderr "*** $type _sortcolumn: id = $id"
                     $viewEditTree insert {} end -id $id \
                           -values [list [$id cget -nickname] [$id cget -email] \
                                    [$id cget -name] [$id cget -organization] \
@@ -584,6 +592,7 @@ snit::type AddressBook {
             if {[$viewEditTree exists $newid]} {
                 $viewEditTree move $newid {} $index
             } else {
+                #puts stderr "*** $type _UpdateViewEditList: newid = $newid"
                 $viewEditTree insert {} $index -id $newid \
                       -values [list [$newid cget -nickname] [$newid cget -email] \
                                [$newid cget -name] [$newid cget -organization] \
@@ -847,6 +856,7 @@ snit::type AddressBook {
             $viewEditTree move $id {} $index
         }
         if {$addnew} {
+            #puts stderr "*** $type _UpdateAddress: id = $id"
             $viewEditTree insert {} $index -id $id \
                   -values [list [$id cget -nickname] [$id cget -email] \
                            [$id cget -name] [$id cget -organization] \
@@ -991,6 +1001,7 @@ snit::type AddressBook {
     typemethod _MoveAddressToToList {} {
         set selection [$getToCcAddressesDialogAll selection]
         foreach id $selection {
+            #puts stderr "*** $type _MoveAddressToToList: id = $id"
             $getToCcAddressesDialogToList insert {} end -id $id \
                   -text "[$id cget -name] <[$id cget -email]>"
             $getToCcAddressesDialogAll delete $id
@@ -999,6 +1010,7 @@ snit::type AddressBook {
     typemethod _MoveAddressToCcList {} {
         set selection [$getToCcAddressesDialogAll selection]
         foreach id $selection {
+            #puts stderr "*** $type _MoveAddressToCcList: id = $id"
             $getToCcAddressesDialogCcList insert {} end -id $id \
                   -text "[$id cget -name] <[$id cget -email]>"
             $getToCcAddressesDialogAll delete $id
@@ -1012,6 +1024,7 @@ snit::type AddressBook {
         set tvFont [ttk::style lookup Treeview -font]
         foreach n [lsort -dictionary [array names nicknames]] {
             foreach ad $nicknames($n) {
+                if {[$getToCcAddressesDialogAll exists $ad]} {continue}
                 if {[lsearch [$ad cget -flags] hidden] < 0 && 
                     [string length "[$ad cget -nickname]"] > 0} {
                     set alltext "[$ad cget -nickname] ([$ad cget -name]) <[$ad cget -email]>"
@@ -1020,6 +1033,7 @@ snit::type AddressBook {
                     if {$wall > $allwidth} {set allwidth $wall}
                     set wtc [font measure $tvFont -displayof $_getToCcAddressesDialog $tocctext]
                     if {$wtc > $toccwidth} {set toccwidth $wtc}
+                    #puts stderr "*** $type GetToCcAddresses: ad = $ad"
                     $getToCcAddressesDialogAll insert {} end -id $ad \
                           -text $alltext
                 }
