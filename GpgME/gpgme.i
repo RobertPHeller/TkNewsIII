@@ -10,7 +10,7 @@
     if (Tcl_InitStubs(interp, "8.0", 0) == NULL) {
         return TCL_ERROR;
     }
-    Tcl_PkgProvide(interp,"Gpgme","0.0");
+    Tcl_PkgProvide(interp,"Gpgme",gpgme_check_version(NULL));
 %}
 
 %include <typemaps.i>

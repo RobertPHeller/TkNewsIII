@@ -17,6 +17,6 @@ gpgme_wrap.c : gpgme.i
 	$(SWIG) $(SWIG_FLAGS) -I/usr/include $(INCLUDES) -o gpgme_wrap.c $(srcdir)/gpgme.i
     
 pkgIndex.tcl: gpgme.la
-	echo 'package ifneeded Gpgme 0.0 [list load [file join $$dir gpgme[info sharedlibextension]] Gpgme]' > pkgIndex.tcl
+	echo 'package ifneeded Gpgme $(GPGME_VERSION) [list load [file join $$dir gpgme[info sharedlibextension]] Gpgme]' > pkgIndex.tcl
     
 
