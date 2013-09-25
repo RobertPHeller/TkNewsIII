@@ -747,6 +747,7 @@ snit::widget ArticleViewer {
         }
         set cipherBlock [string range "$body" $index1 $index2]
         package require Gpgme
+        gpgme_check_version 0.0.0
         set ctx [gpgme_new]
         gpgme_set_armor $ctx 1
         gpgme_set_passphrase_cb $ctx [mymethod _passphrase_callback]

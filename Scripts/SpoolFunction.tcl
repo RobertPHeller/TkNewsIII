@@ -1921,6 +1921,7 @@ snit::widgetadaptor ArticlePostMenu {
 	set inject [$options(-spool) replaceKeys "$inject" $options(-group)]
         #	puts stderr "*** $self _SendMessageEncrypted (after _ReplaceKeys): inject = $inject"
         package require Gpgme
+        gpgme_check_version 0.0.0
 	set ctx [gpgme_new]
         
         #set encrypt [option get $options(-groupwindow) encryptProgram EncryptProgram]
