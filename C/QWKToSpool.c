@@ -651,16 +651,29 @@ int PassKillFile(const char *messageFile,int patternCount,KillPattern *patterns)
 static int checkValidMHead(struct MsgHeaderType *MessageHeader)
 {
 	int cnum, iconf;
-	char *p;
+        char *p;
+        int sawspace = FALSE;
 
 	/*fprintf(stderr,"*** MessageHeader->SizeMsg = '%s'\n",MessageHeader->SizeMsg);*/
 	for (p = MessageHeader->SizeMsg; p < (MessageHeader->SizeMsg)+6; p++) {
-		if (*p >= '0' && *p <= '9') continue;
-		if (*p == ' ') continue;
+		if (*p >= '0' && *p <= '9' && !sawspace) continue;
+		if (*p == ' ') {sawspace = TRUE;continue;}
 		return FALSE;
 	}
 	return TRUE;
 }
+
+static int LooksLikeHeader(const unsigned char *buffer)
+{
+    struct MsgHeaderType *MessageHeader = (struct MsgHeaderType *) buffer;
+    if ((MessageHeader->MsgActive == 0xE1 || MessageHeader->MsgActive == 0xE2) &&
+        checkValidMHead(MessageHeader)) {
+        return TRUE;
+    } else {
+        return FALSE;
+    }
+}
+        
 
 /* Process messages.dat file (messages). */
 
@@ -709,9 +722,10 @@ int ProcessMESSAGESDAT(const char *messageDatFile,const char *killfile)
 		{
 			break;
 		}
+                /*fprintf(stderr,"*** ProcessMESSAGESDAT: MessageHeader.Status = %d\n",MessageHeader.Status);*/
+		if (!LooksLikeHeader(&MessageHeader)) continue;
 		/* Message Status is zero, at EOF. */
-		if (MessageHeader.Status == 0) break;
-		if (!checkValidMHead(&MessageHeader)) continue;
+                if (MessageHeader.Status == 0) break;
 		
 		/* Get conference number */
 		cnum = readCnum((byte*)&(MessageHeader.BinConfN));
@@ -795,13 +809,18 @@ int ProcessMESSAGESDAT(const char *messageDatFile,const char *killfile)
 		/*fprintf(stderr,"*** MessageHeader.SizeMsg = '%s', numBlocks = %d\n",MessageHeader.SizeMsg,numBlocks);*/
 		for (i = 0; i < numBlocks; i++)
 		{
-			if (fread(buffer,sizeof(buffer),1,messageDatIn) != 1)
+                        if (fread(buffer,sizeof(buffer),1,messageDatIn) != 1)
 			{
                                 int err = errno;
-                                sprintf(errorbufer,"fread: message (block=%d)",i);
+                                sprintf(errorbufer,"fread: message (block=%d/%d)",i,numBlocks);
+                                errno = err;
 				perror(errorbufer);
-				return(err);
+                                return(err);
 			}
+                        if (LooksLikeHeader(buffer)) {
+                            fseek(messageDatIn,-sizeof(buffer),SEEK_CUR);
+                            break;
+                        }
 			for (p = buffer;p != NULL;)
 			{
 				/* Convert magic 8-bit char to LF */
