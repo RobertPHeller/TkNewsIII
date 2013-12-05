@@ -664,13 +664,13 @@ static int checkValidMHead(struct MsgHeaderType *MessageHeader)
 
 /* Process messages.dat file (messages). */
 
-void ProcessMESSAGESDAT(const char *messageDatFile,const char *killfile)
+int ProcessMESSAGESDAT(const char *messageDatFile,const char *killfile)
 {
 	FILE *messageDatIn, *spoolFileOut;
 	KillPattern *killPatterns = NULL;
 	int numberOfKillPatterns = 0;
 	struct MsgHeaderType MessageHeader;
-	static char buffer[128], filename[256];
+	static char buffer[128], filename[256], errorbufer[256];
 	char *p,*colon;
 	int count, oldcount, kcount;
 	int conf = -1, cnum, iconf,i;
@@ -693,14 +693,14 @@ void ProcessMESSAGESDAT(const char *messageDatFile,const char *killfile)
 	{
 		int err = errno;
 		perror("fopen: messageDatFile");
-		exit(err);
+		return(err);
 	}
 	/* Read header block. */
 	if (fread(buffer,sizeof(buffer),1,messageDatIn) != 1)
 	{
 		int err = errno;
 		perror("fread: header0");
-		exit(err);
+		return(err);
 	}
 	while (1)
 	{
@@ -767,7 +767,7 @@ void ProcessMESSAGESDAT(const char *messageDatFile,const char *killfile)
 		{
 			int err = errno;
 			perror("fopen: spoolFileOut");
-			exit(err);
+			return(err);
 		}
 		/* Fill in QWK header fields.
 		   [commented out for real Usenet news feed.] */
@@ -797,9 +797,10 @@ void ProcessMESSAGESDAT(const char *messageDatFile,const char *killfile)
 		{
 			if (fread(buffer,sizeof(buffer),1,messageDatIn) != 1)
 			{
-				int err = errno;
-				perror("fread: message");
-				exit(err);
+                                int err = errno;
+                                sprintf(errorbufer,"fread: message (block=%d)",i);
+				perror(errorbufer);
+				return(err);
 			}
 			for (p = buffer;p != NULL;)
 			{
@@ -826,7 +827,7 @@ void ProcessMESSAGESDAT(const char *messageDatFile,const char *killfile)
 			{
 				int err = errno;
 				perror("fwrite: message");
-				exit(err);
+				return(err);
 			}
 		}
 		fclose(spoolFileOut);
@@ -849,6 +850,7 @@ void ProcessMESSAGESDAT(const char *messageDatFile,const char *killfile)
 			confs[iconf].number,confs[iconf].name,
 			count - oldcount,(count - oldcount != 1)?"s":"");
 	}
+        return 0;
 }
 
 /* Write updated active and newsrc files. */
@@ -959,7 +961,8 @@ void WriteActive(const char *activeFile,const char *newsrc)
 /* Main program. Fetch command line args and call processing functions. */
 int main(int argc,char *argv[])
 {
-	char *control, *messages, *active, *spool, *newsrc, *killfile;
+        char *control, *messages, *active, *spool, *newsrc, *killfile;
+        int err;
 
 	if (argc < 6 || argc > 7)
 	{
@@ -977,9 +980,9 @@ int main(int argc,char *argv[])
 		killfile = "";
 	}
 	BuildActiveAndConfs(control,spool,active);
-	ProcessMESSAGESDAT(messages,killfile);
+	err = ProcessMESSAGESDAT(messages,killfile);
 	WriteActive(active,newsrc);
 	printf("\nUsername:%s\n",userName);
-	exit(0);
+	exit(err);
 }
 
