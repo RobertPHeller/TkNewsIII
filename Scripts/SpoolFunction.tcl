@@ -2208,7 +2208,7 @@ snit::widgetadaptor ArticlePostMenu {
                             set w [string trim "$w"]
                             set address [RFC822 Name "$w"]
                             if {![$whomlist exists $address]} {
-                                $whomlist insert {} end $address -text "MailTo (blind): $w"
+                                $whomlist insert {} end -id $address -text "MailTo (blind): $w"
                             }
                         }
                     } elseif {[regexp -nocase {^newsgroups: (.*)$} "$hbuffer" -> groups] > 0} {
