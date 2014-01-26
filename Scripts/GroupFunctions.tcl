@@ -250,7 +250,7 @@ snit::type group {
                 eval [list $articleList insertArticleHeader] $line
             }
         }
-        close $pipe
+        catch {close $pipe}
     }
     method findNextArticle {a {unread 1}} {
         incr a

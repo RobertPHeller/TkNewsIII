@@ -181,9 +181,10 @@ void LoadArticleHead(char *spooldir, char *grouppath, int artnumber,
 {
     static regex_t rxheader;
     static int rxinit = FALSE;
-    static char filename[512], linebuffer[4096], hbuffer[16384];
+    static char filename[512], linebuffer[4096], hbuffer[32768];
     static char errbuffer[512];
     FILE *file;
+    int len;
     
     static char subject[256], fromline[256], from[22], date[256],
           matchsubj[256], messageid[256], inreplyto[256], key[64];
@@ -221,12 +222,19 @@ void LoadArticleHead(char *spooldir, char *grouppath, int artnumber,
     lines = 0;
     hbuffer[0] = '\n';
     hbuffer[1] = '\0';
+    len = sizeof(hbuffer);
     /* Read lines, until end of header (empty line). */
     while ((p = fgets(linebuffer,4096,file)) != NULL)
     {
+        /*fprintf(stderr,"*** LoadArticleHead: p = %s",p);*/
         if (*p == ' ' || *p == '\t') {
             q = strchr(hbuffer,'\n');
-            strcpy(q,p);
+            /*fprintf(stderr,"*** LoadArticleHead: len = %d, q = %s",len,q);*/
+            if (q && len > 0) {
+                strncpy(q,p,len);
+                len -= strlen(q);
+                if (len < 0) len = 0;
+            }
             continue;
         } else if (hbuffer[0] != '\n') {
             q = strchr(hbuffer,'\n');
