@@ -793,6 +793,7 @@ snit::widget SpoolWindow {
             if {[string equal -nocase "$group" reply]} {continue}
             $groupTreeFrame cleanGroup {} $group
         }
+        $self _LoadGroupTree {.}
         catch {$self _WriteNewsRc} message
         #puts stderr "*** $self _CleanAllGroups: $self _WriteNewsRc done: $message"
     }

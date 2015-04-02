@@ -192,6 +192,9 @@ snit::macro ArticleListMethods {} {
         $articleList heading from -command [mymethod _sortBySender]
         $articleList heading subject -command [mymethod _sortBySubject]
     }
+    method seeTop {} {
+        $articleList see [lindex [$articleList children {}] 0]
+    }
     method _threadArticleList {} {
         #puts stderr "*** $self _threadArticleList"
         $articleList detach [$articleList children {}]
@@ -203,6 +206,7 @@ snit::macro ArticleListMethods {} {
             $articleList move $messageid($an) $parent end
             if {$parent ne {}} {$articleList item $parent -open yes}
         }
+        $self seeTop
     }
     method _sortByArtNumber {} {
         #puts stderr "*** $self _sortByArtNumber"
@@ -211,6 +215,7 @@ snit::macro ArticleListMethods {} {
             $articleList item $messageid($an) -open no
             $articleList move $messageid($an) {} end
         }
+        $self seeTop
     }
     method _sortByDate {} {
         #puts stderr "*** $self _sortByDate"
@@ -222,6 +227,7 @@ snit::macro ArticleListMethods {} {
                 $articleList move $m {} end
             }
         }
+        $self seeTop
     }
     method _sortBySender {} {
         #puts stderr "*** $self _sortBySender"
@@ -232,6 +238,7 @@ snit::macro ArticleListMethods {} {
                 $articleList move $m {} end
             }
         }
+        $self seeTop
     }
     method _sortBySubject {} {
         #puts stderr "*** $self _sortBySubject"
@@ -242,6 +249,7 @@ snit::macro ArticleListMethods {} {
                 $articleList move $m {} end
             }
         }
+        $self seeTop
     }
 }    
 

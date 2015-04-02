@@ -251,6 +251,7 @@ snit::type group {
             }
         }
         catch {close $pipe}
+        $articleList seeTop
     }
     method findNextArticle {a {unread 1}} {
         incr a
@@ -477,7 +478,7 @@ snit::widget GroupTreeFrame {
     }
     method _RefreshGroupList {} {
         $self reloadActiveFile
-        $options(-spool) _LoadGroupTree {.} 0 Brief
+        $options(-spool) _LoadGroupTree {.};# 0 Brief
     }
     method _EnableGroupButtons {x y} {
         #puts stderr "*** $self _EnableGroupButtons $x $y"
@@ -797,6 +798,7 @@ snit::widget GroupTreeFrame {
                 }
             }
         }
+        $groupTree see [lindex [$groupTree children {}] 0]
     }
     method loadUnsubscribedGroupTree {tv pattern} {
         $tv delete [$tv children {}]
@@ -1029,6 +1031,7 @@ snit::widget GroupTreeFrame {
             }
         }
         close $pipe
+        $articleList seeTop
         return 
     }
 }
