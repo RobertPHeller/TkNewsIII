@@ -127,17 +127,17 @@ snit::macro ArticleListMethods {} {
             }
             set _messageid $newid
         }
+        if {[regexp {^(.*)[[:space:]]([+-][012][0-9][0-9][0-9])} $date => gmt offset] > 0} {
+            if {[catch {set timestamp [clock scan $gmt -gmt yes]}]} {return}
+        } else {
+            if {[catch {set timestamp [clock scan $date]}]} {return}
+        }
         set article_number($_messageid) $artnumber
         set messageid($artnumber) $_messageid
         set inreplyto($_messageid) $_inreplyto
         set nreads($_messageid) $nread
         lappend subjects($subject) $_messageid
         lappend froms($from) $_messageid
-        if {[regexp {^(.*)[[:space:]]([+-][012][0-9][0-9][0-9])} $date => gmt offset] > 0} {
-            set timestamp [clock scan $gmt -gmt yes]
-        } else {
-            set timestamp [clock scan $date]
-        }
         #puts stderr "*** $self insertArticleHeader: date = $date, timestamp = $timestamp"
         lappend dates($timestamp) $_messageid
         $articleList insert {} end -id $_messageid -text {} \
