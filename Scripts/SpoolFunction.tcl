@@ -2379,7 +2379,7 @@ snit::widgetadaptor SelectIdentityDialog {
         installhull using Dialog \
               -class SelectIdentityDialog -bitmap questhead \
               -default ok -cancel cancel -modal local -transient yes \
-              -side bottom
+              -side bottom -title "Select an Identity"
         $hull add ok -text OK -command [mymethod _OK]
         $hull add cancel -text Cancel -command [mymethod _Cancel]
         wm protocol $win WM_DELETE_WINDOW [mymethod _Cancel]
