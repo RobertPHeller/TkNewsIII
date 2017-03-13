@@ -69,6 +69,7 @@ option add *from {John Bigbooty} widgetDefault
 option add *organization {Yoyodyne} widgetDefault
 option add *killFile {} widgetDefault
 option add *addressBookFile {~/.TkNewsAddresses} widgetDefault
+option add *identities {} widgetDefault
 option readfile ~/.TkNewsRc
 
 IconImage image DeepwoodsBanner

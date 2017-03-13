@@ -185,7 +185,9 @@ snit::widget SpoolWindow {
     component newslist
 
     component articleViewWindow
-
+    
+    component selectIdentityDialog
+    
     variable serverchannel
     variable currentArticle {}
     variable currentGroup {}
@@ -322,6 +324,8 @@ snit::widget SpoolWindow {
               -height [option get $win spoolNumArticles SpoolNumArticles]
         pack $articleListFrame -fill both -expand yes
         #      puts stderr "*** ${type}::constructor: winfo class $articleListFrame = [winfo class $articleListFrame]"
+        install selectIdentityDialog using SelectIdentityDialog \
+              .selectIdentityDialog
         $self configurelist $args
         set _LoadedSpools($options(-spoolname)) $self
         set qfile [from args -fromQWK {}]
@@ -973,8 +977,7 @@ snit::widget SpoolWindow {
         }
         set draftFile /usr/tmp/$groupWindow.[pid]
         set signatureFile [option get $groupWindow signatureFile SignatureFile]
-        set organizationString "[option get $groupWindow organization Organization]"
-        set fromString "[option get $groupWindow from From]"
+        foreach {fromString organizationString} [$self getIdentity $groupWindow] {break}
         set ccSelf [option get $groupWindow ccSelf CcSelf]
         # Create Base message (Empty To: & no Newsgroup: iff E-Mail)
         if {[catch [list open "$draftFile" w] draftFp]} {
@@ -1045,6 +1048,20 @@ snit::widget SpoolWindow {
         }
         file delete $draftFile      
     }
+    # Get identity (from and organization)
+    method getIdentity {window} {
+        set identities [option get $window identities Identities]
+        if {[llength $identities] == 0} {
+            return [list "[option get $window from From]" \
+                    "[option get $window organization Organization]"]
+        } else {
+            return [$selectIdentityDialog draw -identities $identities \
+                    -fallbackid [list "[option get $window from From]" \
+                                 "[option get $window organization Organization]"] \
+                    -parent $win]
+        }
+    }
+    
     # Post or mail a message
     method _PostToGroup {{isEmail no}} {
         set theGroup $currentGroup
@@ -1059,8 +1076,7 @@ snit::widget SpoolWindow {
         set signatureFile [option get $groupWindow signatureFile SignatureFile]
         set followupWithXCommentTo [option get $groupWindow followupWithXCommentTo FollowupWithXCommentTo]
         set followupEmailTo [option get $groupWindow followupEmailTo FollowupEmailTo]
-        set organizationString "[option get $groupWindow organization Organization]"
-        set fromString "[option get $groupWindow from From]"
+        foreach {fromString organizationString} [$self getIdentity $groupWindow] {break}
         set ccSelf [option get $groupWindow ccSelf CcSelf]
         # Create Base message (Empty To: & no Newsgroup: iff E-Mail)
         if {[catch [list open "$draftFile" w] draftFp]} {
@@ -1074,7 +1090,7 @@ snit::widget SpoolWindow {
         }
         puts $draftFp "X-Newsreader: TkNews 3.0 ($::BUILDSYMBOLS::VERSION)"
         puts $draftFp "Subject: "
-        #      puts stderr "*** $self _PostToGroup: isEmail = $isEmail"
+        #puts stderr "*** $self _PostToGroup: isEmail = $isEmail"
         if {$isEmail} {
             if {[AddressBook  GetToCcAddresses ToAddrs CCAddrs] eq "ok"} {
                 puts $draftFp "To: [join $ToAddrs {,}]"
@@ -1144,8 +1160,7 @@ snit::widget SpoolWindow {
         set signatureFile [option get $groupWindow signatureFile SignatureFile]
         set followupWithXCommentTo [option get $groupWindow followupWithXCommentTo FollowupWithXCommentTo]
         set followupEmailTo [option get $groupWindow followupEmailTo FollowupEmailTo]
-        set organizationString "[option get $groupWindow organization Organization]"
-        set fromString "[option get $groupWindow from From]"
+        foreach {fromString organizationString} [$self getIdentity $groupWindow] {break}
         set ccSelf [option get $groupWindow ccSelf CcSelf]
         # Folowup To news (Reply-To-All iff E-Mail (copy all (Reply-)To:,Cc: addresses))
         #---
@@ -1304,8 +1319,7 @@ snit::widget SpoolWindow {
         set signatureFile [option get $groupWindow signatureFile SignatureFile]
         set followupWithXCommentTo [option get $groupWindow followupWithXCommentTo FollowupWithXCommentTo]
         set followupEmailTo [option get $groupWindow followupEmailTo FollowupEmailTo]
-        set organizationString "[option get $groupWindow organization Organization]"
-        set fromString "[option get $groupWindow from From]"
+        foreach {fromString organizationString} [$self getIdentity $groupWindow] {break}
         set ccSelf [option get $groupWindow ccSelf CcSelf]
         # Reply To E-Mail (Reply-To-Sender only)
         #---
@@ -1411,8 +1425,7 @@ snit::widget SpoolWindow {
         set signatureFile [option get $groupWindow signatureFile SignatureFile]
         set followupWithXCommentTo [option get $groupWindow followupWithXCommentTo FollowupWithXCommentTo]
         set followupEmailTo [option get $groupWindow followupEmailTo FollowupEmailTo]
-        set organizationString "[option get $groupWindow organization Organization]"
-        set fromString "[option get $groupWindow from From]"
+        foreach {fromString organizationString} [$self getIdentity $groupWindow] {break}
         set ccSelf [option get $groupWindow ccSelf CcSelf]
         # Reply To E-Mail (Reply-To-Sender only)
         #---
@@ -2340,6 +2353,73 @@ snit::type GetAttachment {
         wm transient [winfo toplevel $dialog] $parent
         return [$dialog draw]
     }
+}
+
+snit::widgetadaptor SelectIdentityDialog {
+    typeconstructor {
+        ttk::style configure SelectIdentityDialog \
+              ;
+        bind SelectIdentityDialog <<ThemeChanged>> \
+              [mytypemethod ThemeChanged %W]
+    }
+    typemethod ThemeChanged {W} {
+        $W _ThemeChanged
+    }
+    method _ThemeChanged {} {
+    }
+    option -style -default SelectIdentityDialog
+    option -identities -default {} -type snit::listtype
+    option -fallbackid -default {} -type snit::listtype
+    delegate option -title to hull
+    delegate option -parent to hull
+    delegate option -geometry to hull
+    component idlistsw
+    component   idlist
+    constructor {args} {
+        installhull using Dialog \
+              -class SelectIdentityDialog -bitmap questhead \
+              -default ok -cancel cancel -modal local -transient yes \
+              -side bottom
+        $hull add ok -text OK -command [mymethod _OK]
+        $hull add cancel -text Cancel -command [mymethod _Cancel]
+        wm protocol $win WM_DELETE_WINDOW [mymethod _Cancel]
+        set frame [$hull getframe]
+        install idlistsw using ScrolledWindow $frame.idlistsw -scrollbar both \
+              -auto both
+        pack $idlistsw -expand yes -fill both
+        install idlist using ttk::treeview [$idlistsw getframe].idlist \
+              -columns {from organization} \
+              -displaycolumns {from organization} \
+              -selectmode browse \
+              -show headings
+        $idlist column from -anchor w -minwidth 100
+        $idlist column organization -anchor w -minwidth 300 -stretch yes
+        $idlist heading from -text "From" -anchor w
+        $idlist heading organization -text "Organization" -anchor w
+        $idlistsw setwidget $idlist
+        $self configurelist $args
+    }
+    method draw {args} {
+        $self configurelist $args
+        $idlist delete [$idlist children {}]
+        foreach id $options(-identities) {
+            $idlist insert {} end -values $id
+        }
+        return [$hull draw]
+    }
+    method _OK {} {
+        set selected [lindex [$idlist selection] 0]
+        $hull withdraw
+        if {$selected eq {}} {
+            return [$hull enddialog $options(-fallbackid)]
+        } else {
+            return [$hull enddialog [$idlist item $selected -values]]
+        }
+    }
+    method _Cancel {} {
+        $hull withdraw
+        return [$hull enddialog $options(-fallbackid)]
+    }              
 }
 
 
