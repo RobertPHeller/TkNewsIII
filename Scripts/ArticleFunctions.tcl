@@ -475,13 +475,23 @@ snit::widget ArticleViewer {
         install bodyButtons using ButtonBox \
               $win.bodyButtons -orient horizontal
         pack $bodyButtons -fill x;# -expand no
-        $bodyButtons add ttk::button close -text "Close" -command [mymethod close]
-        $bodyButtons add ttk::button previous -text "Previous"
-        $bodyButtons add ttk::button next -text "Next"
+        $bodyButtons add ttk::button close -text "Close" -underline 0 -command [mymethod close]
+        bind $articleBody <C> [list $bodyButtons invoke close]
+        bind $articleBody <c> [list $bodyButtons invoke close]
+        $bodyButtons add ttk::button previous -text "Previous" -underline 0
+        bind $articleBody <P> [list $bodyButtons invoke previous]
+        bind $articleBody <p> [list $bodyButtons invoke previous]
+        $bodyButtons add ttk::button next -text "Next" -underline 0
+        bind $articleBody <N> [list $bodyButtons invoke next]
+        bind $articleBody <n> [list $bodyButtons invoke next]
         $bodyButtons add ttk::button save -text "Save" -command [mymethod _Save]
-        $bodyButtons add ttk::button file -text "File" -command [mymethod _File]
+        $bodyButtons add ttk::button file -text "File" -underline 0 -command [mymethod _File]
+        bind $articleBody <F> [list $bodyButtons invoke file]
+        bind $articleBody <f> [list $bodyButtons invoke file]
         $bodyButtons add ttk::button print -text "Print" -command [mymethod _Print]
-        $bodyButtons add ttk::button decrypt -text "Decrypt" -command [mymethod _Decrypt]
+        $bodyButtons add ttk::button decrypt -text "Decrypt" -underline 0 -command [mymethod _Decrypt]
+        bind $articleBody <D> [list $bodyButtons invoke decrypt]
+        bind $articleBody <d> [list $bodyButtons invoke decrypt]
         $self configurelist $args
         $self _restyle_articleHeader
         $self _restyle_articleBody
@@ -492,6 +502,7 @@ snit::widget ArticleViewer {
             #puts stderr "*** $type create $self: options(-geometry) is $options(-geometry)"
             wm geometry $win "$options(-geometry)"
         }
+        focus $articleBody
     }
     method _restyle_articleHeader {} {
         $articleHeader configure \
@@ -536,6 +547,7 @@ snit::widget ArticleViewer {
       if {[string first {220} "$buff"] != 0} {return 0}
       $options(-spool) srv_rdTxtTextBox $articleBody
       $self _GetHeaderFields
+      focus $articleBody
     }
     method readArticleFromFile {filename} {
       $articleBody delete 1.0 end-1c
@@ -548,6 +560,7 @@ snit::widget ArticleViewer {
       }
       close $file
       $self _GetHeaderFields
+      focus $articleBody
     }
     method _collectAddresses {} {
         set lastline [expr {$EOH + 1}]
