@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Fri May 24 09:50:47 2013
-#  Last Modified : <130527.1137>
+#  Last Modified : <180826.0923>
 #
 #  Description	
 #
@@ -93,13 +93,21 @@ snit::widgetadaptor Dialog {
         bind Dialog <Return>         [mytypemethod _Return %W]
     }
     typemethod _ThemeChanged {w} {
-        $w _ThemeChanged
+        catch {$w _ThemeChanged}
     }
     typemethod _Escape {w} {
-        return [$w  _Escape]
+        if {[catch {$w  _Escape} result]} {
+            return {}
+        } else {
+            return $result
+        }
     }
     typemethod _Return {w} {
-        return [$w _Return]
+        if {[catch {$w _Return} result]} {
+            return {}
+        } else {
+            return $result
+        }
     }
     method _ThemeChanged {} {
         set background [ttk::style lookup $options(-style) -background]

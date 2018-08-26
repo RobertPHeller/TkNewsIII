@@ -215,6 +215,7 @@ snit::widget SpoolWindow {
     delegate method {main *} to main
     method setstatus {string} {set status $string}
     method setprogress {n} {set progress $n}
+    variable lockFile ~/.tknewsSpoolLock
     constructor {args} {
         wm iconbitmap $win [IconBitmap bitmap TkNewsIIIicon]
         wm iconmask   $win [IconBitmap bitmap TkNewsIIIicon_mask]
@@ -235,6 +236,29 @@ snit::widget SpoolWindow {
         set options(-useserver) [from args -useserver [option get $win useServer UseServer]]
         set options(-geometry) [from args -geometry [option get $win spoolGeometry SpoolGeometry]]
         set options(-killfile) [from args -killfile [option get $win killFile KillFile]]
+        set lockFile [file join [file dirname $options(-newsrc)] .tknewsSpoolLock]
+        
+        set mypid [pid]
+        if {[file readable $lockFile]} {
+            set lfp [open $lockFile r]
+            set lpid [gets $lfp]
+            close $lfp
+            if {[catch {exec ps h -p $lpid} result] || $result eq ""} {
+                tk_messageBox -type ok -icon info \
+                      -message "Removing state lock file for PID $lpid"
+                file delete $lockFile
+            } else {
+                tk_messageBox -type ok -icon warning \
+                      -message "Spool is in use by PID $lpid"
+                wm withdraw $win
+                return
+            }
+        }
+        set lfp [open $lockFile w]
+        puts $lfp $mypid
+        close $lfp
+                
+                
         
         wm maxsize $win 1024 768
         wm minsize $win 640 10
@@ -397,6 +421,7 @@ snit::widget SpoolWindow {
         if {$options(-useserver)} {catch {$self _Srv_NetClose}}
         catch {unset _LoadedSpools($options(-spoolname))} message
         #      puts stderr "*** ${type}::destructor: unset _LoadedSpools($options(-spoolname)) done: $message"
+        catch {file delete $lockFile}
     }
     method _FetchMyQWKFile {args} {
         eval [list QWKFileProcess GetQWKFile "$options(-spoolname)"] $args
@@ -1673,6 +1698,8 @@ snit::widget SpoolWindow {
 }
 
 ################
+
+
 
 snit::type GetSpoolNameDialog {
     pragma -hastypedestroy no
