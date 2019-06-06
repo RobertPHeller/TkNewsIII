@@ -25,6 +25,10 @@ package require AddressBook
 catch [list source ~/.wishrc]
 option add {*serverName} {localhost} widgetDefault
 option add {*useServer} {no} widgetDefault
+option add {*useIMap4} {no} widgetDefault
+option add {*imap4server} {localhost} widgetDefault
+option add {*iMap4Username} {} widgetDefault
+option add {*iMap4Password} {} widgetDefault
 option add {*externalEditor} {/usr/local/bin/emacs} widgetDefault
 option add {*activeFile} {/var/lib/news/active} widgetDefault
 option add {*spoolDirectory} {/var/spool/news} widgetDefault
