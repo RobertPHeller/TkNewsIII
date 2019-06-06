@@ -233,3 +233,23 @@ else
 fi
 AC_SUBST(CMDLINELIB)
 ])
+
+AC_DEFUN([AX_IMAP4],[
+AC_MSG_CHECKING(imap4 dir)
+searchdirs=`echo 'puts $auto_path'|${TCLSH_PROG}`
+for dir in $searchdirs ; do
+  dirs="${dir}/imap4* ${dir}/tcllib*/imap4*"
+  for i in $dirs ; do
+    if test -d "$i" -a -f "$i/pkgIndex.tcl"; then
+      IMAP4LIB=`cd $i; pwd`
+    fi
+  done
+done
+AC_ARG_WITH(imap4lib, [  --with-imap4lib=DIR          use imap4 from DIR], IMAP4LIB=$withval,)
+if test -d $IMAP4LIB; then
+   AC_MSG_RESULT([using IMAP4 library in $IMAP4LIB])
+else
+   AC_MSG_ERROR(IMAP4 library directory $IMAP4LIB doesn't exist)
+fi
+AC_SUBST(IMAP4LIB)
+])

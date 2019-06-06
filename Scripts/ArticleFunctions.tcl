@@ -549,6 +549,19 @@ snit::widget ArticleViewer {
       $self _GetHeaderFields
       focus $articleBody
     }
+    method IMap4_GetArticleToText {} {
+        #puts stderr "*** $self IMap4_GetArticleToText"
+        $articleBody delete 1.0 end-1c
+        set imapserverchannel [$options(-spool) IMap4ServerChannel]
+        catch {::imap4::close $imapserverchannel}
+        ::imap4::examine $imapserverchannel $groupName
+        ::imap4::fetch $imapserverchannel $articleNumber:$articleNumber HEADER TEXT
+        $articleBody insert end [regsub -all "\r" [::imap4::msginfo $imapserverchannel $articleNumber HEADER] {}]
+        $articleBody insert end [regsub -all "\r" [::imap4::msginfo $imapserverchannel $articleNumber TEXT] {}]
+        $self _GetHeaderFields
+        focus $articleBody
+        ::imap4::close $imapserverchannel
+    }
     method readArticleFromFile {filename} {
       $articleBody delete 1.0 end-1c
       set file [open $filename "r"]

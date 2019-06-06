@@ -203,6 +203,58 @@ snit::type group {
         $spool setprogress 100
         $spool setstatus "Geting Headers from server $numMessages messages"
     }
+    method insertArticleListFromIMAP4 {articleList spool {pattern "."} 
+        {unreadp "0"}} {
+        set firstMessage 1
+        set imapserverchannel [$options(-spool) IMap4ServerChannel]
+        catch {::imap4::close $imapserverchannel}
+        ::imap4::examine $imapserverchannel $options(-name)
+        set last [::imap4::mboxinfo $imapserverchannel EXISTS]
+        set lastMessage $last
+        set $options(-last) $last
+        set numMessages [expr double($lastMessage - $firstMessage + 1)]
+        if {$numMessages <= 0} {return}
+        $spool setstatus "Geting Headers from server"
+        $spool setprogress 0
+        update
+        ::imap4::fetch $imapserverchannel $firstMessage:$lastMessage HEADER
+        set imsg 0
+        for {set m $firstMessage} {$m <= $lastMessage} {incr m} {
+            set header [regsub -all "\r" [::imap4::msginfo $imapserverchannel $m HEADER] {}]
+            set subject {}
+            set from {}
+            set date {}
+            set lines 0
+            set size 0
+            set messageid {}
+            set intrplyto {}
+            regexp -line {^Subject: (.*)$} $header => subject
+            regexp -line {^From: (.*)$} $header => from
+            regexp -line {^Date: (.*)$} $header => date
+            regexp -line {^Lines: (.*)$} $header => lines
+            regexp -line {^Size: (.*)$} $header => size
+            regexp -line {^Message-ID: (.*)$} $header => messageid
+            regexp -line {^Inreply-To: (.*)$} $header => intrplyto
+            set from [RFC822 Name $from]
+            if {[regexp -nocase -- "$pattern" "$subject"]} {
+                if {[string length $subject] > 36} {set subject [string range $subject 0 35]}
+                if {[string length $from] > 20} {set from [string range $from 0 19]}
+                if {[string length $date] > 25} {set date [string range $date 0 24]}
+                #set line "[format  {%6d %s%-36s %-20s %-25s %5d} $m $nread $subject $from $date $lines]"
+                $articleList insertArticleHeader $m 1 $subject $from $date $lines $size $messageid $intrplyto
+                incr imsg
+                if {$imsg == 10} {
+                    set mnum [expr $m - 1]
+                    set mnum [expr double($mnum - $firstMessage)]
+                    $spool setprogress [expr int(($mnum / $numMessages) * 100)]
+                    $spool setstatus "Geting Headers from server $mnum / $numMessages"
+                    update
+                    set imsg 0
+                }
+            }
+        }
+        ::imap4::close $imapserverchannel
+    }
     method insertArticleListFromSpoolDir {articleList spool {pattern "."} 
         {unreadp "0"}} {
         set firstMessage $options(-first)
@@ -409,6 +461,15 @@ snit::type group {
                 return 0
             }
             return [expr [string first {223} "$buff"] == 0]
+        } elseif {[$options(-spool) cget -useimap4]} {
+            set imapserverchannel [$options(-spool) IMap4ServerChannel]
+            catch {::imap4::close $imapserverchannel}
+            ::imap4::examine $imapserverchannel $options(-name)
+            if {[catch {::imap4::fetch $imapserverchannel $a:$a -inline SIZE} size]} {
+                return false
+            }
+            ::imap4::close $imapserverchannel
+            return true
         } else {
             set spoolDirectory [$options(-spool) cget -spooldirectory]
             set filename [file join "$spoolDirectory" [GroupName Path $options(-name)] $a]
@@ -536,7 +597,7 @@ snit::widget GroupTreeFrame {
     delegate method selection to groupTree
     ###
     option -spool -readonly yes -type SpoolWindow
-    option -method -readonly yes -type {snit::enum -values {NNTP File}} -default File
+    option -method -readonly yes -type {snit::enum -values {NNTP IMAP4 File}} -default File
     variable groups -array {}
     variable activeGroupList {}
     constructor {args} {
@@ -600,6 +661,7 @@ snit::widget GroupTreeFrame {
         }
         switch -exact -- "$options(-method)" {
             File {$self _ReadActiveFile [$options(-spool) cget -activefile]}
+            IMAP4 {package require imap4;$self _GetIMap4Folders}
             NNTP {$self _NNTP_GetActiveFile}
         }
         bind $win <Configure> [mymethod _ConfigureHeight %h]
@@ -650,6 +712,7 @@ snit::widget GroupTreeFrame {
     method reloadActiveFile {} {
         switch -exact -- "$options(-method)" {
             File {$self _ReadActiveFile [$options(-spool) cget -activefile]}
+            IMAP4 {$self _GetIMap4Folders}
             NNTP {$self _NNTP_GetActiveFile}
         }
     }
@@ -748,6 +811,28 @@ snit::widget GroupTreeFrame {
                 lappend activeGroupList $name
             } else {
                 $oldgroup configure -first $first -last $last -postable $postable
+            }
+        }
+    }
+    method _GetIMap4Folders {} {
+        set imapserverchannel [$options(-spool) IMap4ServerChannel]
+        set folderList [::imap4::folders $imapserverchannel -inline]
+        catch {::imap4::close $imapserverchannel}
+        foreach folderInfo $folderList {
+            lassign $folderInfo name flags
+            set name [string trim $name {"}]
+            #puts stderr "*** $self _GetIMap4Folders: name = |$name|"
+            if {[catch {::imap4::examine $imapserverchannel $name}]} {continue}
+            set last [::imap4::mboxinfo $imapserverchannel EXISTS]
+            ::imap4::close $imapserverchannel
+            if {[catch "set groups($name)" oldgroup]} {
+                set groups($name) [group create \
+                                   "[$options(-spool) cget -spoolname]_$name" \
+                                   -last $last \
+                                   -name $name -spool $options(-spool)]
+                lappend activeGroupList $name
+            } else {
+                $oldgroup configure -last $last
             }
         }
     }
@@ -955,6 +1040,9 @@ snit::widget GroupTreeFrame {
         } elseif {[$options(-spool) cget -useserver]} {
             $groups($group) insertArticleListFromNNTP $articleList $options(-spool) \
                   $pattern $unreadp
+        } elseif {[$options(-spool) cget -useimap4]} {
+            $groups($group) insertArticleListFromIMAP4 $articleList $options(-spool) \
+                  $pattern $unreadp
         } else {
             $groups($group) insertArticleListFromSpoolDir $articleList \
                   $options(-spool) $pattern $unreadp
@@ -962,10 +1050,12 @@ snit::widget GroupTreeFrame {
         #$articleList see [$articleList items 0]
     }
     method unSubscribeGroup {group} {
+        #puts stderr "*** $self unSubscribeGroup $group"
         $groups($group) configure -subscribed no
         $groupTree delete $group
     }
     method subscribeGroup {group {savedP 1}} {
+        #puts stderr "*** $self subscribeGroup $group $savedP"
         $groups($group) configure -subscribed yes
         $groupTree insert {} end \
               -id $group \
@@ -1072,13 +1162,18 @@ snit::type NewsList {
         set newNewsrc    "$options(-file).new"
         set newsOut [open $newNewsrc w]
         set groups $options(-grouptree)
+        #puts stderr "*** $self write: groups is $groups"
         if {[catch "open $options(-file) r" newsIn]} {
+            #puts stderr "*** $self write: activegroups: [$groups activeGroups]"
             foreach name [$groups activeGroups] {
+                #puts stderr "*** $self write: name = $name"
                 set subflag [$groups groupcget $name -subscribed]
+                #puts stderr "*** $self write: subflag = $subflag"
                 if {$subflag} {
-                    puts -nonewline $newsOut "$name"
+                    #puts -nonewline $newsOut "$name"
                     set comma {:}
                     set ranges [$groups groupgetranges $name]
+                    #puts stderr "*** $self write: ranges = $ranges"
                     foreach r $ranges {
                         puts -nonewline $newsOut "$comma$r"
                         set comma {,}
@@ -1088,6 +1183,7 @@ snit::type NewsList {
                 }	
             }
         } else {
+            set newgroups [$groups activeGroups]
             while {[gets $newsIn line] != -1} {
                 #puts stderr "*** $self write: line is '$line'"
                 set splitC {:}
@@ -1100,6 +1196,8 @@ snit::type NewsList {
                 set list [split $line $splitC]
                 #puts stderr "*** $self write: list is $list (split on $splitC)"
                 set name [lindex $list 0]
+                set i [lsearch -exact $newgroups $name]
+                if {$i >= 0} {set newgroups [lreplace $newgroups $i $i]}
                 #puts stderr "*** $self write: name is $name"
                 puts -nonewline $newsOut "$name"
                 #puts stderr "*** $self write: \[$groups isActiveGroup $name\] => [$groups isActiveGroup $name]"
@@ -1122,6 +1220,23 @@ snit::type NewsList {
                 }
                 if {$comma != {,}} {puts -nonewline $newsOut "$comma"}
                 puts $newsOut {}
+            }
+            foreach name $newgroups {
+                #puts stderr "*** $self write: name = $name"
+                set subflag [$groups groupcget $name -subscribed]
+                #puts stderr "*** $self write: subflag = $subflag"
+                if {$subflag} {
+                    puts -nonewline $newsOut "$name"
+                    set comma {:}
+                    set ranges [$groups groupgetranges $name]
+                    #puts stderr "*** $self write: ranges = $ranges"
+                    foreach r $ranges {
+                        puts -nonewline $newsOut "$comma$r"
+                        set comma {,}
+                    }
+                    if {$comma == {:}} {puts -nonewline $newsOut "$comma"}
+                    puts $newsOut {}
+                }	
             }
             close $newsIn
         }

@@ -189,6 +189,7 @@ snit::widget SpoolWindow {
     component selectIdentityDialog
     
     variable serverchannel
+    variable imapserverchannel
     variable currentArticle {}
     variable currentGroup {}
     variable selectedGroup {}
@@ -197,7 +198,7 @@ snit::widget SpoolWindow {
     variable status {}
     variable progress 0
 
-    option {-activefile activeFile ActiveFile} -type File -default {}
+    option {-activefile activeFile ActiveFile} -type FileOrNull -default {}
     option {-cleanfunction cleanFunction CleanFunction} -readonly yes -type snit::boolean -default no
     option {-newsrc newsRc NewsRc} -readonly yes -type File -default {}
     option {-savednews savedNews SavedNews} -readonly yes -type Directory -default {}
@@ -205,8 +206,12 @@ snit::widget SpoolWindow {
     option {-servername serverName ServerName} -readonly yes -type Host -default localhost
     option {-spellchecker spellChecker SpellChecker} -readonly yes -default {}
     option {-externaleditor externalEditor ExternalEditor} -readonly yes -default {}
-    option {-spooldirectory spoolDirectory SpoolDirectory} -readonly yes -type Directory -default {}
+    option {-spooldirectory spoolDirectory SpoolDirectory} -readonly yes -type DirectoryOrNull -default {}
     option {-useserver useServer UseServer} -readonly yes -type snit::boolean -default no
+    option {-useimap4 useIMap4 UseIMap4} -readonly yes -type snit::boolean -default no
+    option {-imap4server iMap4Server IMap4Server} -readonly yes -type Host -default localhost
+    option {-imap4username iMap4Username IMap4Username} -readonly yes -default {}
+    option {-imap4password iMap4Password IMap4Password} -readonly yes -default {}
     option {-geometry spoolGeometry SpoolGeometry} -readonly yes -default {}
     option {-iconic iconic Iconic} -readonly yes -default 0 -type snit::boolean
     option {-killfile killFile KillFile} -readonly yes -default {} -type File
@@ -234,6 +239,10 @@ snit::widget SpoolWindow {
         set options(-externaleditor) [from args -spellchecker [option get $win externalEditor ExternalEditor]]
         set options(-spooldirectory) [from args -spooldirectory [option get $win spoolDirectory SpoolDirectory]]
         set options(-useserver) [from args -useserver [option get $win useServer UseServer]]
+        set options(-useimap4) [from args -useimap4 [option get $win useIMap4 UseIMap4]]
+        set options(-imap4server) [from args -imap4server [option get $win iMap4Server IMap4Server]]
+        set options(-imap4username) [from args -imap4username [option get $win iMap4Username IMap4Usernae]]
+        set options(-imap4password) [from args -imap4password [option get $win iMap4Password IMap4Password]]
         set options(-geometry) [from args -geometry [option get $win spoolGeometry SpoolGeometry]]
         set options(-killfile) [from args -killfile [option get $win killFile KillFile]]
         set lockFile [file join [file dirname $options(-newsrc)] .tknewsSpoolLock]
@@ -298,18 +307,26 @@ snit::widget SpoolWindow {
                   -message "[$self srv_recv]" -geometry 600x100
             set options(-spooldirectory) {}
             set options(-activefile) {}
+        } elseif {$options(-useimap4)} {
+            package require tls
+            package require imap4
+            set ::imap4::use_ssl yes
+            set imapserverchannel [::imap4::open $options(-imap4server)]
+            ::imap4::login $imapserverchannel $options(-imap4username) $options(-imap4password)
+            set options(-spooldirectory) {}
+            set options(-activefile) {}
         } else {
             set options(-spooldirectory) [file normalize "$options(-spooldirectory)"]
             set options(-activefile) [file normalize "$options(-activefile)"]
             set options(-newsrc) [file normalize "$options(-newsrc)"]
-	}
-	if {![file exists $options(-activefile)]} {
-            close [open $options(-activefile) w]
-	}
-	if {![file exists $options(-spooldirectory)]} {
-            file mkdir $options(-spooldirectory)
-	} elseif {![file isdirectory $options(-spooldirectory)]} {
-            error "$options(-spooldirectory) exists and it is not a directory!"
+            if {![file exists $options(-activefile)]} {
+                close [open $options(-activefile) w]
+            }
+            if {![file exists $options(-spooldirectory)]} {
+                file mkdir $options(-spooldirectory)
+            } elseif {![file isdirectory $options(-spooldirectory)]} {
+                error "$options(-spooldirectory) exists and it is not a directory!"
+            }
 	}
         if {![file exists $options(-newsrc)]} {
             close [open $options(-newsrc) w]
@@ -331,6 +348,8 @@ snit::widget SpoolWindow {
         # Group tree
         if {$options(-useserver)} {
             set method NNTP
+        } elseif {$options(-useimap4)} {
+            set method IMAP4
         } else {
             set method File
         }
@@ -349,7 +368,7 @@ snit::widget SpoolWindow {
         pack $articleListFrame -fill both -expand yes
         #      puts stderr "*** ${type}::constructor: winfo class $articleListFrame = [winfo class $articleListFrame]"
         install selectIdentityDialog using SelectIdentityDialog \
-              .selectIdentityDialog
+              $win.selectIdentityDialog
         $self configurelist $args
         set _LoadedSpools($options(-spoolname)) $self
         set qfile [from args -fromQWK {}]
@@ -462,6 +481,7 @@ snit::widget SpoolWindow {
         #puts stderr "*** $self _CloseSpool: $self _WriteNewsRc done: $message"
         destroy $self
     }
+    method IMap4ServerChannel {} {return $imapserverchannel}
     typevariable _NNTPPort 119
     method _Srv_Connect {} {
         if {[catch [list socket $options(-servername) $_NNTPPort] socket]} {
@@ -701,15 +721,21 @@ snit::widget SpoolWindow {
     }
     #### Art List API...
     method _ReadSelectedArticle {} {
+        #puts stderr "*** $self _ReadSelectedArticle"
         set selection [$articleListFrame selection]
+        #puts stderr "*** $self _ReadSelectedArticle: selection is $selection"
         if {[llength $selection] < 1} {return}
         $self _ReadArticle [lindex $selection 0]
     }
     method _ReadArticle {selection} {
+        #puts stderr "*** $self _ReadArticle $selection"
         set artNumber [$articleListFrame articlenumber $selection]
         $self _ReadArticleN $artNumber
     }
     method _ReadArticleN {artNumber {unread 1}} {
+        #puts stderr "*** $self _ReadArticleN $artNumber $unread"
+        #puts stderr "*** $self _ReadArticleN: -useserver is $options(-useserver)"
+        #puts stderr "*** $self _ReadArticleN: -useimap4 is $options(-useimap4)"
         if {[catch "set savedDirectories($currentGroup)" mdir] == 0} {
             set filename [file join $mdir $artNumber]
             if {![file exists $filename]} {return}
@@ -717,6 +743,10 @@ snit::widget SpoolWindow {
             set currentArticle $artNumber
             set useFile yes
         } elseif {$options(-useserver)} {
+            if {![$groupTreeFrame articleExists $currentGroup $artNumber]} {return}
+            set currentArticle $artNumber
+            set useFile no
+        } elseif {$options(-useimap4)} {
             if {![$groupTreeFrame articleExists $currentGroup $artNumber]} {return}
             set currentArticle $artNumber
             set useFile no
@@ -752,8 +782,13 @@ snit::widget SpoolWindow {
         }
         $articleViewWindow setNumber $currentArticle
         $articleViewWindow setGroup  $currentGroup
+        #puts stderr "*** $self _ReadArticleN: useFile is $useFile"
         if {!$useFile} {
-            $articleViewWindow NNTP_GetArticleToText
+            if {$options(-useimap4)} {
+                $articleViewWindow IMap4_GetArticleToText
+            } else {
+                $articleViewWindow NNTP_GetArticleToText
+            }
         } else {
             $articleViewWindow readArticleFromFile $filename
         }

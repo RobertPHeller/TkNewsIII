@@ -74,6 +74,7 @@ snit::type File {
     option -readable   -default no -readonly yes -type snit::boolean
     option -regular    -default no -readonly yes -type snit::boolean
     option -executable -default no -readonly yes -type snit::boolean
+    option -nullok     -default no -readonly yes -type snit::boolean
     
     typemethod validate {value} {
         if {![file exists $value]} {
@@ -86,6 +87,7 @@ snit::type File {
     }
     
     method validate {value} {
+        if {$value eq {} && $options(-nullok)} {return $value}
         $type validate $value
         if {$options(-directory)} {
             if {![file isdirectory $value]} {
@@ -118,6 +120,8 @@ snit::type File {
 
 File Directory -directory yes
 File RWFile -writable yes -readable yes -regular yes
+File FileOrNull -nullok yes
+File DirectoryOrNull  -directory yes -nullok yes
 
 snit::type Host {
     typemethod validate {value} {

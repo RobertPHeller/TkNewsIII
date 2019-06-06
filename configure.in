@@ -66,6 +66,7 @@ AX_URI
 AX_NCGI
 AX_FILEUTIL
 AX_CMDLINE
+AX_IMAP4
 
 AC_MSG_CHECKING([Checking target Img])
 case $target_cpu in 
@@ -97,7 +98,9 @@ AC_STRUCT_TM
 dnl Checks for library functions.
 AC_CHECK_FUNCS(mkdir regcomp)
 
-AC_OUTPUT(Makefile C/Makefile Scripts/Makefile BuildData/Makefile \
+AC_CONFIG_FILES(Makefile C/Makefile Scripts/Makefile BuildData/Makefile \
           Docs/Makefile Docs/Doxyfile BuildScripts/Makefile GpgME/Makefile \
           BUILDSYMBOLS.tcl)
+AC_CONFIG_SUBDIRS([tls1.6.7])
+AC_OUTPUT
 
