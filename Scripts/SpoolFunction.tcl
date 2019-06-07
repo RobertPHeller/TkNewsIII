@@ -363,7 +363,7 @@ snit::widget SpoolWindow {
         # Article list
         install articleListFrame using ArticleListFrame \
               $artlistPane.articleListFrame \
-              -takefocus 1 -spool $self \
+              -takefocus 1 -spool $self -imap4buttons $options(-useimap4) \
               -height [option get $win spoolNumArticles SpoolNumArticles]
         pack $articleListFrame -fill both -expand yes
         #      puts stderr "*** ${type}::constructor: winfo class $articleListFrame = [winfo class $articleListFrame]"
@@ -762,7 +762,8 @@ snit::widget SpoolWindow {
         if {[string equal $articleViewWindow {}]} {
             install articleViewWindow \
                   using ArticleViewer $win.articleViewWindow \
-                  -parent $win -spool $self
+                  -parent $win -spool $self \
+                  -imap4buttons $options(-useimap4)
         }
         $articleViewWindow draw      
         update idletasks
@@ -795,10 +796,16 @@ snit::widget SpoolWindow {
         $groupTreeFrame findRange $currentGroup $currentArticle yes
         $groupTreeFrame updateGroupLineInTree $currentGroup
         $articleListFrame articleButtonBox configure -state normal
+        if {$options(-useimap4)} {
+            $articleListFrame articleIMapButtonBox configure -state normal
+        }
         $newslist write
     }
     method closeArticle {} {
         $articleListFrame articleButtonBox configure -state disabled
+        if {$options(-useimap4)} {
+            $articleListFrame articleIMapButtonBox configure -state disabled
+        }
     }
     method _UnreadGroup {} {
         $groupTreeFrame groupsetranges $currentGroup {}
@@ -811,6 +818,24 @@ snit::widget SpoolWindow {
     }
     method _FileArticle {} {
         $articleViewWindow buttons invoke file
+    }
+    method _MoveToFolder {} {
+        $articleViewWindow imap4buttons invoke move
+    }
+    method _CopyToFolder {} {
+        $articleViewWindow imap4buttons invoke copy
+    }
+    method _MoveToTrash {} {
+        $articleViewWindow imap4buttons invoke trash
+    }
+    method _EmptyTrash {} {
+        $articleViewWindow imap4buttons invoke empty
+    }
+    method _DeleteFolder {} {
+        $articleViewWindow imap4buttons invoke delete
+    }
+    method _NewFolder {} {
+        $articleViewWindow imap4buttons invoke new
     }
     method addSavedGroupLine {group newsaved} {
         $groupTreeFrame addSavedGroupLineInTree $group $newsaved

@@ -282,6 +282,17 @@ snit::widget ArticleListFrame {
         print {-text {Print} -command "[mymethod _PrintArticle]"}
     }
     typevariable articleButtonsList {followup mailreply forwardto save file print}
+    option -imap4buttons -readonly yes -type snit::boolean
+    component articleIMapButtonBox
+    typevariable articleIMapButtons -array {
+        move {-text {Move To Folder} -command "[mymethod _MoveToFolder]"}
+        copy {-text {Copy To Folder} -command "[mymethod _CopyToFolder]"}
+        trash {-text {Move To Trash} -command "[mymethod _MoveToTrash]"}
+        empty {-text {Empty Trash} -command "[mymethod _EmptyTrash]"}
+        delete {-text {Delete Folder} -command "[mymethod _DeleteFolder]"}
+        new {-text {New Folder} -command "[mymethod _NewFolder]"}
+    }
+    typevariable articleIMapButtonsList {move copy trash empty delete new}
     method _ReadArticleAt {x y} {
         set selection [$articleList identify row $x $y]
         #puts stderr "*** $self _ReadArticleAt: selection is $selection"
@@ -295,6 +306,8 @@ snit::widget ArticleListFrame {
     delegate option -artlistbuttonstate to artlistButtonBox as -state
     delegate method {articleButtonBox *} to articleButtonBox except {add}
     delegate option -articlebuttonstate to articleButtonBox as -state
+    delegate method {articleIMapButtonBox *} to articleIMapButtonBox except {add}
+    delegate option -articleimapbuttonstate to articleIMapButtonBox as -state
     constructor {args} {
         install artlistButtonBox using ButtonBox $win.artlistButtonBox
         pack $artlistButtonBox -fill x
@@ -339,6 +352,16 @@ snit::widget ArticleListFrame {
         #      puts stderr "*** ${type}::constructor: before configurelist: args = $args"
         $articleButtonBox configure -state disabled
         $self configurelist $args
+        # extra imap buttonbox
+        if {$options(-imap4buttons)} {
+            install articleIMapButtonBox using ButtonBox $win.articleIMapButtonBox
+            pack $articleIMapButtonBox -fill x
+            foreach ab $articleIMapButtonsList {
+                set opts [subst $articleIMapButtons($ab)]
+                eval [list $articleIMapButtonBox add ttk::button $ab] $opts
+            }
+            $articleIMapButtonBox configure -state disabled
+        }
         set spoolwindow $options(-spool)
         bind $win <Configure> [mymethod _ConfigureHeight %h]
     }
@@ -394,6 +417,7 @@ snit::widget ArticleViewer {
     widgetclass Viewer
     option -parent -readonly yes -default .
     option -spool  -readonly yes -type SpoolWindow
+    option -imap4buttons -readonly yes -type snit::boolean
     option {-geometry articleGeometry ArticleGeometry} -readonly yes -default {}
 
     variable articleNumber
@@ -414,7 +438,9 @@ snit::widget ArticleViewer {
     component   articleBodySW
     component     articleBody
     component bodyButtons
+    component imap4Buttons
     delegate method {buttons *} to bodyButtons
+    delegate method {imap4buttons *} to imap4Buttons
     
     typevariable PrintCommand
     typeconstructor {
@@ -427,6 +453,7 @@ snit::widget ArticleViewer {
     constructor {args} {
         set options(-parent) [from args -parent]
         set options(-spool)  [from args -spool]
+        set options(-imap4buttons)  [from args -imap4buttons]
         set options(-geometry) [from args -geometry [option get $win articleGeometry ArticleGeometry]]
         wm transient $win $options(-parent)
         wm protocol $win WM_DELETE_WINDOW [mymethod close]
@@ -492,6 +519,17 @@ snit::widget ArticleViewer {
         $bodyButtons add ttk::button decrypt -text "Decrypt" -underline 0 -command [mymethod _Decrypt]
         bind $articleBody <D> [list $bodyButtons invoke decrypt]
         bind $articleBody <d> [list $bodyButtons invoke decrypt]
+        if {$options(-imap4buttons)} {
+            install imap4Buttons using ButtonBox \
+                  $win.imap4Buttons -orient horizontal
+            pack $imap4Buttons -fill x;# -expand no
+            $imap4Buttons add ttk::button move -text {Move To Folder} -command "[mymethod _MoveToFolder]"
+            $imap4Buttons add ttk::button copy -text {Copy To Folder} -command "[mymethod _CopyToFolder]"
+            $imap4Buttons add ttk::button trash -text {Move To Trash} -command "[mymethod _MoveToTrash]"
+            $imap4Buttons add ttk::button empty -text {Empty Trash} -command "[mymethod _EmptyTrash]"
+            $imap4Buttons add ttk::button delete -text {Delete Folder} -command "[mymethod _DeleteFolder]"
+            $imap4Buttons add ttk::button new -text {New Folder} -command "[mymethod _NewFolder]"
+        }
         $self configurelist $args
         $self _restyle_articleHeader
         $self _restyle_articleBody
