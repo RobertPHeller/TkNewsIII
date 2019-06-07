@@ -860,6 +860,15 @@ snit::widget GroupTreeFrame {
     method groupComputeUnread {groupname} {
         return [$groups($groupname) groupComputeUnread]
     }
+    method subscribedGroups {} {
+        set result [list]
+        foreach name $activeGroups {
+            if {[$self groupcget $name -subscribed]} {
+                lappend result $name
+            }
+        }
+        return $result
+    }
     method loadSubscribedGroupTree {pattern saved} {
         $groupTree delete [$groupTree children {}]
         set activeGroups [$self activeGroups]

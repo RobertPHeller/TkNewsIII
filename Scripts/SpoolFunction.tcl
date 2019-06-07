@@ -179,6 +179,7 @@ snit::widget SpoolWindow {
     component   groupTreeFrame
     component artlistPane
     component   articleListFrame
+    delegate method subscribedGroups to groupTreeFrame
     
     option -spoolname -readonly yes
     

@@ -777,6 +777,63 @@ snit::widget ArticleViewer {
                   -geometry 600x200
         }
     }
+    method _MoveToFolder {} {
+        set imapserverchannel [$options(-spool) IMap4ServerChannel]
+        catch {::imap4::close $imapserverchannel}
+        set dest [SelectIMap4FolderDialog draw -parent $win \
+                  -imap4chan $imapserverchannel]
+        if {$dest eq ""} {return}
+        if {$dest eq $groupName} {return}
+        ::imap4::select $imapserverchannel $groupName
+        ::imap4::copy $imapserverchannel $articleNumber $dest
+        ::imap4::store $imapserverchannel $articleNumber:$articleNumber +FLAGS "Deleted"
+        ::imap4::close $imapserverchannel
+    }
+    method _CopyToFolder {} {
+        set imapserverchannel [$options(-spool) IMap4ServerChannel]
+        catch {::imap4::close $imapserverchannel}
+        set dest [SelectIMap4FolderDialog draw -parent $win \
+                  -imap4chan $imapserverchannel]
+        if {$dest eq ""} {return}
+        if {$dest eq $groupName} {return}
+        ::imap4::examine $imapserverchannel $groupName
+        ::imap4::copy $imapserverchannel $articleNumber $dest
+        ::imap4::close $imapserverchannel
+    }
+    method _MoveToTrash {} {
+        set imapserverchannel [$options(-spool) IMap4ServerChannel]
+        catch {::imap4::close $imapserverchannel}
+        set dest Trash
+        if {$dest eq $groupName} {return}
+        ::imap4::select $imapserverchannel $groupName
+        ::imap4::copy $imapserverchannel $articleNumber $dest
+        ::imap4::store $imapserverchannel $articleNumber:$articleNumber +FLAGS "Deleted"
+        ::imap4::close $imapserverchannel
+    }
+    method _EmptyTrash {} {
+        set imapserverchannel [$options(-spool) IMap4ServerChannel]
+        ::imap4::select $imapserverchannel Trash
+        set msgcount [::imap4::mboxinfo $imapserverchannel EXISTS]
+        if {$msgcount < 1} {
+            catch {::imap4::close $imapserverchannel}
+            return
+        }
+        ::imap4::store $imapserverchannel 1:$msgcount +FLAGS "Deleted"
+        ::imap4::close $imapserverchannel
+    }
+    method _DeleteFolder {} {
+        set imapserverchannel [$options(-spool) IMap4ServerChannel]
+        set dest [SelectIMap4FolderDialog draw -parent $win \
+                  -imap4chan $imapserverchannel]
+        if {$dest eq ""} {return}
+        if {$dest eq $groupName} {return}
+        ::imap4::delete $imapserverchannel $dest
+    }
+    method _NewFolder {} {
+        # select *dest* *not from* from ::imap4::folders
+        # ::imap4::create chan *dest*
+    }
+    
     proc _hasMIMEheaders {body} {
         set seenHeaders no
         foreach line [split "$body" "\n"] {
@@ -915,7 +972,120 @@ snit::widget ArticleViewer {
     }
 }
 
-
+snit::widgetadaptor SelectIMap4FolderDialog {
+    typevariable dialogsByParent -array {}
+    option -parent -readonly yes -default .
+    option -imap4chan -default {}
+    delegate option -title to hull
+    
+    component folderTreeSW
+    component folderTree
+    component selectedFolderFrame
+    component   selectedFolderLabel
+    component   selectedFolder
+    
+    constructor {args} {
+        set options(-parent) [from args -parent]
+        installhull using Dialog \
+              -class SelectIMap4FolderDialog -bitmap questhead \
+              -default ok -cancel cancel -modal local -transient yes \
+              -parent $options(-parent) -side bottom
+        #      puts stderr "*** $self constructor: hull = $hull, win = $win, winfo class $win = [winfo class $win]"
+        $hull add  ok -text OK -command [mymethod _OK]
+        $hull add cancel -text Cancel -command [mymethod _Cancel]
+        $hull add help -text Help -command [list HTMLHelp help "Select Folder Dialog"]
+        wm protocol $win WM_DELETE_WINDOW [mymethod _Cancel]
+        install folderTreeSW using ScrolledWindow \
+              [$hull getframe].folderTreeSW \
+              -scrollbar vertical -auto vertical
+        #      puts stderr "*** $self constructor: folderTreeSW = $folderTreeSW, winfo class $folderTreeSW = [winfo class $folderTreeSW]"
+        pack   $folderTreeSW -expand yes -fill both
+        install folderTree using ttk::treeview \
+              [$folderTreeSW getframe].folderTree \
+              -selectmode browse -show {tree}
+        #      puts stderr "*** $self constructor: folderTree = $folderTree, winfo class $folTree = [winfo class $folderTree]"
+        $folderTreeSW setwidget $folderTree
+        $folderTree tag bind row <space> [mymethod _SelectFolder %x %y]
+        $folderTree tag bind row <Button-1> [mymethod _SelectFolder %x %y]
+        $folderTree tag bind row <Return> [mymethod _SelectAndReturnFolder %x %y]
+        $folderTree tag bind row <Double-Button-1> [mymethod _SelectAndReturnFolder %x %y]
+        #      puts stderr "*** $self constructor: about to install selectedFolderLE"
+        install selectedFolderFrame using ttk::frame \
+              [$hull getframe].selectedFolderFrame
+        pack $selectedFolderFrame -fill x -expand yes
+        install selectedFolderLabel using ttk::label \
+              $selectedFolderFrame.selectedFolderLabel \
+              -text {Selected Folder:} -anchor w
+        pack $selectedFolderLabel -side left
+        install selectedFolder using ttk::entry \
+              $selectedFolderFrame.selectedFolder
+        #bind $selectedFolder <Tab> [mymethod _ExpandName]
+        bind $selectedFolder <Return> [mymethod _OK]
+        pack $selectedFolder -side left -fill x -expand yes
+        $self configurelist $args
+        set dialogsByParent($options(-parent)) $self
+    }
+    destructor {
+        catch {unset dialogsByParent($options(-parent))}
+    }
+    method _OK {} {
+        $hull withdraw
+        return [$hull enddialog ok]
+    }
+    method _Cancel {} {
+        $hull withdraw
+        return [$hull enddialog cancel]
+    }
+    method _SelectFolder {x y} {
+        set selection [$folderTree identify row $x $y]
+        $selectedFolder delete 0 end
+        $selectedFolder insert end [$folderTree item $selection -text]
+    }
+    method _SelectAndReturnFolder {x y} {
+        set selection [$folderTree identify row $x $y]
+        $selectedFolder delete 0 end
+        $selectedFolder insert end [$folderTree item $selection -text]
+        $self _OK
+    }
+    method _Draw {args} {
+        $self configurelist $args
+        if {$options(-imap4chan) eq {}} {return {}}
+        $folderTree delete [$folderTree children {}]
+        _fillFolderTree $folderTree $options(-imap4chan) *
+        switch -exact -- [$hull draw] {
+            ok {return "[$selectedFolder get]"}
+            cancel -
+            default {return {}}
+        }
+    }
+    proc _fillFolderTree {ft imap4chan pattern {parent {}}} {
+        #puts stderr "*** SelectFolderDialog::_fillFolderTree: base = $base, pattern = $pattern"
+        #puts stderr "*** SelectFolderDialog::_fillFolderTree: parent is $parent"
+        foreach folderWithFlags [lsort -dictionary [::imap4::folders $imap4chan -inline "" $pattern]] {
+            lassign $folderWithFlags folder flags
+            set folder [regsub {^"} $folder {}]
+            set folder [regsub {"$} $folder {}]
+            set child [$ft insert $parent end -text $folder \
+                       -open no -tags row]
+            #puts stderr "*** SelectFolderDialog::_fillFolderTree: child is $child"
+        }
+    }
+    typemethod draw {args} {
+        set parent [from args -parent {.}]
+        if {[catch "set dialogsByParent($parent)" dialog]} {
+            if {[string equal [string index $parent end] {.}]} {
+                set dialog ${parent}selectIMap4FolderDialog
+            } else {
+                set dialog ${parent}.selectIMap4FolderDialog
+            }
+            set dialog [eval [list $type \
+                              create ${dialog} -parent $parent] \
+                              $args]
+        }
+        return "[eval [list $dialog _Draw] $args]"
+    }
+}
+        
 
 snit::widgetadaptor SelectFolderDialog {
     typevariable dialogsByParent -array {}
