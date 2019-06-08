@@ -288,11 +288,8 @@ snit::widget ArticleListFrame {
         move {-text {Move To Folder} -command "[mymethod _MoveToFolder]"}
         copy {-text {Copy To Folder} -command "[mymethod _CopyToFolder]"}
         trash {-text {Move To Trash} -command "[mymethod _MoveToTrash]"}
-        empty {-text {Empty Trash} -command "[mymethod _EmptyTrash]"}
-        delete {-text {Delete Folder} -command "[mymethod _DeleteFolder]"}
-        new {-text {New Folder} -command "[mymethod _NewFolder]"}
     }
-    typevariable articleIMapButtonsList {move copy trash empty delete new}
+    typevariable articleIMapButtonsList {move copy trash}
     method _ReadArticleAt {x y} {
         set selection [$articleList identify row $x $y]
         #puts stderr "*** $self _ReadArticleAt: selection is $selection"
@@ -810,30 +807,6 @@ snit::widget ArticleViewer {
         ::imap4::store $imapserverchannel $articleNumber:$articleNumber +FLAGS "Deleted"
         ::imap4::close $imapserverchannel
     }
-    method _EmptyTrash {} {
-        set imapserverchannel [$options(-spool) IMap4ServerChannel]
-        ::imap4::select $imapserverchannel Trash
-        set msgcount [::imap4::mboxinfo $imapserverchannel EXISTS]
-        if {$msgcount < 1} {
-            catch {::imap4::close $imapserverchannel}
-            return
-        }
-        ::imap4::store $imapserverchannel 1:$msgcount +FLAGS "Deleted"
-        ::imap4::close $imapserverchannel
-    }
-    method _DeleteFolder {} {
-        set imapserverchannel [$options(-spool) IMap4ServerChannel]
-        set dest [SelectIMap4FolderDialog draw -parent $win \
-                  -imap4chan $imapserverchannel]
-        if {$dest eq ""} {return}
-        if {$dest eq $groupName} {return}
-        ::imap4::delete $imapserverchannel $dest
-    }
-    method _NewFolder {} {
-        # select *dest* *not from* from ::imap4::folders
-        # ::imap4::create chan *dest*
-    }
-    
     proc _hasMIMEheaders {body} {
         set seenHeaders no
         foreach line [split "$body" "\n"] {

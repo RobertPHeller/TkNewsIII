@@ -498,7 +498,9 @@ snit::widget GroupTreeFrame {
     component groupLabelFrame
     component   groupNameLabel
     component   groupButtonBox
+    component   groupIMapButtonBox
     delegate method {groupButtonBox *} to groupButtonBox
+    delegate method {groupIMapButtonBox *} to groupIMapButtonBox
     delegate option -grouplabel to groupNameLabel as -text
     typevariable groupButtons -array {
         unread {-text "Unread\nGroup" -state {disabled} \
@@ -516,6 +518,34 @@ snit::widget GroupTreeFrame {
                   -command "[mymethod _DirectoryOfGroups]"}
         refresh {-text "Refresh\nGroup List"  \
                   -command "[mymethod _RefreshGroupList]"}
+    }
+    typevariable groupIMapButtons -array {
+        empty {-text {Empty Trash} -command "[mymethod _EmptyTrash]"}
+        delete {-text {Delete Folder} -command "[mymethod _DeleteFolder]"}
+        new {-text {New Folder} -command "[mymethod _NewFolder]"}
+    }
+    method _EmptyTrash {} {
+        set imapserverchannel [$options(-spool) IMap4ServerChannel]
+        ::imap4::select $imapserverchannel Trash
+        set msgcount [::imap4::mboxinfo $imapserverchannel EXISTS]
+        if {$msgcount < 1} {
+            catch {::imap4::close $imapserverchannel}
+            return
+        }
+        ::imap4::store $imapserverchannel 1:$msgcount +FLAGS "Deleted"
+        ::imap4::close $imapserverchannel
+    }
+    method _DeleteFolder {} {
+        set imapserverchannel [$options(-spool) IMap4ServerChannel]
+        set dest [SelectIMap4FolderDialog draw -parent $win \
+                  -imap4chan $imapserverchannel]
+        if {$dest eq ""} {return}
+        if {$dest eq $groupName} {return}
+        ::imap4::delete $imapserverchannel $dest
+    }
+    method _NewFolder {} {
+        # select *dest* *not from* from ::imap4::folders
+        # ::imap4::create chan *dest*
     }
     method _UnreadGroup {} {
         $options(-spool) _UnreadGroup
@@ -541,6 +571,7 @@ snit::widget GroupTreeFrame {
         $self reloadActiveFile
         $options(-spool) _LoadGroupTree {.};# 0 Brief
     }
+    
     method _EnableGroupButtons {x y} {
         #puts stderr "*** $self _EnableGroupButtons $x $y"
         set selection [$groupTree identify row $x $y]
@@ -571,7 +602,7 @@ snit::widget GroupTreeFrame {
     }
     typevariable groupButtonsList {unread read close catchup unsubscribe 
         groupdir refresh}
-    
+    typevariable groupIMapButtonsList {empty delete new}
     typevariable columnheadings -array {
         #0,stretch yes
         #0,text Name
@@ -621,6 +652,15 @@ snit::widget GroupTreeFrame {
         pack $groupButtonBox -fill x
         foreach b $groupButtonsList {
             eval [list $groupButtonBox add ttk::button $b] [subst $groupButtons($b)]
+        }
+        set options(-method) [from args -method]
+        if {$options(-method) eq "IMAP4"} {
+            # Imap4 extra group buttons
+            install groupIMapButtonBox using ButtonBox $groupLabelFrame.groupIMapButtonBox
+            pack $groupIMapButtonBox -fill x
+            foreach b $groupIMapButtonsList {
+                eval [list $groupIMapButtonBox add ttk::button $b] [subst $groupIMapButtons($b)]
+            }
         }
         $self configurelist $args
         #parray columnheadings
