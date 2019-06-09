@@ -213,6 +213,7 @@ snit::widget SpoolWindow {
     option {-imap4server iMap4Server IMap4Server} -readonly yes -type Host -default localhost
     option {-imap4username iMap4Username IMap4Username} -readonly yes -default {}
     option {-imap4password iMap4Password IMap4Password} -readonly yes -default {}
+    option {-smtpserver smtpServer SMTPServer} -readonly yes -type Host -default localhost
     option {-geometry spoolGeometry SpoolGeometry} -readonly yes -default {}
     option {-iconic iconic Iconic} -readonly yes -default 0 -type snit::boolean
     option {-killfile killFile KillFile} -readonly yes -default {} -type File
@@ -1634,6 +1635,10 @@ snit::widget SpoolWindow {
         regsub -all {%spool} "$result" "$options(-spooldirectory)" result
         regsub -all {%active} "$result" "$options(-activefile)" result
         regsub -all {%group} "$result" "$group" result
+        if {$options(-useimap4)} {
+            regsub -all {%username} "$result" "$options(-imap4username)" result
+            regsub -all {%password} "$result" "$options(-imap4password)" result
+        }
         return $result
     }
     method editDraft {draftFile} {
@@ -1931,6 +1936,8 @@ snit::widgetadaptor ArticlePostMenu {
         return [$hull enddialog -1]
     }
     method _SendMessage1 {} {
+        package require mime
+        set useinternal no
         if {$options(-useemail)} {
             set inject [option get $options(-groupwindow) emailProgram EmailProgram]
         } else {
@@ -1939,70 +1946,133 @@ snit::widgetadaptor ArticlePostMenu {
         #	puts stderr "*** $self _SendMessage: inject = $inject"
         set inject [$options(-spool) replaceKeys "$inject" $options(-group)]
         #	puts stderr "*** $self _SendMessage (after _ReplaceKeys): inject = $inject"
-        set dFp [open "$options(-draftfile)" r]
-        #	puts stderr "*** $self _SendMessage: dFp = $dFp (open \"$options(-draftfile)\" r)"
-        set iFp [open "|$inject" w]
-        #	puts stderr "*** $self _SendMessage: iFp = $iFp (open \"|$inject\" w)"
-        #        puts stderr "*** $self _SendMessage: options(-attachments) = $options(-attachments)"
-        #        puts stderr "*** $self _SendMessage: llength \$options(-attachments) = [llength $options(-attachments)]"
-        if {[llength $options(-attachments)] == 0} {
-            fcopy $dFp $iFp
+        if {[regexp {^SMTPINTERNAL[[:space:]]*} $inject] > 0} {
+            set injectopts [lrange $inject 1 end]
+            set useinternal yes
+            package require SASL
+            package require smtp
         } else {
-            puts stderr "*** $self _SendMessage: copying base headers"
-            while {[gets $dFp line] > 0 && [string trim "$line"] ne ""} {
-                puts $iFp "$line"
-                puts stderr "*** $self _SendMessage: line = '$line'"
+            set useinternal no
+            set iFp [open "|$inject" w]
+        }
+        set origmessage [::mime::initialize -file "$options(-draftfile)"]
+        if {0} {
+            puts stderr "*** $self _SendMessage1: origmessage properties:"
+            foreach p [::mime::getproperty $origmessage -names] {
+                puts stderr "*** $self _SendMessage1: $origmessage: $p = [::mime::getproperty $origmessage $p]"
             }
-            puts $iFp "MIME-Version: 1.0"
-            puts $iFp "Content-type: multipart/mixed;"
-            set boundary "[$self _CreateBoundary]"
-            puts $iFp "\tboundary=\"$boundary\""
-            puts $iFp "Content-ID: <[$self _CreateCID]>"
-            puts $iFp {
-                This is  a multimedia message in MIME  format.  If you are reading this
-                prefix, your mail reader does  not understand MIME.  You may wish
-                to look into upgrading to a newer version of  your mail reader.
-                
+            puts stderr "*** $self _SendMessage1: origmessage headers:"
+            foreach h [::mime::getheader $origmessage -names] {
+                puts stderr "*** $self _SendMessage1: $origmessage: $h = [::mime::getheader $origmessage $h]"
             }
-            puts $iFp "--$boundary"
-            puts $iFp "Content-ID: <[$self _CreateCID]>"
-            puts $iFp "Content-type: text/plain; charset=us-ascii"
-            puts $iFp "Content-Transfer-Encoding: 7bit"
-            puts $iFp {}
-            fcopy $dFp $iFp
+        }
+        if {[llength $options(-attachments)] == 0} {
+            set messageToken $origmessage
+        } else {
+            set opts [list]
+            if {[::mime::getproperty $origmessage encoding] ne {}} {
+                lappend opts -encoding [::mime::getproperty $origmessage encoding]
+            }
+            lappend opts -param [::mime::getproperty $origmessage params]
+            set parts [list [eval \
+                             [list ::mime::initialize \
+                             -canonical [::mime::getproperty $origmessage content] \
+                             -string [::mime::getbody $origmessage]] $opts]]
+            #puts stderr "*** $self _SendMessage1: parts is $parts"
             foreach attachment $options(-attachments) {
-                puts $iFp "--$boundary"
-                foreach {ctype descr encoding filename} $attachment {
-                    puts $iFp "Content-ID: <[$self _CreateCID]>"
-                    puts $iFp "Content-type: $ctype; name=[file tail $filename]"
-                    if {[string length "$descr"] > 0} {
-                        puts $iFp "Content-Description: $descr"
-                    }
-                    puts $iFp "Content-Transfer-Encoding: $encoding"
-                    puts $iFp {}
-                    switch $encoding {
-                        7bit {
-                            set fp [open "$filename" r]
-                            fcopy $fp $iFp
-                            close $fp
-                        }
-                        quoted-printable {
-                            set fp [open "|[auto_execok mimencode] -q $filename" r]
-                            fcopy $fp $iFp
-                            close $fp
-                        }
-                        base64 {
-                            set fp [open "|[auto_execok mimencode] -b $filename" r]
-                            fcopy $fp $iFp
-                            close $fp
+                lassign $attachment ctype descr encoding filename
+                lappend parts [::mime::initialize -canonical $ctype \
+                               -encoding $encoding \
+                               -header [list Content-Description $descr] \
+                               -param [list name [file tail $filename]] \
+                               -header [list Content-Disposition "attachment; filename=\"[file tail $filename]\""] \
+                               -file $filename]
+                #puts stderr "*** $self _SendMessage1: parts is $parts"
+            }
+            #puts stderr "*** $self _SendMessage1: parts is finally $parts"
+            #set headers [list]
+            #puts stderr "*** $self _SendMessage1: getting headers..."
+            #foreach hname [::mime::getheader $origmessage -names] {
+            #    puts stderr "*** $self _SendMessage1: hname is $hname"
+            #    set hvalues [::mime::getheader $origmessage $hname]
+            #    puts stderr "*** $self _SendMessage1: hvalues is $hvalues"
+            #    foreach hvalue $hvalues {
+            #        puts stderr "*** $self _SendMessage1: hvalue is $hvalue
+            #        lappend headers -header [list $hname $hvalue]
+            #        puts stderr "*** $self _SendMessage1: headers is $headers"
+            #    }
+            #}
+            #puts stderr "*** $self _SendMessage1: headers is finally $headers"
+            set messageToken [::mime::initialize -canonical multipart/related \
+                              -parts $parts]
+            #puts stderr "*** $self _SendMessage1: messageToken is $messageToken"
+            foreach hname [::mime::getheader $origmessage -names] {
+                #puts stderr "*** $self _SendMessage1: hname is $hname"
+                set hvalues [::mime::getheader $origmessage $hname]
+                #puts stderr "*** $self _SendMessage1: hvalues is $hvalues"
+                foreach hvalue $hvalues {
+                    #puts stderr "*** $self _SendMessage1: hvalue is $hvalue"
+                    ::mime::setheader  $messageToken "$hname" "$hvalue" 
+                }
+            }
+            if {0} {
+                puts stderr "*** $self _SendMessage1: messageToken properties:"
+                foreach p [::mime::getproperty $messageToken -names] {
+                    puts stderr "*** $self _SendMessage1: $messageToken: $p = [::mime::getproperty $messageToken $p]"
+                }
+                puts stderr "*** $self _SendMessage1: messageToken headers:"
+                foreach h [::mime::getheader $messageToken -names] {
+                    puts stderr "*** $self _SendMessage1: $messageToken: $h = [::mime::getheader $messageToken $h]"
+                }
+            }
+            ::mime::finalize $origmessage
+        }
+        #puts stderr "*** $self _SendMessage1: message is [::mime::buildmessage $messageToken]"
+        
+        if {$useinternal} {
+            if {[lsearch -exact $injectopts -servers] < 0} {
+                lappend injectopts -servers $options(-smtpserver)
+            }
+            set originator {}
+            set recipients [list]
+            foreach k {From Resent-From} {
+                if {[catch {::mime::getheader $messageToken $k} from]} {continue}
+                if {$from ne {}} {
+                    set parsed [lindex [::mime::parseaddress $from] 0]
+                    #puts stderr "*** $self _SendMessage1: parsed is $parsed"
+                    set index [lsearch -exact $parsed address]
+                    #puts stderr "*** $self _SendMessage1: index is $index"
+                    incr index
+                    set address [lindex $parsed $index]
+                    #puts stderr "*** $self _SendMessage1: address = $address"
+                    set originator $address
+                    break
+                }
+            }
+            foreach k {To Cc Bcc Resent-To Resent-Cc Resent-Bcc} {
+                if {[catch {::mime::getheader $messageToken $k} to]} {continue}
+                foreach t $to {
+                    foreach parsed [::mime::parseaddress $t] {
+                        #puts stderr "*** $self _SendMessage1: parsed is $parsed" 
+                        set index [lsearch -exact $parsed address]
+                        #puts stderr "*** $self _SendMessage1: index is $index"
+                        incr index
+                        set address [lindex $parsed $index]
+                        #puts stderr "*** $self _SendMessage1: address = $address"
+                        if {[lsearch -exact $recipients $address] < 0} {
+                            lappend recipients $address
                         }
                     }
                 }
             }
-            puts $iFp "--$boundary"
+            eval [list ::smtp::sendmessage $messageToken \
+                  -originator $originator \
+                  -recipients $recipients] $injectopts
+        } else {
+            ::mime::copymessage $messageToken $iFp
+            close $iFp
         }
-        close $dFp
-        close $iFp
+        ::mime::finalize $messageToken -subordinates all
     }
     method _SendMessage {} {
         $hull withdraw
@@ -2011,6 +2081,7 @@ snit::widgetadaptor ArticlePostMenu {
             $hull enddialog 0
             error "Error Sending message: $message"
         }
+        #$self _SendMessage1
         return [$hull enddialog 1]
     }
     method _SendMessageEncrypted1 {} { 

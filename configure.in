@@ -67,6 +67,11 @@ AX_NCGI
 AX_FILEUTIL
 AX_CMDLINE
 AX_IMAP4
+AX_SASL
+AX_MIME
+AX_BASE64
+AX_MD5
+AX_OTP
 
 AC_MSG_CHECKING([Checking target Img])
 case $target_cpu in 

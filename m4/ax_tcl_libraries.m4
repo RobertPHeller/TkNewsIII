@@ -253,3 +253,104 @@ else
 fi
 AC_SUBST(IMAP4LIB)
 ])
+
+AC_DEFUN([AX_SASL],[
+AC_MSG_CHECKING(sasl dir)
+searchdirs=`echo 'puts $auto_path'|${TCLSH_PROG}`
+for dir in $searchdirs ; do
+  dirs="${dir}/sasl* ${dir}/tcllib*/sasl*"
+  for i in $dirs ; do
+    if test -d "$i" -a -f "$i/pkgIndex.tcl"; then
+      SASLLIB=`cd $i; pwd`
+    fi
+  done
+done
+AC_ARG_WITH(sasllib, [  --with-sasllib=DIR          use sasl from DIR], SASLLIB=$withval,)
+if test -d $SASLLIB; then
+   AC_MSG_RESULT([using SASL library in $SASLLIB])
+else
+   AC_MSG_ERROR(SASL library directory $SASLLIB doesn't exist)
+fi
+AC_SUBST(SASLLIB)
+])
+
+AC_DEFUN([AX_MIME],[
+AC_MSG_CHECKING(mime dir)
+searchdirs=`echo 'puts $auto_path'|${TCLSH_PROG}`
+for dir in $searchdirs ; do
+  dirs="${dir}/mime* ${dir}/tcllib*/mime*"
+  for i in $dirs ; do
+    if test -d "$i" -a -f "$i/pkgIndex.tcl"; then
+      MIMELIB=`cd $i; pwd`
+    fi
+  done
+done
+AC_ARG_WITH(mimelib, [  --with-mimelib=DIR          use mime from DIR], MIMELIB=$withval,)
+if test -d $MIMELIB; then
+   AC_MSG_RESULT([using MIME library in $MIMELIB])
+else
+   AC_MSG_ERROR(MIME library directory $MIMELIB doesn't exist)
+fi
+AC_SUBST(MIMELIB)
+])
+
+AC_DEFUN([AX_BASE64],[
+AC_MSG_CHECKING(base64 dir)
+searchdirs=`echo 'puts $auto_path'|${TCLSH_PROG}`
+for dir in $searchdirs ; do
+  dirs="${dir}/base64* ${dir}/tcllib*/base64*"
+  for i in $dirs ; do
+    if test -d "$i" -a -f "$i/pkgIndex.tcl"; then
+      BASE64LIB=`cd $i; pwd`
+    fi
+  done
+done
+AC_ARG_WITH(base64lib, [  --with-base64lib=DIR          use base64 from DIR], BASE64LIB=$withval,)
+if test -d $BASE64LIB; then
+   AC_MSG_RESULT([using BASE64 library in $BASE64LIB])
+else
+   AC_MSG_ERROR(BASE64 library directory $BASE64LIB doesn't exist)
+fi
+AC_SUBST(BASE64LIB)
+])
+
+AC_DEFUN([AX_MD5],[
+AC_MSG_CHECKING(md5 dir)
+searchdirs=`echo 'puts $auto_path'|${TCLSH_PROG}`
+for dir in $searchdirs ; do
+  dirs="${dir}/md5 ${dir}/tcllib*/md5"
+  for i in $dirs ; do
+    if test -d "$i" -a -f "$i/pkgIndex.tcl"; then
+      MD5LIB=`cd $i; pwd`
+    fi
+  done
+done
+AC_ARG_WITH(md5lib, [  --with-md5lib=DIR          use md5 from DIR], MD5LIB=$withval,)
+if test -d $MD5LIB; then
+   AC_MSG_RESULT([using MD5 library in $MD5LIB])
+else
+   AC_MSG_ERROR(MD5 library directory $MD5LIB doesn't exist)
+fi
+AC_SUBST(MD5LIB)
+])
+
+AC_DEFUN([AX_OTP],[
+AC_MSG_CHECKING(otp dir)
+searchdirs=`echo 'puts $auto_path'|${TCLSH_PROG}`
+for dir in $searchdirs ; do
+  dirs="${dir}/otp* ${dir}/tcllib*/otp*"
+  for i in $dirs ; do
+    if test -d "$i" -a -f "$i/pkgIndex.tcl"; then
+      OTPLIB=`cd $i; pwd`
+    fi
+  done
+done
+AC_ARG_WITH(otplib, [  --with-otplib=DIR          use otp from DIR], OTPLIB=$withval,)
+if test -d $OTPLIB; then
+   AC_MSG_RESULT([using OTP library in $OTPLIB])
+else
+   AC_MSG_ERROR(OTP library directory $OTPLIB doesn't exist)
+fi
+AC_SUBST(OTPLIB)
+])
+
