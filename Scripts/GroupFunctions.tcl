@@ -544,8 +544,11 @@ snit::widget GroupTreeFrame {
         ::imap4::delete $imapserverchannel $dest
     }
     method _NewFolder {} {
-        # select *dest* *not from* from ::imap4::folders
-        # ::imap4::create chan *dest*
+        set newFolderName [SelectNewIMap4Folder draw \
+                           -parent $win \
+                           -imap4chan [$options(-spool) IMap4ServerChannel]]
+        if {$newFolderName eq {}} {return}
+        ::imap4::create chan $newFolderName
     }
     method _UnreadGroup {} {
         $options(-spool) _UnreadGroup
@@ -1440,6 +1443,82 @@ snit::widgetadaptor DirectoryOfAllGroupsDialog {
         return [eval [list $type create $window] $args]
     }
 }
+
+snit::widgetadaptor SelectNewIMap4Folder {
+    typevariable dialogsByParent -array {}
+    option -parent -readonly yes -default .
+    option -imap4chan -default {}
+    delegate option -title to hull
+    
+    component selectedFolderFrame
+    component   selectedFolderLabel
+    component   selectedFolder
+    
+    constructor {args} {
+        set options(-parent) [from args -parent]
+        installhull using Dialog \
+              -class SelectNewIMap4FolderDialog  -bitmap questhead \
+              -default ok -cancel cancel -modal local -transient yes \
+              -parent $options(-parent) -side bottom
+        $hull add  ok -text OK -command [mymethod _OK]
+        $hull add cancel -text Cancel -command [mymethod _Cancel]
+        $hull add help -text Help -command [list HTMLHelp help "Select Folder Dialog"]
+        wm protocol $win WM_DELETE_WINDOW [mymethod _Cancel]
+        install selectedFolderFrame using ttk::frame \
+              [$hull getframe].selectedFolderFrame
+        pack $selectedFolderFrame -fill x -expand yes
+        install selectedFolderLabel using ttk::label \
+              $selectedFolderFrame.selectedFolderLabel \
+              -text {Selected Folder:} -anchor w
+        pack $selectedFolderLabel -side left
+        install selectedFolder using ttk::entry \
+              $selectedFolderFrame.selectedFolder
+        bind $selectedFolder <Return> [mymethod _OK]
+        pack $selectedFolder -side left -fill x -expand yes
+        $self configurelist $args
+        set dialogsByParent($options(-parent)) $self
+    }
+    destructor {
+        catch {unset dialogsByParent($options(-parent))}
+    }
+    method _OK {} {
+        ::imap4::folders $options(-imap4chan) *
+        if {"\"[$selectedFolder get]\"" in [::imap4::folderinfo $options(-imap4chan) names]} {
+            return
+        }
+        $hull withdraw
+        return [$hull enddialog ok]
+    }
+    method _Cancel {} {
+        $hull withdraw
+        return [$hull enddialog cancel]
+    }
+    method _Draw {args} {
+        $self configurelist $args
+        if {$options(-imap4chan) eq {}} {return {}}
+        switch -exact -- [$hull draw] {
+            ok {return "[$selectedFolder get]"}
+            cancel -
+            default {return {}}
+        }
+    }
+    typemethod draw {args} {
+        set parent [from args -parent {.}]
+        if {[catch "set dialogsByParent($parent)" dialog]} {
+            if {[string equal [string index $parent end] {.}]} {
+                set dialog ${parent}selectIMap4FolderDialog
+            } else {
+                set dialog ${parent}.selectIMap4FolderDialog
+            }
+            set dialog [eval [list $type \
+                              create ${dialog} -parent $parent] \
+                              $args]
+        }
+        return "[eval [list $dialog _Draw] $args]"
+    }
+        
+}
+
 
 package provide GroupFunctions 1.0
 

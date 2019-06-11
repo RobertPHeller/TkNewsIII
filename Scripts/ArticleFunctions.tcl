@@ -992,7 +992,7 @@ snit::widgetadaptor SelectIMap4FolderDialog {
         pack $selectedFolderLabel -side left
         install selectedFolder using ttk::entry \
               $selectedFolderFrame.selectedFolder
-        #bind $selectedFolder <Tab> [mymethod _ExpandName]
+        #bind $selectedFolder <Tab> "[mymethod _ExpandName];break"
         bind $selectedFolder <Return> [mymethod _OK]
         pack $selectedFolder -side left -fill x -expand yes
         $self configurelist $args
@@ -1031,9 +1031,33 @@ snit::widgetadaptor SelectIMap4FolderDialog {
             default {return {}}
         }
     }
+    #method _ExpandName {} {
+    #    set current [$selectedFolder get]
+    #    
+    #    set folders [lsort -dictionary [::imap4::folders $options(-imap4chan) -inline "" "${current}*"]]
+    #    puts stderr "*** $self _ExpandName: current = $current, folders = $folders"
+    #    if {[llength $folders] == 0} {return}
+    #    set nextletters [list]
+    #    foreach fF $folders {
+    #        lassign $fF folder flags
+    #        puts stderr "*** $self _ExpandName: folder is $folder"
+    #        regsub {^"(+*)"$} $folder => folder
+    #        if {[regexp "^${current}(.)" $folder => letter] > 0} {
+    #            if {[lsearch $nextletters $letter] < 0} {
+    #                lappend nextletters $letter
+    #            }
+    #        }
+    #    }
+    #    puts stderr "*** $self _ExpandName: nextletters is $nextletters"
+    #    if {[llength $nextletters] == 1} {
+    #        $selectedFolder insert end [lindex $nextletters 0]
+    #        $self _ExpandName
+    #    }
+    #    return
+    #}
     proc _fillFolderTree {ft imap4chan pattern {parent {}}} {
-        #puts stderr "*** SelectFolderDialog::_fillFolderTree: base = $base, pattern = $pattern"
-        #puts stderr "*** SelectFolderDialog::_fillFolderTree: parent is $parent"
+        #puts stderr "*** SelectIMap4FolderDialog::_fillFolderTree: base = $base, pattern = $pattern"
+        #puts stderr "*** SelectIMap4FolderDialog::_fillFolderTree: parent is $parent"
         foreach folderWithFlags [lsort -dictionary [::imap4::folders $imap4chan -inline "" $pattern]] {
             lassign $folderWithFlags folder flags
             set folder [regsub {^"} $folder {}]
@@ -1107,7 +1131,7 @@ snit::widgetadaptor SelectFolderDialog {
         pack $selectedFolderLabel -side left
         install selectedFolder using ttk::entry \
               $selectedFolderFrame.selectedFolder
-        bind $selectedFolder <Tab> [mymethod _ExpandName]
+        bind $selectedFolder <Tab> "[mymethod _ExpandName];break"
         bind $selectedFolder <Return> [mymethod _OK]
         pack $selectedFolder -side left -fill x -expand yes
         $self configurelist $args
