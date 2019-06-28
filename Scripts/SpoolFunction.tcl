@@ -1817,7 +1817,7 @@ snit::type GetSpoolNameDialog {
         $spoolNameEntry insert end $selection
     }
     typemethod _ReturnFromList {x y} {
-        $self _SelectFromList $x $y
+        $type _SelectFromList $x $y
         $type _OK
     }
     typemethod draw {args} {
@@ -1832,7 +1832,7 @@ snit::type GetSpoolNameDialog {
             set spoolList [option get . spoolList SpoolList]
         }
         foreach sp $spoolList {
-            $spoolTree insert {} end -id $sp -text $sp
+            $spoolTree insert {} end -id $sp -text $sp -tags spool
         }
         set parent [from args -parent .]
         $dialog configure -parent $parent
