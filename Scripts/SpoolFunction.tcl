@@ -255,8 +255,8 @@ snit::widget SpoolWindow {
             set lpid [gets $lfp]
             close $lfp
             if {[catch {exec ps h -p $lpid} result] || $result eq ""} {
-                tk_messageBox -type ok -icon info \
-                      -message "Removing state lock file for PID $lpid"
+                #tk_messageBox -type ok -icon info \
+                #      -message "Removing state lock file for PID $lpid"
                 file delete $lockFile
             } else {
                 tk_messageBox -type ok -icon warning \
