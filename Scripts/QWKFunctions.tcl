@@ -151,6 +151,7 @@ snit::type QWKFileProcess {
         incr processRunning
         fileevent $stdoutPipeFp readable [mymethod _PipeToLog]
         if {$processRunning > 0} {tkwait variable [myvar processRunning]}
+        puts stderr "*** $type create $self: processErrorP is $processErrorP"
         $progressWindow configure -abortfunction {}
         incr done
         if {$processErrorP} {
@@ -189,7 +190,8 @@ snit::type QWKFileProcess {
         if {[gets $stdoutPipeFp line] >= 0} {
             $progressWindow addTextToLog "$line"
         } else {
-            set processErrorP [catch "close $stdoutPipeFp"]
+            set processErrorP [catch "close $stdoutPipeFp" processError]
+            if {$processErrorP} {puts stderr "*** $self _PipeToLog: pipe closed with error: $processError"}
             incr processRunning -1
         }
         update idle
