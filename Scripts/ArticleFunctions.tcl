@@ -1124,7 +1124,7 @@ snit::widgetadaptor SelectFolderDialog {
         #      puts stderr "*** $self constructor: about to install selectedFolderLE"
         install selectedFolderFrame using ttk::frame \
               [$hull getframe].selectedFolderFrame
-        pack $selectedFolderFrame -fill x -expand yes
+        pack $selectedFolderFrame -fill x
         install selectedFolderLabel using ttk::label \
               $selectedFolderFrame.selectedFolderLabel \
               -text {Selected Folder:} -anchor w
@@ -1177,6 +1177,8 @@ snit::widgetadaptor SelectFolderDialog {
             $selectedFolder insert end [lindex $nextletters 0]
             $self _ExpandName
         }
+        $folderTree delete [$folderTree children {}]
+        _fillFolderTree $folderTree $options(-basedirectory) [$selectedFolder get]*
         return
     }        
     method _Draw {args} {
