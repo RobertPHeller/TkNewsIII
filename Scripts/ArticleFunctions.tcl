@@ -610,15 +610,21 @@ snit::widget ArticleViewer {
           }
       }
       $articleBody insert end "\n"
-      switch [::mime::getproperty $message content] {
+      switch -glob [::mime::getproperty $message content] {
           text/plain {
               $articleBody insert end "[::mime::getbody $message]\n"
           }
           multipart/* {
+              set displayed no
               foreach p [::mime::getproperty $message parts] {
                   if {[::mime::getproperty $p content] eq {text/plain}} {
                       $articleBody insert end "[::mime::getbody $p]\n"
+                      set displayed yes
+                      break
                   }
+              }
+              if {!$displayed} {
+                  $articleBody insert end "No text/plain part!\n"
               }
           }
           default {
