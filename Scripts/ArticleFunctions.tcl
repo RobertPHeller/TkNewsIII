@@ -56,7 +56,7 @@ package require CommonFunctions
 package require Dialog
 package require ROText
 package require HTMLHelp
-package require snit
+package require mime
 
 snit::macro ArticleListMethods {} {
     typevariable columnheadings -array {
@@ -599,14 +599,34 @@ snit::widget ArticleViewer {
     }
     method readArticleFromFile {filename} {
       $articleBody delete 1.0 end-1c
-      set file [open $filename "r"]
-      set block [read $file 4096]
-      while {[string length "$block"] > 0} {
-	$articleBody insert end "$block"
-	update idletasks
-	set block [read $file 4096]
+      set message [::mime::initialize -file $filename]
+      foreach h [::mime::getheader $message -names] {
+          if {[regexp {^From } $h] > 0} {
+              $articleBody insert end "$h:[lindex [::mime::getheader $message $h] 0]\n"
+          } else {
+              foreach hv [::mime::getheader $message $h] {
+                  $articleBody insert end "$h: $hv\n"
+              }
+          }
       }
-      close $file
+      $articleBody insert end "\n"
+      switch [::mime::getproperty $message content] {
+          text/plain {
+              $articleBody insert end "[::mime::getbody $message]\n"
+          }
+          multipart/* {
+              foreach p [::mime::getproperty $message parts] {
+                  if {[::mime::getproperty $p content] eq {text/plain}} {
+                      $articleBody insert end "[::mime::getbody $p]\n"
+                  }
+              }
+          }
+          default {
+              $articleBody insert end "[::mime::getproperty $message content]\n"
+              $articleBody insert end "[::mime::getbody $message]\n"
+          }
+      }
+      ::mime::finalize $message
       $self _GetHeaderFields
       focus $articleBody
     }
