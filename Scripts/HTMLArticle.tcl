@@ -1,4 +1,4 @@
-##############################################################################
+#*****************************************************************************
 #
 #  System        : 
 #  Module        : 
@@ -7,8 +7,8 @@
 #  Date          : $Date$
 #  Author        : $Author$
 #  Created By    : Robert Heller
-#  Created       : Mon May 27 10:14:03 2013
-#  Last Modified : <200513.1807>
+#  Created       : Wed May 13 16:38:33 2020
+#  Last Modified : <200514.0740>
 #
 #  Description	
 #
@@ -16,797 +16,77 @@
 #
 #  History
 #	
-##############################################################################
+#*****************************************************************************
 #
-#  Copyright (c) 2013 Deepwoods Software.
-# 
-#  All Rights Reserved.
-# 
-#  This  document  may  not, in  whole  or in  part, be  copied,  photocopied,
-#  reproduced,  translated,  or  reduced to any  electronic  medium or machine
-#  readable form without prior written consent from Deepwoods Software.
+#    Copyright (C) 2020  Robert Heller D/B/A Deepwoods Software
+#			51 Locke Hill Road
+#			Wendell, MA 01379-9728
 #
-##############################################################################
-#* Simple HTML display library by Stephen Uhler (stephen.uhler@sun.com)
-#* Copyright (c) 1995 by Sun Microsystems
-#* Version 0.3 Fri Sep  1 10:47:17 PDT 1995
-#*
-#* Modified to support some 8.0 and 8.1 font conventions by Clif Flynt
-#*	(clif@cflynt.com)
-#*   Modifications copyright (c) 1998 by Flynt Consulting Services, 
-#* Version 0.3.1 Jan 10, 1999
-#*
-#*   Modifications copyright (c) 1999 by Flynt Consulting Services, 
-#* Added table support (another new idea).  7/31/99
-#*   Version 0.3.2 July, 31, 1999
-#*
-#*   Modifications copyright (c) 1999 by Flynt Consulting Services, 
-#* Modified table support - support for lists in tables
-#*                          beginning of support for nested tables.
-#*                          fixed italics
-#*   Version 0.3.3 Sep, 29, 1999
-#*
-#*   Modifications copyright (c) 2000 by Flynt Consulting Services, 
-#* Modified table support - improved support for nested tables.
-#*                          Changed default font to helvetica
-#*   Version 0.3.4 April 27, 2000
-#*
-#*  Modifications copyright (c) 2009 by Robert Heller D/B/A Deepwoods Software
-#* Embeded into a SNIT Widget Adapter object, using a BWidget Dialog widget, and
-#* other 'scenery' to create a full featured help dialog object
-#* Added in *limited* CSS support (sufficient to handle tex4ht's output).
-#*
-#*  Released as part of the Model Railroad System Version 2.1.21 Sept 1, 2009
-#* 
-#*
-#* Original license terms:
-#*
-#* Sun Microsystems, Inc.  The following terms apply to all files
-#* a ssociated with the software unless explicitly disclaimed in individual
-#* files.
-#* 
-#* The authors hereby grant permission to use, copy, modify, distribute,
-#* and license this software and its documentation for any purpose, provided
-#* that existing copyright notices are retained in all copies and that this
-#* notice is included verbatim in any distributions. No written agreement,
-#* license, or royalty fee is required for any of the authorized uses.
-#* Modifications to this software may be copyrighted by their authors
-#* and need not follow the licensing terms described here, provided that
-#* the new terms are clearly indicated on the first page of each file where
-#* they apply.
-#* 
-#* IN NO EVENT SHALL THE AUTHORS OR DISTRIBUTORS BE LIABLE TO ANY PARTY
-#* FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES
-#* ARISING OUT OF THE USE OF THIS SOFTWARE, ITS DOCUMENTATION, OR ANY
-#* DERIVATIVES THEREOF, EVEN IF THE AUTHORS HAVE BEEN ADVISED OF THE
-#* POSSIBILITY OF SUCH DAMAGE.
-#* 
-#* THE AUTHORS AND DISTRIBUTORS SPECIFICALLY DISCLAIM ANY WARRANTIES,
-#* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY,
-#* FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.  THIS SOFTWARE
-#* IS PROVIDED ON AN "AS IS" BASIS, AND THE AUTHORS AND DISTRIBUTORS HAVE
-#* NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR
-#* MODIFICATIONS.
-#* 
-#* RESTRICTED RIGHTS: Use, duplication or disclosure by the government
-#* is subject to the restrictions as set forth in subparagraph (c) (1) (ii)
-#* of the Rights in Technical Data and Computer Software Clause as DFARS
-#* 252.227-7013 and FAR 52.227-19.
-
-
-
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program; if not, write to the Free Software
+#    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+# 
+#
+#*****************************************************************************
 
 package require Tk
-package require tile
-package require snit
-package require Img
-package require Dialog
-package require ScrollWindow
+package require tile;#               Themed Widgets
+package require snit;#               OO Framework
+package require Img;#                Extended image support
+package require MainFrame;#          Basic Main Frame
+package require ScrollWindow;#       Scrolled Window
+package require DynamicHelp;#        Dynamic Help Code
+package require IconImage;#          Icon image Loader / cache
+package require ButtonBox;#          Button Box
+package require CommonFunctions
+package require ROText
+package require HTMLHelp
+package require mime
 
-catch {
-  bind HelpText <1> {
-    tk::TextButton1 %W %x %y
-    %W tag remove sel 0.0 end
-  }
-  bind HelpText <B1-Motion> {
-    set tk::Priv(x) %x
-    set tk::Priv(y) %y
-    tk::TextSelectTo %W %x %y
-  }
-  bind HelpText <Double-1> {
-    set tk::Priv(selectMode) word
-    tk::TextSelectTo %W %x %y
-    catch {%W mark set insert sel.first}
-  }
-  bind HelpText <Triple-1> {
-    set tk::Priv(selectMode) line
-    tk::TextSelectTo %W %x %y
-    catch {%W mark set insert sel.first}
-  }
-  bind HelpText <Shift-1> {
-    tk::TextResetAnchor %W @%x,%y
-    set tk::Priv(selectMode) char
-    tk::TextSelectTo %W %x %y
-  }
-  bind HelpText <Double-Shift-1>	{
-    set tk::Priv(selectMode) word
-    tk::TextSelectTo %W %x %y
-  }
-  bind HelpText <Triple-Shift-1>	{
-    set tk::Priv(selectMode) line
-    tk::TextSelectTo %W %x %y
-  }
-  bind HelpText <B1-Leave> {
-    set tk::Priv(x) %x
-    set tk::Priv(y) %y
-    tk::TextAutoScan %W
-  }
-  bind HelpText <B1-Enter> {
-    tk::CancelRepeat
-  }
-  bind HelpText <ButtonRelease-1> {
-    tk::CancelRepeat
-  }
-  bind HelpText <Control-1> {
-    %W mark set insert @%x,%y
-  }
-  bind HelpText <Left> {
-    tk::TextSetCursor %W insert-1c
-  }
-  bind HelpText <Right> {
-    tk::TextSetCursor %W insert+1c
-  }
-  bind HelpText <Up> {
-    tk::TextSetCursor %W [tk::TextUpDownLine %W -1]
-  }
-  bind HelpText <Down> {
-    tk::TextSetCursor %W [tk::TextUpDownLine %W 1]
-  }
-  bind HelpText <Shift-Left> {
-    tk::TextKeySelect %W [%W index {insert - 1c}]
-  }
-  bind HelpText <Shift-Right> {
-    tk::TextKeySelect %W [%W index {insert + 1c}]
-  }
-  bind HelpText <Shift-Up> {
-    tk::TextKeySelect %W [tk::TextUpDownLine %W -1]
-  }
-  bind HelpText <Shift-Down> {
-    tk::TextKeySelect %W [tk::TextUpDownLine %W 1]
-  }
-  bind HelpText <Control-Left> {
-    tk::TextSetCursor %W [tk::TextPrevPos %W insert tcl_startOfPreviousWord]
-  }
-  bind HelpText <Control-Right> {
-    tk::TextSetCursor %W [tk::TextNextWord %W insert]
-  }
-  bind HelpText <Control-Up> {
-    tk::TextSetCursor %W [tk::TextPrevPara %W insert]
-  }
-  bind HelpText <Control-Down> {
-    tk::TextSetCursor %W [tk::TextNextPara %W insert]
-  }
-  bind HelpText <Shift-Control-Left> {
-    tk::TextKeySelect %W [tk::TextPrevPos %W insert tcl_startOfPreviousWord]
-  }
-  bind HelpText <Shift-Control-Right> {
-    tk::TextKeySelect %W [tk::TextNextWord %W insert]
-  }
-  bind HelpText <Shift-Control-Up> {
-    tk::TextKeySelect %W [tk::TextPrevPara %W insert]
-  }
-  bind HelpText <Shift-Control-Down> {
-    tk::TextKeySelect %W [tk::TextNextPara %W insert]
-  }
-  bind HelpText <Prior> {
-    tk::TextSetCursor %W [tk::TextScrollPages %W -1]
-  }
-  bind HelpText <Shift-Prior> {
-    tk::TextKeySelect %W [tk::TextScrollPages %W -1]
-  }
-  bind HelpText <Next> {
-    tk::TextSetCursor %W [tk::TextScrollPages %W 1]
-  }
-  bind HelpText <Shift-Next> {
-    tk::TextKeySelect %W [tk::TextScrollPages %W 1]
-  }
-  bind HelpText <Control-Prior> {
-    %W xview scroll -1 page
-  }
-  bind HelpText <Control-Next> {
-    %W xview scroll 1 page
-  }
-
-  bind HelpText <Home> {
-    tk::TextSetCursor %W {insert linestart}
-  }
-  bind HelpText <Shift-Home> {
-    tk::TextKeySelect %W {insert linestart}
-  }
-  bind HelpText <End> {
-    tk::TextSetCursor %W {insert lineend}
-  }
-  bind HelpText <Shift-End> {
-    tk::TextKeySelect %W {insert lineend}
-  }
-  bind HelpText <Control-Home> {
-    tk::TextSetCursor %W 1.0
-  }
-  bind HelpText <Control-Shift-Home> {
-    tk::TextKeySelect %W 1.0
-  }
-  bind HelpText <Control-End> {
-    tk::TextSetCursor %W {end - 1 char}
-  }
-  bind HelpText <Control-Shift-End> {
-    tk::TextKeySelect %W {end - 1 char}
-  }
-  bind HelpText <Control-space> {
-    %W mark set anchor insert
-  }
-  bind HelpText <Select> {
-    %W mark set anchor insert
-  }
-  bind HelpText <Control-Shift-space> {
-    set tk::Priv(selectMode) char
-    tk::TextKeyExtend %W insert
-  }
-  bind HelpText <Shift-Select> {
-    set tk::Priv(selectMode) char
-    tk::TextKeyExtend %W insert
-  }
-  bind HelpText <Control-slash> {
-    %W tag add sel 1.0 end
-  }
-  bind HelpText <Control-backslash> {
-    %W tag remove sel 1.0 end
-  }
-  bind HelpText <<Copy>> {
-    tk::_textCopy %W
-  }
-  # Additional emacs-like bindings:
-
-  bind HelpText <Control-a> {
-    if {!$tk::_strictMotif} {
-	tk::TextSetCursor %W {insert linestart}
-    }
-  }
-  bind HelpText <Control-b> {
-    if {!$tk::_strictMotif} {
-	tk::TextSetCursor %W insert-1c
-    }
-  }
-  bind HelpText <Control-e> {
-    if {!$tk::_strictMotif} {
-	tk::TextSetCursor %W {insert lineend}
-    }
-  }
-  bind HelpText <Control-f> {
-    if {!$tk::_strictMotif} {
-	tk::TextSetCursor %W insert+1c
-    }
-  }
-  bind HelpText <Control-n> {
-    if {!$tk::_strictMotif} {
-	tk::TextSetCursor %W [tk::TextUpDownLine %W 1]
-    }
-  }
-  bind HelpText <Control-p> {
-    if {!$tk::_strictMotif} {
-	tk::TextSetCursor %W [tk::TextUpDownLine %W -1]
-    }
-  }
-  if {$tcl_platform(platform) != "windows"} {
-	bind HelpText <Control-v> {
-	    if {!$tk::_strictMotif} {
-		tk::TextScrollPages %W 1
-	    }
-	}
-  }
-  bind HelpText <Meta-b> {
-    if {!$tk::_strictMotif} {
-	tk::TextSetCursor %W [tk::TextPrevPos %W insert tcl_startOfPreviousWord]
-    }
-  }
-  bind HelpText <Meta-f> {
-    if {!$tk::_strictMotif} {
-	tk::TextSetCursor %W [tk::TextNextWord %W insert]
-    }
-  }
-  bind HelpText <Meta-less> {
-    if {!$tk::_strictMotif} {
-	tk::TextSetCursor %W 1.0
-    }
-  }
-  bind HelpText <Meta-greater> {
-    if {!$tk::_strictMotif} {
-	tk::TextSetCursor %W end-1c
-    }
-  }
-  # Macintosh only bindings:
-
-  # if text black & highlight black -> text white, other text the same
-  if {$tcl_platform(platform) == "macintosh"} {
-	bind HelpText <FocusIn> {
-	    %W tag configure sel -borderwidth 0
-	    %W configure -selectbackground systemHighlight -selectforeground systemHighlightText
-	}
-	bind HelpText <FocusOut> {
-	    %W tag configure sel -borderwidth 1
-	    %W configure -selectbackground white -selectforeground black
-	}
-	bind HelpText <Option-Left> {
-	    tk::TextSetCursor %W [tk::TextPrevPos %W insert tcl_startOfPreviousWord]
-	}
-	bind HelpText <Option-Right> {
-	    tk::TextSetCursor %W [tk::TextNextWord %W insert]
-	}
-	bind HelpText <Option-Up> {
-	    tk::TextSetCursor %W [tk::TextPrevPara %W insert]
-	}
-	bind HelpText <Option-Down> {
-	    tk::TextSetCursor %W [tk::TextNextPara %W insert]
-	}
-	bind HelpText <Shift-Option-Left> {
-	    tk::TextKeySelect %W [tk::TextPrevPos %W insert tcl_startOfPreviousWord]
-	}
-	bind HelpText <Shift-Option-Right> {
-	    tk::TextKeySelect %W [tk::TextNextWord %W insert]
-	}
-	bind HelpText <Shift-Option-Up> {
-	    tk::TextKeySelect %W [tk::TextPrevPara %W insert]
-	}
-	bind HelpText <Shift-Option-Down> {
-	    tk::TextKeySelect %W [tk::TextNextPara %W insert]
-	}
-
-  # End of Mac only bindings
-  }
-
-  # Tab key bindings...
-  bind HelpText <Tab> {
-    set master [HTMLHelp GetInstance %W]
-    if {"$master" eq {}} {return}
-    $master nextlink %W
-    break
-  }
-  bind HelpText <Control-Tab> {
-    set master [HTMLHelp GetInstance %W]
-    if {"$master" eq {}} {return}
-    $master prevlink %W
-    break
-  }
-
-  # Additional Help specific bindings
-  bind HelpText <b> {
-    set master [HTMLHelp GetInstance %W]
-    if {"$master" eq {}} {return}
-    $master back
-  }
-  bind HelpText <f> {
-    set master [HTMLHelp GetInstance %W]
-    if {"$master" eq {}} {return}
-    $master forward
-  }
-  bind HelpText <s> {
-    set master [HTMLHelp GetInstance %W]
-    if {"$master" eq {}} {return}
-    $master searchforward %W
-  }
-  bind HelpText <r> {
-    set master [HTMLHelp GetInstance %W]
-    if {"$master" eq {}} {return}
-    $master searchbackward %W
-  }
-
-}
-
-snit::widgetadaptor HTMLHelp {
-    
-    component panes;#		Panes
-    ## @privatesection PaneWindow component.
-    component   tocscroll;#	Scroll window for the TOC
-    ## ScrolledWindow for the Table Of Contents component.
-    component     toc;#		TOC
-    ## The Table Of Contents component.
-    variable      toc_css -array {}
-    ## The Table Of Contents stylesheet.
-    component   textscroll;#    Scroll window for the text
-    ## The text area ScrolledWindow component.
-    component     helptext;#	Help text
-    ## The text area component.
-    variable      helptext_css -array {}
-    ## The text area stylesheet.
-    component status;#		Help status
-    ## The Help status component.
-    component commandF;#		Help command
-    component   commandL
-    component   commandE
-    ## The Help command component.
-    
-    typevariable _WidgetMap -array {}
-    ## Widget map.
-    typemethod   GetInstance {widget} {
-        ## @publicsection Returns the parent object given the specificed 
-        # child widget.
-        
-        #      puts stderr "*** $type GetInstance $widget"
-        if {[catch {set _WidgetMap($widget)} object]} {
-            #	puts stderr "*** $type GetInstance: catch fails: object = $object"
-            return {}
-        } elseif {[winfo exists $object]} {
-            return $object
-        } else {
-            #	puts stderr "*** $type GetInstance: $object does not exist"
-            catch {unset _WidgetMap($widget)}
-            return {}
-        }
-    }
-    
-    delegate option -width to hull
-    delegate option -height to hull
-    
-    option {-helpdirectory helpDirectory HelpDirectory} -readonly yes \
-          -default {}
-    option {-tableofcontents tableOfContents TableOfContents} -readonly yes \
-          -default {}
-    option -style -default HTMLHelp -readonly yes
-
-    typevariable defaultHelpDirectory {}
-    ## @privatesection The default help directory.
-    typevariable defaultTableOfContents {}
-    ## The default Table Of Contents file.
-    typevariable defaultHelpWindow {}
-    ## The default Help file.
-    typemethod setDefaults {helpdir toc} {
-        ## @publicsection A public typemethod to set the default values for the
-        # -helpdirectory and -tableofcontents options.
-        # @param helpdir The default value for -helpdirectory.
-        # @param toc The default value for -tableofcontents.
-        
-        set defaultHelpDirectory "$helpdir"
-        set defaultTableOfContents "$toc"
-    }
-    
-    typemethod help {topic} {
-        ## A public typemethod to create and launch a default help dialog.
-        # The setDefaults typemethod must be called before this typemethod!
-        # @param topic The help topic text to display help for.
-        
-        if {"$defaultHelpWindow" eq "" || ![winfo exists $defaultHelpWindow]} {
-            set defaultHelpWindow [$type .defaultHelpWindow]
-        }
-        $defaultHelpWindow helpTopic "$topic"
-    }
-    method _themechanged {comp} {
-        #puts stderr "*** $self _themechanged $comp"
-        set styletag $options(-style).text
-        #puts stderr "*** $self _themechanged: styletag = $styletag"
-        foreach o {-background -borderwidth -font -foreground 
-            -highlightbackground -highlightcolor -highlightthickness -relief 
-            -insertbackground -selectbackground -insertborderwidth 
-            -selectborderwidth -selectforeground -padx -pady} {
-            if {![catch {ttk::style lookup $options(-style).text $o} ov]} {
-                #puts stderr "*** $self _themechanged: $comp configure $o $ov"
-                catch {$comp configure $o $ov}
-                if {$o eq "-font"} {
-                    set f [font actual $ov -displayof $comp]
-                    #puts stderr "*** $self _themechanged: f = $f"
-                    upvar #0 HM$comp var
-                    foreach i {family size weight} {
-                        lappend var($i) [font actual $ov -displayof $comp -$i]
-                    }
-                    lappend var(style) \
-                          [string index \
-                           [font actual $ov -displayof $comp -slant] 0]
-                }                   
-            }
-        }
-    }
-        
+snit::widget HTMLArticleBodyView {
+    widgetclass HTMLViewer
+    option -htmlbody -readonly yes -default {<html></html>} \
+          -configuremethod _rerenderhtml    
+    component articleBodySW
+    component   articleBody
+    variable cssArray -array {}
     constructor {args} {
-        ## HTMLHelp constuctor method. The HTMLHelp is constructed here.
-        # @param ... Option value pairs.
-
-        set options(-helpdirectory) [from args -helpdirectory $defaultHelpDirectory]
-        if {{} == "$options(-helpdirectory)"} {
-            error "Missing value for -helpdirectory, it is a required option!"
-        }
-        if {![file exists "$options(-helpdirectory)"] &&
-            ![file readable "$options(-helpdirectory)"] &&
-            ![file isdirectory "$options(-helpdirectory)"]} {
-            error "Not a readable directory, $options(-helpdirectory), for -helpdirectory!"
-        }
-        set options(-tableofcontents) [from args -tableofcontents $defaultTableOfContents]
-        if {{} == "$options(-tableofcontents)"} {
-            error "Missing value for -tableofcontents, it is a required option!"
-        }
-        set tocfile [file join "$options(-helpdirectory)" "$options(-tableofcontents)"]
-        if {![file exists "$tocfile"] &&
-            ![file readable "$tocfile"]} {
-            error "Not a readable file, $options(-tableofcontents) (in $options(-helpdirectory)), for -tableofcontents!"
-        }	  
-        installhull using Dialog -separator 0 \
-              -modal none -parent . -place center \
-              -side bottom -title {Help} \
-              -transient 1 -anchor e \
-              -class HelpDialog
-        set dframe [$hull getframe]
-        install panes using ttk::panedwindow $dframe.panes -orient horizontal
-        pack $panes -fill both -expand yes
-      
-        install tocscroll using ScrolledWindow $panes.tocscroll \
-              -scrollbar both \
-              -auto both
-        $panes add $tocscroll -weight 1
-
-        install toc using text [$tocscroll getframe].toc -background white \
-              -width 20 -wrap word
-        bind $toc <<ThemeChanged>> [mymethod _themechanged $toc]
-        $tocscroll setwidget $toc
-        set _WidgetMap($toc) $win
-        set bts [bindtags $toc]
-        set ti  [lsearch  $bts {Text}]
-        if {$ti >= 0} {
-            set bts [lreplace $bts $ti $ti HelpText]
-        } else {
-            set bts [linsert $bts 1 HelpText]
-        }
-        bindtags $toc $bts
-        install textscroll using ScrolledWindow $panes.textscroll \
-              -scrollbar both \
-              -auto both
-        $panes add $textscroll -weight 3
-        install helptext using text [$textscroll getframe].helptext \
-              -width 80 -wrap word
-        bind $helptext <<ThemeChanged>> [mymethod _themechanged $helptext]
-        $textscroll setwidget $helptext
-        set _WidgetMap($helptext) $win
-        set bts [bindtags $helptext]
-        set ti  [lsearch  $bts {Text}]
-        if {$ti >= 0} {
-            set bts [lreplace $bts $ti $ti HelpText]
-        } else {
-            set bts [linsert $bts 1 HelpText]
-        }
-        bindtags $helptext $bts
-        install status  using ttk::label $dframe.status -anchor w \
-              -relief flat -borderwidth 2 -justify left
-        pack $status -fill x
-        install commandF using ttk::frame $dframe.commandF
-        pack $commandF -fill x
-        install commandL using ttk::label $commandF.l -anchor w
-        pack $commandL -side left
-        install commandE using ttk::entry $commandF.e
-        pack $commandE -side left -fill x -expand yes
-        $hull add close -text Close -underline 0 -command [mymethod _Close]
-        $hull configure -cancel close
-        $hull add back -text Back -underline 0 -command [mymethod back]
-        $hull add forward -text Forward -underline 0 -command [mymethod forward]
-        $hull add help -text Help -underline 0 -command [mymethod helpTopic Help]
+        install articleBodySW using ScrolledWindow $win.articleBodySW \
+              -scrollbar both -auto both
+        pack $articleBodySW -fill both -expand yes
+        install articleBody using ROText \
+              [$articleBodySW getframe].articleBody -height 1
+        $articleBodySW setwidget $articleBody
+        HMinit_win $selfns $articleBody
+        HMset_state $articleBody -size 4
+        HMset_indent $articleBody 1.2
         $self configurelist $args
-        #puts stderr "*** $type create $self: options(-style) = $options(-style)"
-        HMinit_win $selfns $toc
-        HMinit_win $selfns $helptext
-        $self _themechanged $toc
-        #puts stderr "*** $type create $self: updated $toc settings"
-        $self _themechanged $helptext
-        #puts stderr "*** $type create $self: updated $helptext settings"
-        HMset_state $toc -size 4
-        HMset_state $helptext -size 4
-        HMset_indent $toc 1.2
-        HMset_indent $helptext 1.2
-        render $selfns $toc $tocfile
     }
-    variable Url
-    variable savedgrab
-    variable savedgrabopt
-    ## @private The current URL.
-    method helpTopic {{topic Help}} {
-        ## Public method to display help on a specific topic.
-        # @param topic The topic text to display help for.
-        
-        set url [findtopicintoc $selfns $topic]
-        if {"$url" eq {}} {
-            $status configure -text "$topic not found"
-        } else {
-            render $selfns $helptext $url
-        }
-        $hull draw $helptext
-        set current "[::grab current $win]"
-        if {"$current" ne "" && "$current" ne "$win"} {
-            set savedgrab $current
-            set savedgrabopt [grab status $savedgrab]
-            grab $win
-        }
-    }
-    proc findtopicintoc {selfns topic} {
-        ## @privatesection
-        
-        #      puts stderr "*** findtopicintoc: topic = $topic"
-        set index [$toc search -nocase -- "$topic" 0.0]
-        #      puts stderr "*** findtopicintoc: index = $index"
-        if {"$index" eq {}} {return {}}
-        set tags [$toc tag names $index]
-        #      puts stderr "*** findtopicintoc: tags = $tags"
-        set link [lindex $tags [lsearch -glob $tags L:*]]
-        #      puts stderr "*** findtopicintoc: link = $link"
-        regsub L: $link {} link
-        #      puts stderr "*** findtopicintoc: link = $link"
-        return "$link"
-    }
-    variable topicstack {}
-    ##
-    variable curtopicindex -1
-    ##
-    proc pushcurrenttopic {selfns url} {
-        ##
-        
-        #      puts stderr "*** pushcurrenttopic: url = $url"
-        if {[llength $topicstack] == 0 || $curtopicindex < 0} {
-            set topicstack [list "$url"]
-            set curtopicindex 0
-        } else {
-            set topicstack [lrange $topicstack 0 $curtopicindex]
-            lappend topicstack "$url"
-            incr curtopicindex
-        }
-    }
-    proc backcurrenttopic {selfns} {
-        ##
-        
-        #      puts stderr "*** backcurrenttopic: topicstack = $topicstack, curtopicindex = $curtopicindex"
-        if {[llength $topicstack] == 0 || $curtopicindex <= 0} {return {}}
-        incr curtopicindex -1
-        set url [lindex $topicstack $curtopicindex]
-        return "$url"
-    }
-    proc forwardcurrenttopic {selfns} {
-        ##
-        
-        #      puts stderr "*** forwardcurrenttopic: topicstack = $topicstack, curtopicindex = $curtopicindex"
-        if {[llength $topicstack] == [expr {$curtopicindex+1}]} {return {}}
-        incr curtopicindex
-        return [lindex $topicstack $curtopicindex]
-    }
-    method _Close {} {
-        ##
-        if {"[::grab current $win]" eq "$win"} {
-            grab release $win
-            if {[info exists savedgrab] && [winfo exists $savedgrab]} {
-                if {$savedgrabopt eq "global"} {
-                    grab -global $savedgrab
-                } else {
-                    grab $savedgrab
-                }
-            }
-        }
-        $hull withdraw
-    }
-    method back {} {
-        ##
-        set url [backcurrenttopic $selfns]
-        if {"$url" eq {}} {return}
-        render $selfns $helptext $url no
-    }
-    method forward {} {
-        ##
-        set url [forwardcurrenttopic $selfns]
-        if {"$url" eq {}} {return}
-        render $selfns $helptext $url no
-    }
-    method nextlink {w} {
-        ##
-        set curpos [$w index insert]
-        set nextpos [$w tag nextrange link $curpos]
-        if {"[lindex $nextpos 0]" eq "$curpos"} {
-            set nextpos [$w tag nextrange link [lindex $nextpos 1]]
-        }
-        if {"$nextpos" eq ""} {set nextpos [$w tag nextrange link 0.0]}
-        if {"$nextpos" eq ""} {return}
-        $w mark set insert [lindex $nextpos 0]
-        $w see insert
-    }
-    method prevlink {w} {
-        ##
-        set curpos [$w index insert]
-        set nextpos [$w tag prevrange link $curpos]
-        if {"[lindex $nextpos 1]" eq "$curpos"} {
-            set nextpos [$w tag prevrange link [lindex $nextpos 0]]
-        }
-        if {"$nextpos" eq ""} {set nextpos [$w tag prevrange link end]}
-        if {"$nextpos" eq ""} {return}
-        $w mark set insert [lindex $nextpos 1]
-        $w see insert
-    }
-    variable lastsearch {}
-    ##
-    method searchforward {w} {
-        ##
-        $commandL configure -text "Search Forward:"
-        $commandE delete 0 end
-        $commandE insert end "$lastsearch"
-        bind $commandE <Return> [mymethod _SForward $w]
-        focus $commandE
-    }
-    method _SForward {w} {
-        ##
-        set lastsearch [$commandE get]
-        set pos [$w search -forwards -nocase "$lastsearch" insert]
-        if {"$pos" eq "[$w index insert]"} {
-            set pos [$w search -forwards -nocase "$lastsearch" "$pos+1c"]
-        }
-        if {"$pos" eq ""} {set pos [$w search -forwards -nocase "$lastsearch" 0.0]}
-        if {"$pos" eq ""} {
-            $status configure -text "$lastsearch notfound"
-            return
-        }
-        $w mark set insert $pos
-        $w see insert
-        focus $w
-    }
-    method searchbackward {w} {
-        ##
-        $commandL configure -text "Search Backward:"
-        $commandE delete 0 end
-        $commandE insert end "$lastsearch"
-        bind $commandE <Return> [mymethod _SBackward $w]
-        focus $command
-    }
-    method _SBackward {w} {
-        ##
-        set lastsearch [$command get]
-        set pos [$w search -backwards -nocase "$lastsearch" insert]
-        if {"$pos" eq "[$w index insert]"} {
-            set pos [$w search -backwards -nocase "$lastsearch" "$pos-1c"]
-        }
-        if {"$pos" eq ""} {set pos [$w search -backwards -nocase "$lastsearch" end]}
-        if {"$pos" eq ""} {
-            $status configure -text "$lastsearch notfound"
-            return
-        }
-        $w mark set insert $pos
-        $w see insert
-        focus $w
-    }
-    proc render {selfns win url {push yes}} {
-        ##
-        #puts stderr "*** HTMLHelp::render $selfns $win $url $push"
-        set fragment ""
-        regexp {([^#]*)#(.+)} $url dummy url fragment
-        #puts stderr "*** HTMLHelp::render: url = $url, fragment = $fragment"
-        if {$url == "" && $fragment != ""} {
-            HMgoto $selfns $win $fragment
-            return
-        }
-        if {$push && $win eq $helptext} {pushcurrenttopic $selfns $url}
-        if {[regexp {^/} $url] < 1} {
-            set url [file join $options(-helpdirectory) $url]
-        }
-        set Url $url
-        HMreset_win $win
-        $win configure -cursor xterm
-        if {$win eq $toc} {
-            array unset toc_css
-        } else {
-            array unset helptext_css
-        }
-        $status configure -text "Displaying $url"
-        HMset_state $win -stop 1
+    method _rerenderhtml {option value} {
+        set options($option) $value
+        HMreset_win $articleBody
+        $articleBody configure -cursor xterm
+        HMset_state $articleBody -stop 1
         update idletasks
-        if {$fragment != ""} {
-            HMgoto $selfns $win $fragment
-        }
-        HMset_state $win -stop 0
-        set err no
-        if {[catch {HMparse_html [get_html $url] [myproc HMrender $selfns $win]} error]} {
+        HMset_state $articleBody -stop 0
+        if {[catch {HMparse_html $value [myproc HMrender $selfns $articleBody]} error]} {
             set _errorInfo $::errorInfo
             set _errorCode $::errorCode
             set err yes
         }
         if {$err} {error $error $_errorInfo $_errorCode}
-        HMset_state $win -stop 1       ;# stop rendering previous page if busy
-        $status configure -text ""
+        HMset_state $articleBody -stop 1
     }
     # Simple HTML display library by Stephen Uhler (stephen.uhler@sun.com)
     # Copyright (c) 1995 by Sun Microsystems
@@ -1019,15 +299,6 @@ snit::widgetadaptor HTMLHelp {
 	}
         
 	# adjust (push or pop) tag state
-	if {$win eq $toc} {
-            array set cssArray [array get toc_css]
-            #  	  puts "*** HMrender: using toc_css:"
-            #	  catch {parray cssArray}
-	} else {
-            array set cssArray [array get helptext_css]
-            #  	  puts "*** HMrender: using helptext_css:"
-            #	  catch {parray cssArray}
-	}
 	set class {}
 	if {$not eq "/"} {
             #          puts stderr "*** HMrender: (popping tagclass_stack) tag = $tag"
@@ -1439,25 +710,12 @@ snit::widgetadaptor HTMLHelp {
 	set link [lindex $tags [lsearch -glob $tags L:*]]
 	# regsub -all {[^L]*L:([^ ]*).*}  $tags {\1} link
 	regsub L: $link {} link
-	if {$win eq $toc &&
-	    [HMcheck_tocRelative "$link" \
-             $options(-tableofcontents)]} {
-            HMlink_callback $selfns $toc $link
-	} else {
-            HMlink_callback $selfns $helptext $link
-	}
-    }
-    
-    proc HMcheck_tocRelative {link tocfile} {
-        ##
-        if {[regexp {([^#]*)#(.+)} $link -> file fragment] > 0} {
-            return [expr {"$file" eq "" || "$file" eq "$tocfile"}]
-        } else {
-            return [expr {"$link" eq "$tocfile"}]
+        if {[regexp {^#(.*)} $link => anchor] > 0} {
+            HMgoto $selfns $win $anchor
+            return
         }
+        catch {exec firefox $link}
     }
-    
-    
     
     proc HMextract_param {param key {val ""}} {
         ## extract a value from parameter list (this needs a re-do)
@@ -2188,24 +1446,31 @@ snit::widgetadaptor HTMLHelp {
     }
     
     proc HMlink_callback {selfns win href} {
-        ## Override the library link-callback routine for the sample app.
-        # It only handles the simple cases.
-	HMset_state $win -stop 1
-	update idle
-        #puts stderr "*** HTMLHelp::HMlink_callback: href = $href"
-	if {[string match #* $href]} {
-            render $selfns $win $href
-            return
-	}
-	if {[string match /* $href]} {
-            set Url $href
-	} else {
-            set Url [file dirname $Url]/$href
-	}
-	update
-	render $selfns $win $Url
+        
+        # puts "HMlink_callback was invoked with WIN: $win HREF: $href"
+        
+        upvar #0 HM$win var
+        
+        # Clear the old contents from the window.
+        
+        HMreset_win $win
+        
+        if {[string first "http" $href] == 0} {
+            # Get the url:
+            
+            set token [http::geturl $href]
+            set data [http::data $token]
+            
+        } else {
+            
+            set infl [open $href r]
+            set data [read $infl]
+            
+            close $infl
+        }
+        # Display the new text.
+        HMparse_html $data "[myproc HMrender $selfns HMrender $win]"
     }
-    
     
     
     proc HMset_image {selfns win handle src} {
@@ -2354,12 +1619,6 @@ snit::widgetadaptor HTMLHelp {
             }
         }
         close $css_fp
-        if {$win eq $toc} {
-            array set toc_css [array get cssArray]
-        } else {
-            array set helptext_css [array get cssArray]
-        }
-        #      parray cssArray
     }
 
     proc HMappend_css {varName cssBlock} {
@@ -2469,7 +1728,7 @@ snit::widgetadaptor HTMLHelp {
     typevariable HMalphanumeric
     ##
     typeconstructor {
-        ttk::style configure HTMLHelp.text \
+        ttk::style configure HTMLViewer.text \
               -background white -font "Helvetica 8" \
               -height 10
         
@@ -2629,6 +1888,8 @@ snit::widgetadaptor HTMLHelp {
 	}
         
     }
+              
 }
 
-package provide HTMLHelp 1.0
+
+package provide HTMLArticle 1.0

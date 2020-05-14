@@ -57,6 +57,7 @@ package require Dialog
 package require ROText
 package require HTMLHelp
 package require mime
+package require HTMLArticle
 
 snit::macro ArticleListMethods {} {
     typevariable columnheadings -array {
@@ -434,6 +435,7 @@ snit::widget ArticleViewer {
     component     articleHeader
     component   articleBodySW
     component     articleBody
+    component     articleHTMLBody
     component bodyButtons
     component imap4Buttons
     delegate method {buttons *} to bodyButtons
@@ -491,6 +493,8 @@ snit::widget ArticleViewer {
         install articleBodySW using ScrolledWindow $articlePanes.articleBodySW \
               -scrollbar both -auto both
         $articlePanes add $articleBodySW -weight 10
+        install articleHTMLBody using HTMLArticleBodyView \
+              $articlePanes.articleHTMLBody
         #pack $articleBodySW  -fill both -expand yes
         install articleBody using ROText \
               [$articleBodySW getframe].articleBody -height 1
@@ -597,8 +601,30 @@ snit::widget ArticleViewer {
         focus $articleBody
         ::imap4::close $imapserverchannel
     }
+    proc matchencoding {enc} {
+        set encs [encoding names]
+        set i [lsearch -regexp -nocase $encs $enc]
+        if {$i >= 0} {
+            return [lindex $encs $i]
+        } else {
+            return ascii
+        }
+    }
+    proc getCharset {mimepart} {
+        if {"params" in [::mime::getproperty $mimepart -names]} {
+            set params [::mime::getproperty $mimepart params]
+            set c [lsearch -exact $params charset]
+            if {$c >= 0} {
+                incr c
+                return [matchencoding [lindex $params $c]]
+            }
+        } else {
+            return ascii
+        }
+    }
     method readArticleFromFile {filename} {
       $articleBody delete 1.0 end-1c
+      catch {$articlePanes forget $articleHTMLBody}  
       set message [::mime::initialize -file $filename]
       foreach h [::mime::getheader $message -names] {
           if {[regexp {^From } $h] > 0} {
@@ -612,19 +638,30 @@ snit::widget ArticleViewer {
       $articleBody insert end "\n"
       switch -glob [::mime::getproperty $message content] {
           text/plain {
-              $articleBody insert end "[::mime::getbody $message]\n"
+              $articleBody insert end \
+                    "[encoding convertfrom [getCharset $message] [::mime::getbody $message]]\n"
           }
           multipart/* {
               set displayed no
               foreach p [::mime::getproperty $message parts] {
                   if {[::mime::getproperty $p content] eq {text/plain}} {
-                      $articleBody insert end "[::mime::getbody $p]\n"
+                      $articleBody insert end "[encoding convertfrom [getCharset $p] [::mime::getbody $p]]\n"
                       set displayed yes
                       break
                   }
               }
               if {!$displayed} {
-                  $articleBody insert end "No text/plain part!\n"
+                  foreach p [::mime::getproperty $message parts] {
+                      if {[::mime::getproperty $p content] eq {text/html}} {
+                          $articleHTMLBody configure -htmlbody [encoding convertfrom [getCharset $p] [::mime::getbody $p]]
+                          $articlePanes insert $articleBodySW $articleHTMLBody -weight 10
+                          set displayed yes
+                          break
+                      }
+                  }
+              }
+              if {!$displayed} {
+                  $articleBody insert end "No text/plain or text/html part!\n"
               }
           }
           default {

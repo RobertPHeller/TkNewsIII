@@ -57,7 +57,7 @@ LibraryScripts = BUILDSYMBOLS.tcl \
             Scripts/ArticleFunctions.tcl Scripts/snitbuttonbox.tcl \
             Scripts/snitdialog.tcl Scripts/CommonFunctions.tcl \
             Scripts/snitrotext.tcl Scripts/AddressBook.tcl \
-            Scripts/snitHTMLHelp.tcl
+            Scripts/snitHTMLHelp.tcl Scripts/HTMLArticle.tcl
 
 #                Scripts/BWHelp.tcl Scripts/labelselectcolor.tcl \
 #		Scripts/panedw.tcl Scripts/fileentry.tcl \
