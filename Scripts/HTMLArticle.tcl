@@ -8,7 +8,7 @@
 #  Author        : $Author$
 #  Created By    : Robert Heller
 #  Created       : Wed May 13 16:38:33 2020
-#  Last Modified : <200514.0740>
+#  Last Modified : <210103.1432>
 #
 #  Description	
 #
@@ -56,8 +56,7 @@ package require mime
 
 snit::widget HTMLArticleBodyView {
     widgetclass HTMLViewer
-    option -htmlbody -readonly yes -default {<html></html>} \
-          -configuremethod _rerenderhtml    
+    option -htmlbody -default {<html></html>} -configuremethod _rerenderhtml
     component articleBodySW
     component   articleBody
     variable cssArray -array {}
@@ -80,13 +79,14 @@ snit::widget HTMLArticleBodyView {
         HMset_state $articleBody -stop 1
         update idletasks
         HMset_state $articleBody -stop 0
+        set err no
         if {[catch {HMparse_html $value [myproc HMrender $selfns $articleBody]} error]} {
             set _errorInfo $::errorInfo
             set _errorCode $::errorCode
             set err yes
         }
-        if {$err} {error $error $_errorInfo $_errorCode}
         HMset_state $articleBody -stop 1
+        #if {$err} {error $error $_errorInfo $_errorCode}
     }
     # Simple HTML display library by Stephen Uhler (stephen.uhler@sun.com)
     # Copyright (c) 1995 by Sun Microsystems
@@ -278,11 +278,13 @@ snit::widget HTMLArticleBodyView {
         #   param: The un-interpreted parameter list
         #   text:  The plain text until the next html tag
         
+        #puts stderr "*** HMrender $selfns $win $tag \{$not\} \{$param\} \{$text\}"
 	upvar #0 HM$win var
-        #	puts stderr "*** HMrender: var(stop) = $var(stop)"
+        #puts stderr "*** HMrender: var(stop) = $var(stop)"
 	if {$var(stop)} return
 	set tag [string tolower $tag]
 	set text [HMmap_esc $text]
+        #puts stderr "*** HMrender: text (escaped) is \{$text\}"
         
 	# manage compact rendering of lists
 	if {[info exists HMlist_elements($tag)]} {
@@ -290,7 +292,7 @@ snit::widget HTMLArticleBodyView {
 	} else {
             set list ""
 	}
-        
+        #puts stderr "*** HMrender: list is \{$list\}"
 	# Allow text to be diverted to a different window (for tables)
 	# this is not currently used
 	if {[info exists var(divert)]} {
@@ -301,15 +303,15 @@ snit::widget HTMLArticleBodyView {
 	# adjust (push or pop) tag state
 	set class {}
 	if {$not eq "/"} {
-            #          puts stderr "*** HMrender: (popping tagclass_stack) tag = $tag"
-            #	  puts stderr "*** HMrender: tagclass_stack is $var(css_tagclass_stack)"
+            #puts stderr "*** HMrender: (popping tagclass_stack) tag = $tag"
+            #puts stderr "*** HMrender: tagclass_stack is $var(css_tagclass_stack)"
             set tagclass [lindex $var(css_tagclass_stack) 0]
             set var(css_tagclass_stack) [lrange $var(css_tagclass_stack) 1 end]
-            #	  puts stderr "*** HMrender: top of css_tagclass_stack is $tagclass"
+            #puts stderr "*** HMrender: top of css_tagclass_stack is $tagclass"
             while {[regexp "^$tag\\.(.*)" "$tagclass" -> class] <= 0 &&
                 [llength $var(css_tagclass_stack)] > 0} {
                 set tagclass [lindex $var(css_tagclass_stack) 0]
-                #	    puts stderr "*** HMrender: top of css_tagclass_stack is $tagclass"
+                #puts stderr "*** HMrender: top of css_tagclass_stack is $tagclass"
                 set var(css_tagclass_stack) [lrange $var(css_tagclass_stack) 1 end]
             }
 	} else {
@@ -318,7 +320,7 @@ snit::widget HTMLArticleBodyView {
             set var(css_tagclass_stack) [linsert $var(css_tagclass_stack) 0 "$tag.$class"]
 	}
 	set cssStyles {}
-	
+	#puts stderr "*** HMrender: starting to work on cssStyles"
 	catch {
             foreach s $HMtag_map($tag) {
                 lappend cssStyles $s
@@ -348,12 +350,12 @@ snit::widget HTMLArticleBodyView {
         
 	foreach s $list {lappend cssStyles $s}
 	catch {HMstack $win $not $cssStyles}
-        
+        #puts stderr "*** HMrender: done with cssStyles"
 	# insert white space (with current font)
 	# adding white space can get a bit tricky.  This isn't quite right
 	set bad [catch {$win insert $var(S_insert) $HMinsert_map($not$tag) "space $var(font)"}]
-        #	puts "*** HMrender: var = "
-        #	parray var
+        #puts "*** HMrender: var = "
+        #parray var
 	if {!$bad && [lindex $var(fill) end]} {
             set text [string trimleft $text]
 	}
@@ -373,8 +375,9 @@ snit::widget HTMLArticleBodyView {
 	# add the text with proper tags
         
 	set tags [HMcurrent_tags $selfns $win]
-        #	puts stderr "*** HMrender: tag = $not$tag, tags = $tags, text = $text"
-	$win insert $var(S_insert) $text $tags
+        #puts stderr "*** HMrender: tag = $not$tag, tags = \{$tags\}, text = \{$text\}"
+	$win insert $var(S_insert) "$text" "$tags"
+        #puts stderr "*** HMrender: inserted text"
         
 	# We need to do an update every so often to insure interactive response.
 	# This can cause us to re-enter the event loop, and cause recursive
@@ -382,6 +385,7 @@ snit::widget HTMLArticleBodyView {
 	if {!([incr var(tags)] % $var(S_update))} {
             update
 	}
+        #puts stderr "*** HMrender: Done."
     }
 
     # html tags requiring special processing
@@ -796,6 +800,7 @@ snit::widget HTMLArticleBodyView {
 	incr indent -1
 	lappend tags $font indent$indent
 	foreach tag [array names var T*] {
+            if {[llength $var($tag)] == 0} {continue}
             lappend tags [lindex $var($tag) end]	;# test
 	}
 	set var(font) $font
@@ -833,7 +838,11 @@ snit::widget HTMLArticleBodyView {
 	proc HMcl x {return "\[$x\]"}
 	set exp <(/?)([HMcl ^$w>]+)[HMcl $w]*([HMcl ^>]*)>
 	set sub "\}\n$cmd {\\2} {\\1} {\\3} \{"
-	regsub -all $exp $html $sub html
+	#puts stderr "*** HMparse_html: exp is $exp"
+	#puts stderr "*** HMparse_html: sub is $sub"
+	#puts stderr "*** HMparse_html: html is $html"
+        regsub -all $exp $html $sub html
+        #puts stderr "*** HMparse_html: html is now $html"
 	eval "$cmd {$start} {} {} \{ $html \}"
 	eval "$cmd {$start} / {} {}"
     }
@@ -1485,7 +1494,7 @@ snit::widget HTMLArticleBodyView {
             set image [file dirname $Url]/$src
 	}
         #	puts stderr "*** HMset_image: image = $image"
-	$status configure -text "fetching image $image"
+	#$status configure -text "fetching image $image"
 	update
 	if {[string first " $image " " [image names] "] >= 0} {
             HMgot_image $handle $image
@@ -1515,12 +1524,12 @@ snit::widget HTMLArticleBodyView {
         # are likely
 	if {![info exists Fonts($font)]} {
             set Fonts($font) 1
-            $status configure -foreground blue
-            $status configure -text "downloading font $font"
+            #$status configure -foreground blue
+            #$status configure -text "downloading font $font"
             update
 	}
-        $status configure -foreground black
-	$status configure -text ""
+        #$status configure -foreground black
+	#$status configure -text ""
 	catch {$win tag configure $tag -font $font} message
     }
     

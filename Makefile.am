@@ -46,8 +46,8 @@ scriptlibdir = $(datadir)/$(PACKAGE)-$(VERSION)/scriptlib
 docdir = $(datadir)/$(PACKAGE)-$(VERSION)/documentation
 
 bin_SCRIPTS = TkNewsIII$(EXEEXT) Split_flatmessagefile$(EXEEXT)
-SUBDIRS = BuildScripts BuildData C Scripts Docs GpgME tls1.6.7
-doc_DATA = refman.pdf
+SUBDIRS = BuildScripts BuildData C Scripts Docs GpgME
+#doc_DATA = refman.pdf
 
 LibraryScripts = BUILDSYMBOLS.tcl \
             Scripts/DynamicHelp.tcl Scripts/IconsAndImages.tcl \
@@ -83,8 +83,6 @@ CLEANFILES = TkNewsIII Split_flatmessagefile
 TkNewsIII$(EXEEXT): Scripts/TkNewsIII.src $(TkNewsIIIDATA) \
 			$(LibraryGIFS) $(LibraryXBMS) \
 			GpgME/gpgme.la GpgME/pkgIndex.tcl \
-			tls1.6.7/tls.tcl tls1.6.7/libtls1.6.7.so \
-			tls1.6.7/pkgIndex.tcl \
 			html/index.html
 	-rm -f  TkNewsIII.kit
 	-rm -f  TkNewsIII$(EXEEXT)
@@ -117,9 +115,8 @@ TkNewsIII$(EXEEXT): Scripts/TkNewsIII.src $(TkNewsIIIDATA) \
 		lib $(OTPLIB)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit TkNewsIII \
 	        lib/GpgME GpgME/.libs/gpgme.so GpgME/pkgIndex.tcl
-	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit TkNewsIII \
-		lib/tls1.6.7 tls1.6.7/tls.tcl tls1.6.7/libtls1.6.7.so \
-		tls1.6.7/pkgIndex.tcl
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsIII \
+		lib $(TLSLIB)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) TkNewsIII \
 		lib/Common $(TkNewsIIIDATA)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/MakePkgIndex.kit TkNewsIII \

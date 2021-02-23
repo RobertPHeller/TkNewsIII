@@ -354,3 +354,22 @@ fi
 AC_SUBST(OTPLIB)
 ])
 
+AC_DEFUN([AX_TLS],[
+AC_MSG_CHECKING(tls dir)
+searchdirs=`echo 'puts $auto_path'|${TCLSH_PROG}`
+for dir in $searchdirs ; do
+   dirs="${dir}/tls*"
+   for i in $dirs ; do
+       if test -d "$i" -a -f "$i/pkgIndex.tcl"; then
+          TLSLIB=`cd $i; pwd`
+       fi
+   done
+done
+AC_ARG_WITH(tlslib, [  --with-tlslib=DIR          use tls from DIR], TLSLIB=$withval,)
+if test x$TLSLIB != x -a -d $TLSLIB; then
+  AC_MSG_RESULT([using tls library in $TLSLIB])
+else
+  AC_MSG_ERROR(Tls library directory not found)
+fi
+AC_SUBST(TLSLIB)
+])

@@ -58,7 +58,7 @@ package require ROText
 package require HTMLHelp
 package require mime
 package require HTMLArticle
-
+package require base64
 snit::macro ArticleListMethods {} {
     typevariable columnheadings -array {
         #0,stretch no
@@ -602,72 +602,262 @@ snit::widget ArticleViewer {
         ::imap4::close $imapserverchannel
     }
     proc matchencoding {enc} {
+        #puts stderr "*** matchencoding: enc is '$enc'"
+        if {$enc eq {}} {return ascii}
         set encs [encoding names]
         set i [lsearch -regexp -nocase $encs $enc]
         if {$i >= 0} {
+            #puts stderr "*** matchencoding: i = $i, lindex $encs $i is '[lindex $encs $i]'"
             return [lindex $encs $i]
         } else {
             return ascii
         }
     }
     proc getCharset {mimepart} {
+        #puts stderr "*** getCharset $mimepart"
         if {"params" in [::mime::getproperty $mimepart -names]} {
             set params [::mime::getproperty $mimepart params]
+            #puts stderr "*** getCharset: params is $params"
             set c [lsearch -exact $params charset]
+            #puts stderr "*** getCharset: c = $c"
             if {$c >= 0} {
                 incr c
-                return [matchencoding [lindex $params $c]]
+                set match [matchencoding [lindex $params $c]]
+                #puts "*** getCharset returns '$match'"
+                return $match
+            } else {
+                return ascii
             }
         } else {
             return ascii
         }
     }
+    proc _insertBodyPart {plainbodyText htmlViewer p mtype lastContentType} {
+        set pContent [::mime::getproperty $p content]
+        
+        if {$pContent eq {text/plain}} {
+            catch {
+                 set lastContentType [_insertBody $plainbodyText $htmlViewer $p \
+                                      $lastContentType]
+                 if {$mtype eq "alternative"} {
+                 return $lastContentType
+             }}
+        }
+        if {$pContent eq {text/html}} {
+            set lastContentType [_insertBody $plainbodyText $htmlViewer $p \
+                                 $lastContentType]
+            if {$mtype eq "alternative"} {
+                return $lastContentType
+            }
+        }
+        if {[string match -nocase "multipart/*" $pContent]} {
+            set lastContentType [_insertBody $plainbodyText $htmlViewer $p \
+                                 $lastContentType]
+            if {$mtype eq "alternative"} {
+                return $lastContentType
+            }
+        }
+        if {$lastContentType eq ""} {
+            $plainbodyText insert end \
+                  "No text/plain or text/html part!\n"
+        }
+        return $lastContentType
+    }
+    proc _insertBody {plainbodyText htmlViewer messagePart {lastContentType {}}} {
+        #puts stderr "*** _insertBody $plainbodyText $htmlViewer $messagePart $lastContentType"
+        #puts stderr "*** _insertBody: ::mime::getproperty $messagePart content is [::mime::getproperty $messagePart content]"
+        switch -glob [::mime::getproperty $messagePart content] {
+            text/plain {
+                if {$lastContentType eq ""} {
+                    $plainbodyText insert end "Content-Type: text/plain\n\n"
+                }
+                set temp [::mime::getbody $messagePart]
+                #puts stderr "*** _insertBody temp = '$temp'"
+                if {[string length $temp] == 0} {
+                    error "Empty message part!"
+                }
+                $plainbodyText insert end \
+                      "[encoding convertfrom [getCharset $messagePart] $temp]\n"
+            }
+            text/html {
+                if {$lastContentType eq ""} {
+                    $plainbodyText insert end "Content-Type: text/html\n\n"
+                    #puts stderr "*** _insertBody: htmlViewer is \"$htmlViewer\""
+                    if {$htmlViewer ne ""} {
+                        $htmlViewer configure -htmlbody [encoding convertfrom [getCharset $messagePart] [::mime::getbody $messagePart]]
+                    }
+                    $plainbodyText insert end [encoding convertfrom [getCharset $messagePart] [::mime::getbody $messagePart]]
+                }
+            }
+            multipart/* {
+                regexp {^multipart/(.*)$} [::mime::getproperty $messagePart content] => mtype
+                foreach p [::mime::getproperty $messagePart parts] {
+                    set lastContentType [_insertBodyPart $plainbodyText $htmlViewer $p $mtype $lastContentType]
+                }
+            }
+            default {
+                $plainbodyText insert end \
+                      "No text/plain or text/html part!\n"
+            }
+        }
+        return [::mime::getproperty $messagePart content]
+    }
+    proc _insertAttachedMessage {message articleBody} {
+        #puts stderr "*** _insertAttachedMessage $message $articleBody"
+        
+        foreach h [::mime::getheader $message -names] {
+            if {[regexp {^From } $h] > 0} {
+                $articleBody insert end "$h:[lindex [::mime::getheader $message $h] 0]\n"
+            } else {
+                foreach hv [::mime::getheader $message $h] {
+                    $articleBody insert end "$h: $hv\n"
+                }
+            }
+        }
+        _insertBody $articleBody {} $message
+    }
+    proc decodeHeader {headerContent} {
+        #puts stderr "*** decodeHeader $headerContent"
+        while {[regexp {=\?([^?]+)\?([^?])\?([^?]+)\?=} $headerContent replace \
+                charset encoding text] > 0} {
+            #puts stderr "*** decodeHeader: charset is $charset, encoding is $encoding, text is $text, replace is $replace"
+            switch $encoding {
+                B {
+                    set text [::base64::decode $text]
+                }
+                Q {
+                    set text [::mime::qp_decode $text]
+                }
+            }
+            set charset [::mime::reversemapencoding $charset]
+            set text [encoding convertfrom $charset $text]
+            #puts stderr "*** decodeHeader: text is now $text"
+            #_printBytesHex "*** decodeHeader: text is now (hexbytes)" $text
+            set first [string first $replace $headerContent]
+            set last  [expr {$first + [string length $replace] - 1}]
+            set headerContent [string replace $headerContent $first $last $text]
+            #puts stderr "*** decodeHeader: headerContent is now '$headerContent'"
+            #_printBytesHex "*** decodeHeader: headerContent is now (hexbytes)" "$headerContent"
+        }
+        set headerContent [_stripU16andCC $headerContent]
+        return $headerContent
+    }
+    proc _stripU16andCC {string} {
+        set bytes [split $string {}]
+        set result {}
+        foreach b $bytes {
+            scan $b %c _b
+            if {$_b < 32 || $_b > 255} {continue}
+            append result [format %c $_b]
+        }
+        return $result
+    }
+    proc _printBytesHex {message string} {
+        set bytes [split $string {}]
+        puts -nonewline stderr $message
+        foreach b $bytes {
+            scan $b %c _b
+            puts -nonewline stderr [format { %02x} $_b]
+        }
+        puts stderr {}
+    }
+        
     method readArticleFromFile {filename} {
       $articleBody delete 1.0 end-1c
       catch {$articlePanes forget $articleHTMLBody}  
+      #puts stderr "*** $self readArticleFromFile $filename"
       set message [::mime::initialize -file $filename]
+      #puts stderr "*** $self readArticleFromFile: message is $message"
       foreach h [::mime::getheader $message -names] {
+          #puts stderr "*** $self readArticleFromFile: h is $h"
           if {[regexp {^From } $h] > 0} {
-              $articleBody insert end "$h:[lindex [::mime::getheader $message $h] 0]\n"
+              $articleBody insert end "$h:[decodeHeader [lindex [::mime::getheader $message $h] 0]]\n"
           } else {
               foreach hv [::mime::getheader $message $h] {
-                  $articleBody insert end "$h: $hv\n"
+                  #puts stderr "*** $self readArticleFromFile:  hv is $hv"
+                  $articleBody insert end "$h: [decodeHeader $hv]\n"
               }
           }
+          #update 
       }
-      $articleBody insert end "\n"
-      switch -glob [::mime::getproperty $message content] {
-          text/plain {
-              $articleBody insert end \
-                    "[encoding convertfrom [getCharset $message] [::mime::getbody $message]]\n"
-          }
-          multipart/* {
-              set displayed no
-              foreach p [::mime::getproperty $message parts] {
-                  if {[::mime::getproperty $p content] eq {text/plain}} {
-                      $articleBody insert end "[encoding convertfrom [getCharset $p] [::mime::getbody $p]]\n"
-                      set displayed yes
-                      break
-                  }
-              }
-              if {!$displayed} {
-                  foreach p [::mime::getproperty $message parts] {
-                      if {[::mime::getproperty $p content] eq {text/html}} {
-                          $articleHTMLBody configure -htmlbody [encoding convertfrom [getCharset $p] [::mime::getbody $p]]
-                          $articlePanes insert $articleBodySW $articleHTMLBody -weight 10
-                          set displayed yes
-                          break
-                      }
-                  }
-              }
-              if {!$displayed} {
-                  $articleBody insert end "No text/plain or text/html part!\n"
-              }
-          }
-          default {
-              $articleBody insert end "[::mime::getproperty $message content]\n"
-              $articleBody insert end "[::mime::getbody $message]\n"
-          }
+      #$articleBody insert end "\n"
+      #puts stderr "*** $self readArticleFromFile: about to insert body"
+      if {[_insertBody $articleBody $articleHTMLBody $message] eq "text/html"} {
+          $articlePanes insert $articleBodySW $articleHTMLBody -weight 10
+      }
+      if {[string match -nocase multipart/* [::mime::getproperty $message content]]} {
+           #
+           # Attachments
+           #
+           set attachmentDir [file join /usr/tmp/ [clock seconds] $groupName $articleNumber Attachments]
+           foreach p [::mime::getproperty $message parts] {
+               #puts stderr "*** $self readArticleFromFile (attachment loop): p is $p"
+               if {[::mime::getproperty $p content] eq {message/rfc822}} {
+                   #puts stderr "*** $self readArticleFromFile message/rfc822 attachment"
+                   _insertAttachedMessage [lindex [::mime::getproperty $p parts] 0] $articleBody
+               } elseif {"Content-Disposition" in [::mime::getheader $p -names]} {
+                   #puts stderr "*** $self readArticleFromFile: Content-Disposition of $p is [::mime::getheader $p Content-Disposition]"
+                   set disposition [::mime::getheader $p Content-Disposition]
+                   if {"Content-Description" in [::mime::getheader $p -names]} {
+                       set description [::mime::getheader $p Content-Description]
+                   } else {
+                       set description {}
+                   }
+                   set isAttach no
+                   set FileName {}
+                   set pattern [format {^%c([^%c]*)%c$} 123 125 125]
+                   #puts stderr "*** $self readArticleFromFile: pattern = $pattern"
+                   if {[regexp $pattern $disposition => bracestrip] > 0} {
+                       set disposition $bracestrip
+                   }
+                   foreach field [split $disposition {;}] {
+                       #puts stderr "*** $self readArticleFromFile: field = '$field'"
+                       set field [string trim $field]
+                       set key $field
+                       set value {}
+                       set match [regexp {^([^=]+)="([^"]+)"$} $field => key value]
+                       #puts stderr "*** $self readArticleFromFile: match = $match"
+                       set key [string tolower $key]
+                       #puts stderr "*** $self readArticleFromFile: key = $key"
+                       #puts stderr "*** $self readArticleFromFile: value = $value"
+                       if {$key eq "attachment"} {
+                           set isAttach yes
+                       }
+                       if {$key eq "filename"} {
+                           set FileName $value
+                           if {[regexp {^"(.*)"$} $FileName => noquotes] > 0} {
+                               set FileName $noquotes
+                           }
+                           #puts stderr "*** $self readArticleFromFile: FileName is '$FileName'"
+                           if {[regexp {^=\?([^?]+)\?(.*)\?=$} $FileName => enc encstr] > 0} {
+                               set FileName [encoding convertfrom \
+                                             [matchencoding $enc] \
+                                             [base64::decode $encstr]]
+                           }
+                       }
+                   }
+                   if {!$isAttach} {continue}
+                   if {![file exists $attachmentDir]} {
+                       file mkdir $attachmentDir
+                   }
+                   #puts stderr "*** $self readArticleFromFile: Attachment ([::mime::getproperty $p content]) => $FileName"
+                   if {$FileName eq ""} {
+                       set FileName "attachment[clock seconds]"
+                   }
+                   if {[catch {open [file join $attachmentDir $FileName] w} outfp]} {
+                       set FileName "attachment[clock seconds]"
+                       set outfp [open [file join $attachmentDir $FileName] w]
+                   }
+                   if {![string match -nocase "text/*" [::mime::getproperty $p content]]} {
+                       fconfigure $outfp -translation binary
+                   }
+                   puts -nonewline $outfp [::mime::getbody $p]
+                   close $outfp
+                   $articleBody insert end "\nAttachment saved: [file join $attachmentDir $FileName] ([::mime::getproperty $p content])\n"
+               }
+               #puts stderr "*** $self readArticleFromFile: properties of $p: [::mime::getproperty $p -names]"
+               #puts stderr "*** $self readArticleFromFile: headers of $p: [::mime::getheader $p -names]"
+           }
       }
       ::mime::finalize $message
       $self _GetHeaderFields

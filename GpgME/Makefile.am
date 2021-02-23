@@ -2,7 +2,7 @@ pkglibdir=$(libdir)/$(PACKAGE)-$(VERSION)/execbin
 
 
 pkglib_LTLIBRARIES = gpgme.la
-INCLUDES = -I$(top_builddir)  -I. -I$(TCL_INCLUDES)
+INCLUDES = -I$(top_builddir)  -I. $(TCL_INCLUDES)
 nodist_gpgme_la_SOURCES = gpgme_wrap.c
 gpgme_la_LDFLAGS = -g -module -avoid-version 
 gpgme_la_LIBADD = $(TCL_STUB_LIB_SPEC) $(GPGME_LIBS)
