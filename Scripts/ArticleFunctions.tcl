@@ -730,7 +730,9 @@ snit::widget ArticleViewer {
                 }
             }
             set charset [::mime::reversemapencoding $charset]
-            set text [encoding convertfrom $charset $text]
+            catch {
+                set text [encoding convertfrom $charset $text]
+            }
             #puts stderr "*** decodeHeader: text is now $text"
             #_printBytesHex "*** decodeHeader: text is now (hexbytes)" $text
             set first [string first $replace $headerContent]
@@ -740,6 +742,8 @@ snit::widget ArticleViewer {
             #_printBytesHex "*** decodeHeader: headerContent is now (hexbytes)" "$headerContent"
         }
         set headerContent [_stripU16andCC $headerContent]
+        #puts stderr "*** decodeHeader: headerContent after _stripU16andCC: '$headerContent'"
+        #_printBytesHex "*** decodeHeader: headerContent after _stripU16andCC:" $headerContent
         return $headerContent
     }
     proc _stripU16andCC {string} {
@@ -747,8 +751,11 @@ snit::widget ArticleViewer {
         set result {}
         foreach b $bytes {
             scan $b %c _b
-            if {$_b < 32 || $_b > 255} {continue}
-            append result [format %c $_b]
+            if {$_b < 32 || $_b > 127} {
+                append result "?"
+            } else {
+                append result "$b"
+            }
         }
         return $result
     }
