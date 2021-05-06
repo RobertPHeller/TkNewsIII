@@ -836,10 +836,24 @@ snit::widget ArticleViewer {
                                set FileName $noquotes
                            }
                            #puts stderr "*** $self readArticleFromFile: FileName is '$FileName'"
-                           if {[regexp {^=\?([^?]+)\?(.*)\?=$} $FileName => enc encstr] > 0} {
+                           if {[regexp {^=\?([^?]+)\?B\?(.*)\?=$} $FileName => enc encstr] > 0} {
+                               #puts stderr "*** $self readArticleFromFile: enc = '$enc'"
+                               #puts stderr "*** $self readArticleFromFile (base64): encstr = '$encstr'"
                                set FileName [encoding convertfrom \
                                              [matchencoding $enc] \
                                              [base64::decode $encstr]]
+                           } elseif {[regexp {^=\?([^?]+)\?Q\?(.*)\?=$} $FileName => enc encstr] > 0} {
+                               #puts stderr "*** $self readArticleFromFile: enc = '$enc'"
+                               #puts stderr "*** $self readArticleFromFile (QP): encstr = '$encstr'"
+                               set FileName [encoding convertfrom \
+                                             [matchencoding $enc] \
+                                             [::mime::qp_decode $encstr]]
+                           } elseif {[regexp {^=\?([^?]+)\?(.*)\?=$}  $FileName => enc encstr] > 0} {
+                               #puts stderr "*** $self readArticleFromFile: enc = '$enc'"
+                               #puts stderr "*** $self readArticleFromFile (none): encstr = '$encstr'"
+                               set FileName [encoding convertfrom \
+                                             [matchencoding $enc] \
+                                             $encstr]
                            }
                        }
                    }
