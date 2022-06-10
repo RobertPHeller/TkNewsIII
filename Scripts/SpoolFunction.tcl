@@ -1720,7 +1720,7 @@ snit::widget SpoolWindow {
             set line "[format  {%6d %s%-36s %-20s %-25s %5d} $artnumber $nread $subject $from $date $lines]"
             #	set font [option get $listbox font Font]
             #        puts stderr "*** ${type}::NNTP_LoadArticleHead: listbox = $listbox, font = $font"
-            $articleList insertArticleHeader $artnumber $nread $from $date $lines $size $messageid $inreplyto
+            $articleList insertArticleHeader $artnumber $nread $subject $from $date $lines $size $messageid $inreplyto
             return 1
         }
         return 0
