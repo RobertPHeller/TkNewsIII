@@ -1670,7 +1670,7 @@ snit::widget SpoolWindow {
         set lines 0
         set size 0
         set messageid {}
-        set intreplyto {}
+        set inreplyto {}
         
         if {[$self srv_cmd "group $group" buff] < 0} {
             error "NNTP_LoadArticleHead: Error sending group command"
