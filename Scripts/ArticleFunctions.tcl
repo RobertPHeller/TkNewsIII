@@ -799,6 +799,10 @@ snit::widget ArticleViewer {
            set attachmentDir [file join /usr/tmp/ [clock seconds] $groupName $articleNumber Attachments]
            foreach p [::mime::getproperty $message parts] {
                #puts stderr "*** $self readArticleFromFile (attachment loop): p is $p"
+               #puts stderr "*** $self readArticleFromFile: properties of $p: [::mime::getproperty $p -names]"
+               #puts stderr "*** $self readArticleFromFile: headers of $p: [::mime::getheader $p -names]"
+               #puts stderr "*** $self readArticleFromFile: content of $p: [::mime::getproperty $p content]"
+               #puts stderr "*** $self readArticleFromFile: params of $p: [::mime::getproperty $p params]"
                if {[::mime::getproperty $p content] eq {message/rfc822}} {
                    #puts stderr "*** $self readArticleFromFile message/rfc822 attachment"
                    _insertAttachedMessage [lindex [::mime::getproperty $p parts] 0] $articleBody
@@ -822,7 +826,8 @@ snit::widget ArticleViewer {
                        set field [string trim $field]
                        set key $field
                        set value {}
-                       set match [regexp {^([^=]+)="([^"]+)"$} $field => key value]
+                       set exp [format {^([^=]+)=%c([^%c]+)%c$} 34 34 34]
+                       set match [regexp $exp $field => key value]
                        #puts stderr "*** $self readArticleFromFile: match = $match"
                        set key [string tolower $key]
                        #puts stderr "*** $self readArticleFromFile: key = $key"
@@ -863,7 +868,13 @@ snit::widget ArticleViewer {
                    }
                    #puts stderr "*** $self readArticleFromFile: Attachment ([::mime::getproperty $p content]) => $FileName"
                    if {$FileName eq ""} {
-                       set FileName "attachment[clock seconds]"
+                       set params [::mime::getproperty $p params]
+                       set nameIndex [lsearch -exact $params name]
+                       if {$nameIndex >= 0} {
+                           set FileName [lindex $params [expr {$nameIndex + 1}]]
+                       } else  {        
+                           set FileName "attachment[clock seconds]"
+                       }
                    }
                    if {[catch {open [file join $attachmentDir $FileName] w} outfp]} {
                        set FileName "attachment[clock seconds]"
@@ -876,8 +887,6 @@ snit::widget ArticleViewer {
                    close $outfp
                    $articleBody insert end "\nAttachment saved: [file join $attachmentDir $FileName] ([::mime::getproperty $p content])\n"
                }
-               #puts stderr "*** $self readArticleFromFile: properties of $p: [::mime::getproperty $p -names]"
-               #puts stderr "*** $self readArticleFromFile: headers of $p: [::mime::getheader $p -names]"
            }
       }
       ::mime::finalize $message
