@@ -770,128 +770,158 @@ snit::widget ArticleViewer {
     }
         
     method readArticleFromFile {filename} {
-      $articleBody delete 1.0 end-1c
-      catch {$articlePanes forget $articleHTMLBody}  
-      #puts stderr "*** $self readArticleFromFile $filename"
-      set message [::mime::initialize -file $filename]
-      #puts stderr "*** $self readArticleFromFile: message is $message"
-      foreach h [::mime::getheader $message -names] {
-          #puts stderr "*** $self readArticleFromFile: h is $h"
-          if {[regexp {^From } $h] > 0} {
-              $articleBody insert end "$h:[decodeHeader [lindex [::mime::getheader $message $h] 0]]\n"
-          } else {
-              foreach hv [::mime::getheader $message $h] {
-                  #puts stderr "*** $self readArticleFromFile:  hv is $hv"
-                  $articleBody insert end "$h: [decodeHeader $hv]\n"
-              }
-          }
-          #update 
-      }
-      #$articleBody insert end "\n"
-      #puts stderr "*** $self readArticleFromFile: about to insert body"
-      if {[_insertBody $articleBody $articleHTMLBody $message] eq "text/html"} {
-          $articlePanes insert $articleBodySW $articleHTMLBody -weight 10
-      }
-      if {[string match -nocase multipart/* [::mime::getproperty $message content]]} {
-           #
-           # Attachments
-           #
-           set attachmentDir [file join /usr/tmp/ [clock seconds] $groupName $articleNumber Attachments]
-           foreach p [::mime::getproperty $message parts] {
-               #puts stderr "*** $self readArticleFromFile (attachment loop): p is $p"
-               #puts stderr "*** $self readArticleFromFile: properties of $p: [::mime::getproperty $p -names]"
-               #puts stderr "*** $self readArticleFromFile: headers of $p: [::mime::getheader $p -names]"
-               #puts stderr "*** $self readArticleFromFile: content of $p: [::mime::getproperty $p content]"
-               #puts stderr "*** $self readArticleFromFile: params of $p: [::mime::getproperty $p params]"
-               if {[::mime::getproperty $p content] eq {message/rfc822}} {
-                   #puts stderr "*** $self readArticleFromFile message/rfc822 attachment"
-                   _insertAttachedMessage [lindex [::mime::getproperty $p parts] 0] $articleBody
-               } elseif {"Content-Disposition" in [::mime::getheader $p -names]} {
-                   #puts stderr "*** $self readArticleFromFile: Content-Disposition of $p is [::mime::getheader $p Content-Disposition]"
-                   set disposition [::mime::getheader $p Content-Disposition]
-                   if {"Content-Description" in [::mime::getheader $p -names]} {
-                       set description [::mime::getheader $p Content-Description]
-                   } else {
-                       set description {}
-                   }
-                   set isAttach no
-                   set FileName {}
-                   set pattern [format {^%c([^%c]*)%c$} 123 125 125]
-                   #puts stderr "*** $self readArticleFromFile: pattern = $pattern"
-                   if {[regexp $pattern $disposition => bracestrip] > 0} {
-                       set disposition $bracestrip
-                   }
-                   foreach field [split $disposition {;}] {
-                       #puts stderr "*** $self readArticleFromFile: field = '$field'"
-                       set field [string trim $field]
-                       set key $field
-                       set value {}
-                       set exp [format {^([^=]+)=%c([^%c]+)%c$} 34 34 34]
-                       set match [regexp $exp $field => key value]
-                       #puts stderr "*** $self readArticleFromFile: match = $match"
-                       set key [string tolower $key]
-                       #puts stderr "*** $self readArticleFromFile: key = $key"
-                       #puts stderr "*** $self readArticleFromFile: value = $value"
-                       if {$key eq "attachment"} {
-                           set isAttach yes
-                       }
-                       if {$key eq "filename"} {
-                           set FileName $value
-                           if {[regexp {^"(.*)"$} $FileName => noquotes] > 0} {
-                               set FileName $noquotes
-                           }
-                           #puts stderr "*** $self readArticleFromFile: FileName is '$FileName'"
-                           if {[regexp {^=\?([^?]+)\?B\?(.*)\?=$} $FileName => enc encstr] > 0} {
-                               #puts stderr "*** $self readArticleFromFile: enc = '$enc'"
-                               #puts stderr "*** $self readArticleFromFile (base64): encstr = '$encstr'"
-                               set FileName [encoding convertfrom \
-                                             [matchencoding $enc] \
-                                             [base64::decode $encstr]]
-                           } elseif {[regexp {^=\?([^?]+)\?Q\?(.*)\?=$} $FileName => enc encstr] > 0} {
-                               #puts stderr "*** $self readArticleFromFile: enc = '$enc'"
-                               #puts stderr "*** $self readArticleFromFile (QP): encstr = '$encstr'"
-                               set FileName [encoding convertfrom \
-                                             [matchencoding $enc] \
-                                             [::mime::qp_decode $encstr]]
-                           } elseif {[regexp {^=\?([^?]+)\?(.*)\?=$}  $FileName => enc encstr] > 0} {
-                               #puts stderr "*** $self readArticleFromFile: enc = '$enc'"
-                               #puts stderr "*** $self readArticleFromFile (none): encstr = '$encstr'"
-                               set FileName [encoding convertfrom \
-                                             [matchencoding $enc] \
-                                             $encstr]
-                           }
-                       }
-                   }
-                   if {!$isAttach} {continue}
-                   if {![file exists $attachmentDir]} {
-                       file mkdir $attachmentDir
-                   }
-                   #puts stderr "*** $self readArticleFromFile: Attachment ([::mime::getproperty $p content]) => $FileName"
-                   if {$FileName eq ""} {
-                       set params [::mime::getproperty $p params]
-                       set nameIndex [lsearch -exact $params name]
-                       if {$nameIndex >= 0} {
-                           set FileName [lindex $params [expr {$nameIndex + 1}]]
-                       } else  {        
-                           set FileName "attachment[clock seconds]"
-                       }
-                   }
-                   if {[catch {open [file join $attachmentDir $FileName] w} outfp]} {
-                       set FileName "attachment[clock seconds]"
-                       set outfp [open [file join $attachmentDir $FileName] w]
-                   }
-                   if {![string match -nocase "text/*" [::mime::getproperty $p content]]} {
-                       fconfigure $outfp -translation binary
-                   }
-                   puts -nonewline $outfp [::mime::getbody $p]
-                   close $outfp
-                   $articleBody insert end "\nAttachment saved: [file join $attachmentDir $FileName] ([::mime::getproperty $p content])\n"
-               }
-           }
-      }
-      ::mime::finalize $message
-      $self _GetHeaderFields
-      focus $articleBody
+        $articleBody delete 1.0 end-1c
+        catch {$articlePanes forget $articleHTMLBody}  
+        #puts stderr "*** $self readArticleFromFile $filename"
+        set message [::mime::initialize -file $filename]
+        #puts stderr "*** $self readArticleFromFile: message is $message"
+        foreach h [::mime::getheader $message -names] {
+            #puts stderr "*** $self readArticleFromFile: h is $h"
+            if {[regexp {^From } $h] > 0} {
+                $articleBody insert end "$h:[decodeHeader [lindex [::mime::getheader $message $h] 0]]\n"
+            } else {
+                foreach hv [::mime::getheader $message $h] {
+                    #puts stderr "*** $self readArticleFromFile:  hv is $hv"
+                    $articleBody insert end "$h: [decodeHeader $hv]\n"
+                }
+            }
+            #update 
+        }
+        #$articleBody insert end "\n"
+        #puts stderr "*** $self readArticleFromFile: about to insert body"
+        if {[_insertBody $articleBody $articleHTMLBody $message] eq "text/html"} {
+            $articlePanes insert $articleBodySW $articleHTMLBody -weight 10
+        }
+        if {[string match -nocase multipart/* [::mime::getproperty $message content]]} {
+            $self _processAttachments $message
+        }
+        ::mime::finalize $message
+        $self _GetHeaderFields
+        focus $articleBody
+    }
+    method _processAttachments {message} {
+        
+        #puts stderr "*** $self _processAttachments: content property of message is [::mime::getproperty $message content]"
+        #
+        # Attachments
+        #
+        set attachmentDir [file join /usr/tmp/ [clock seconds] $groupName $articleNumber Attachments]
+        foreach p [::mime::getproperty $message parts] {
+            #puts stderr "*** $self _processAttachments (attachment loop): p is $p"
+            #puts stderr "*** $self _processAttachments: properties of $p: [::mime::getproperty $p -names]"
+            #puts stderr "*** $self _processAttachments: headers of $p: [::mime::getheader $p -names]"
+            #puts stderr "*** $self _processAttachments: content of $p: [::mime::getproperty $p content]"
+            #puts stderr "*** $self _processAttachments: params of $p: [::mime::getproperty $p params]"
+            if {[::mime::getproperty $p content] eq {message/rfc822}} {
+                #puts stderr "*** $self _processAttachments message/rfc822 attachment"
+                _insertAttachedMessage [lindex [::mime::getproperty $p parts] 0] $articleBody
+            } elseif {[string match -nocase "multipart/*" [::mime::getproperty $p content]]} {
+                # recursion
+                $self _processAttachments $p
+            } elseif {"Content-Disposition" in [::mime::getheader $p -names]} {
+                #puts stderr "*** $self _processAttachments: Content-Disposition of $p is [::mime::getheader $p Content-Disposition]"
+                set disposition [::mime::getheader $p Content-Disposition]
+                if {"Content-Description" in [::mime::getheader $p -names]} {
+                    set description [::mime::getheader $p Content-Description]
+                } else {
+                    set description {}
+                }
+                set isAttach no
+                set FileName {}
+                set pattern [format {^%c([^%c]*)%c$} 123 125 125]
+                #puts stderr "*** $self _processAttachments: pattern = $pattern"
+                if {[regexp $pattern $disposition => bracestrip] > 0} {
+                    set disposition $bracestrip
+                }
+                foreach field [split $disposition {;}] {
+                    #puts stderr "*** $self _processAttachments: field = '$field'"
+                    set field [string trim $field]
+                    set key $field
+                    set value {}
+                    set exp [format {^([^=]+)=%c([^%c]+)%c$} 34 34 34]
+                    set match [regexp $exp $field => key value]
+                    #puts stderr "*** $self _processAttachments: match = $match"
+                    set key [string tolower $key]
+                    #puts stderr "*** $self _processAttachments: key = $key"
+                    #puts stderr "*** $self _processAttachments: value = $value"
+                    if {$key eq "attachment"} {
+                        set isAttach yes
+                    }
+                    if {$key eq "filename"} {
+                        set FileName $value
+                        if {[regexp {^"(.*)"$} $FileName => noquotes] > 0} {
+                            set FileName $noquotes
+                        }
+                        #puts stderr "*** $self _processAttachments: FileName is '$FileName'"
+                        if {[regexp {^=\?([^?]+)\?B\?(.*)\?=$} $FileName => enc encstr] > 0} {
+                            #puts stderr "*** $self _processAttachments: enc = '$enc'"
+                            #puts stderr "*** $self _processAttachments (base64): encstr = '$encstr'"
+                            set FileName [encoding convertfrom \
+                                          [matchencoding $enc] \
+                                          [base64::decode $encstr]]
+                        } elseif {[regexp {^=\?([^?]+)\?Q\?(.*)\?=$} $FileName => enc encstr] > 0} {
+                            #puts stderr "*** $self _processAttachments: enc = '$enc'"
+                            #puts stderr "*** $self _processAttachments (QP): encstr = '$encstr'"
+                            set FileName [encoding convertfrom \
+                                          [matchencoding $enc] \
+                                          [::mime::qp_decode $encstr]]
+                        } elseif {[regexp {^=\?([^?]+)\?(.*)\?=$}  $FileName => enc encstr] > 0} {
+                            #puts stderr "*** $self _processAttachments: enc = '$enc'"
+                            #puts stderr "*** $self _processAttachments (none): encstr = '$encstr'"
+                            set FileName [encoding convertfrom \
+                                          [matchencoding $enc] \
+                                          $encstr]
+                        }
+                    }
+                }
+                if {!$isAttach} {continue}
+                if {![file exists $attachmentDir]} {
+                    file mkdir $attachmentDir
+                }
+                #puts stderr "*** $self _processAttachments: Attachment ([::mime::getproperty $p content]) => $FileName"
+                if {$FileName eq ""} {
+                    set params [::mime::getproperty $p params]
+                    #puts stderr "*** $self _processAttachments: FileName is null, params are: $params"
+                    set nameIndex [lsearch -exact $params name]
+                    if {$nameIndex >= 0} {
+                        set FileName [string trim [lindex $params [expr {$nameIndex + 1}]]]
+                    } else  {        
+                        set FileName "attachment[clock seconds]"
+                    }
+                    #puts stderr "*** $self _processAttachments: FileName is now '$FileName'"
+                    if {[regexp {^=\?([^?]+)\?B\?(.*)\?=$} $FileName => enc encstr] > 0} {
+                        #puts stderr "*** $self _processAttachments: enc = '$enc'"
+                        #puts stderr "*** $self _processAttachments (base64): encstr = '$encstr'"
+                        set FileName [encoding convertfrom \
+                                      [matchencoding $enc] \
+                                      [base64::decode $encstr]]
+                    } elseif {[regexp {^=\?([^?]+)\?Q\?(.*)\?=$} $FileName => enc encstr] > 0} {
+                        #puts stderr "*** $self _processAttachments: enc = '$enc'"
+                        #puts stderr "*** $self _processAttachments (QP): encstr = '$encstr'"
+                        set FileName [encoding convertfrom \
+                                      [matchencoding $enc] \
+                                      [::mime::qp_decode $encstr]]
+                    } elseif {[regexp {^=\?([^?]+)\?(.*)\?=$}  $FileName => enc encstr] > 0} {
+                        #puts stderr "*** $self _processAttachments: enc = '$enc'"
+                        #puts stderr "*** $self _processAttachments (none): encstr = '$encstr'"
+                        set FileName [encoding convertfrom \
+                                      [matchencoding $enc] \
+                                      $encstr]
+                    }
+                }
+                #puts stderr "*** $self _processAttachments: FileName is now '$FileName'"
+                if {[catch {open [file join $attachmentDir $FileName] w} outfp]} {
+                    set FileName "attachment[clock seconds]"
+                    set outfp [open [file join $attachmentDir $FileName] w]
+                }
+                if {![string match -nocase "text/*" [::mime::getproperty $p content]]} {
+                    fconfigure $outfp -translation binary
+                }
+                puts -nonewline $outfp [::mime::getbody $p]
+                close $outfp
+                $articleBody insert end "\nAttachment saved: [file join $attachmentDir $FileName] ([::mime::getproperty $p content])\n"
+            }
+        }
     }
     method _collectAddresses {} {
         set lastline [expr {$EOH + 1}]
