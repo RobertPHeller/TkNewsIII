@@ -45,6 +45,8 @@ execbin_PROGRAMS = QWKToSpool qwkReply SpoolToReply headList
 #CFlags = -g
 #LDFlags = -g
 
+#DEFS += -DDEBUG
+
 QWKToSpool_SOURCES = QWKToSpool.c qwk.h
 qwkReply_SOURCES = qwkReply.c qwk.h
 SpoolToReply_SOURCES = SpoolToReply.c qwk.h

@@ -1684,6 +1684,7 @@ snit::widget SpoolWindow {
         if {[string first {221} "$buff"] != 0} {
             return 0
         }
+        array unset OtherHeaders
         while {[$self srv_recv line] != -1} {
             if {[string compare $line {.}] == 0} {break}
             if {[string first "Subject: " $line] == 0} {
@@ -1710,10 +1711,13 @@ snit::widget SpoolWindow {
                 set inreplyto [string range $line 13 end]
                 continue
             }
+            if {[regexp {^([^:]*):[[:space:]]*(.*)$} => h v] > 0} {
+                lappend OtherHeaders($h) $v
+            }
         }
         set from [RFC822 Name $from]
         if {[regexp -nocase -- "$pattern" "$subject"] && 
-            [$self _PassKillFile "$from" "$subject"]} {
+            [$self _PassKillFile "$from" "$subject" "OtherHeaders"]} {
             if {[string length $subject] > 36} {set subject [string range $subject 0 35]}
             if {[string length $from] > 20} {set from [string range $from 0 19]}
             if {[string length $date] > 25} {set date [string range $date 0 24]}
@@ -1726,7 +1730,8 @@ snit::widget SpoolWindow {
         return 0
     }
     variable killFilePatternList
-    method _PassKillFile {from subject} {
+    method _PassKillFile {from subject otherheadersvar} {
+        upvar $otherheadersvar OtherHeaders
         if {[catch "set killFilePatternList"]} {
             set killFilePatternList {}
             if {![string equal "$options(-killfile)" {}]} {
@@ -1737,7 +1742,7 @@ snit::widget SpoolWindow {
                         regsub {(^|[^\\])#.*$} "$oline" {\1} line
                         set line [string trim "$line"]
                         if {[string length "$line"] == 0} {continue}
-                        if {[regexp -nocase {^(from|subject):[[:space:]]*(.*)$} "$line" -> field pattern] > 0} {
+                        if {[regexp -nocase {^([^:]*):[[:space:]]*(.*)$} "$line" -> field pattern] > 0} {
                             lappend killFilePatternList [list $field "$pattern"]
                         } else {
                             tk_messageBox -icon warning -type ok -message "Syntax error in $options(-killfile) at $oline" -parent $win
@@ -1755,6 +1760,13 @@ snit::widget SpoolWindow {
                     }
                     subject {
                         if {[regexp -nocase "$p" "$subject"] > 0} {return no}
+                    }
+                    default {
+                        if {[info exists OtherHeaders($f)]} {
+                            foreach v $OtherHeaders($f) {
+                                if {[regexp -nocase "$p" "$v"] > 0} {return no}
+                            }
+                        }
                     }
                 }
             }

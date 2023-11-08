@@ -464,9 +464,10 @@ long SizeOfFile(const char *messageDatFile)
 
 /* Kill pattern vector elements */
 typedef struct {
-	enum {FROM,SUBJECT} field;
-	char *patternBuffer;
-	regex_t pattern;
+    enum {FROM,SUBJECT,OTHER} field;
+    char *otherheader;
+    char *patternBuffer;
+    regex_t pattern;
 } KillPattern;
 
 #define KILLPATTERNALLOCSIZE 100
@@ -493,7 +494,7 @@ int ReadKillFile(const char *killfile,KillPattern **patterns)
 		exit(status);
 	}
 	/* Kill pattern line pattern */
-	status = regcomp(&linePattern,"^(from|subject):[[:space:]]*(.*)$",REG_NEWLINE|REG_EXTENDED|REG_ICASE);
+	status = regcomp(&linePattern,"^(.*):[[:space:]]*(.*)$",REG_NEWLINE|REG_EXTENDED|REG_ICASE);
 	if (status != 0)
 	{
 		regerror(status,&linePattern,errbuffer,512);
@@ -565,11 +566,16 @@ int ReadKillFile(const char *killfile,KillPattern **patterns)
 			}
 			/* Fill in pattern structure. */
 			/* Set field type (from or subject). */
-			if (line[0] == 'f' || line[0] == 'F') {
+                        if (strncasecmp("from",line,4) == 0) {
 				(*patterns)[patternCount-1].field = FROM;
-			} else {
+			} else if (strncasecmp("subject",line,7) == 0) {
 				(*patterns)[patternCount-1].field = SUBJECT;
-			}
+			} else {
+                            (*patterns)[patternCount-1].field = OTHER;
+                            (*patterns)[patternCount-1].otherheader = malloc(strlen(line)+1);
+                            strcpy((*patterns)[patternCount-1].otherheader,line);
+                        }
+                                  
 			/* Copy pattern string. */
 			(*patterns)[patternCount-1].patternBuffer = malloc(sizeof(char)*(strlen(p)+1));
 			if ((*patterns)[patternCount-1].patternBuffer == NULL) {
@@ -612,40 +618,58 @@ int PassKillFile(const char *messageFile,int patternCount,KillPattern *patterns)
 	if (mfp == NULL) return FALSE;
 	/* Get header lines. */
 	while (fgets(headerline,sizeof(headerline),mfp) != NULL) {
-		if (headerline[0] == '\n') break;	/* End of headers. */
-		/* From: header -- apply FROM kill patterns. */
-		if (strncasecmp("from: ",headerline,6) == 0) {
-			for (kpindex = 0;kpindex < patternCount;kpindex++) {
-				if (patterns[kpindex].field != FROM) continue;
-				status = regexec(&(patterns[kpindex].pattern),&headerline[6],0,NULL,0);
-				if (status == 0) {
-					fclose(mfp);
+            if (headerline[0] == '\n') break;	/* End of headers. */
 #ifdef DEBUG
-					fprintf(stderr,"*** PassKillFile: failed: %s",headerline);
+            fprintf(stderr,"*** PassKillFile: headerline is %s",headerline);
 #endif
-					return FALSE;
-				}
-			}
+            /* From: header -- apply FROM kill patterns. */
+            if (strncasecmp("from: ",headerline,6) == 0) {
+                for (kpindex = 0;kpindex < patternCount;kpindex++) {
+                    if (patterns[kpindex].field != FROM) continue;
+                    status = regexec(&(patterns[kpindex].pattern),&headerline[6],0,NULL,0);
+                    if (status == 0) {
+                        fclose(mfp);
+#ifdef DEBUG
+                        fprintf(stderr,"*** PassKillFile: failed: %s",headerline);
+#endif
+                        return FALSE;
+                    }
+                }
 		/* Subject: header -- apply SUBJECT kill patterns. */
-		} else if (strncasecmp("subject: ",headerline,9) == 0) {
-			for (kpindex = 0;kpindex < patternCount;kpindex++) {
-				if (patterns[kpindex].field != SUBJECT) continue;
-				status = regexec(&(patterns[kpindex].pattern),&headerline[9],0,NULL,0);
-				if (status == 0) {
-					fclose(mfp);
+            } else if (strncasecmp("subject: ",headerline,9) == 0) {
+                for (kpindex = 0;kpindex < patternCount;kpindex++) {
+                    if (patterns[kpindex].field != SUBJECT) continue;
+                    status = regexec(&(patterns[kpindex].pattern),&headerline[9],0,NULL,0);
+                    if (status == 0) {
+                        fclose(mfp);
 #ifdef DEBUG
-					fprintf(stderr,"*** PassKillFile: failed: %s",headerline);
+                        fprintf(stderr,"*** PassKillFile: failed: %s",headerline);
 #endif
-					return FALSE;
-				}
-			}
-		}
+                        return FALSE;
+                    }
+                }
+                /* Other headers: -- apply OTHER kill patterns. */
+            } else {
+                for (kpindex = 0;kpindex < patternCount;kpindex++) {
+                    if (patterns[kpindex].field != OTHER) continue;
+                    if (strncasecmp(patterns[kpindex].otherheader,headerline,strlen(patterns[kpindex].otherheader)) == 0) {
+                        status = regexec(&(patterns[kpindex].pattern),&headerline[9],0,NULL,0);
+                        if (status == 0) {
+                            fclose(mfp);
+#ifdef DEBUG
+                            fprintf(stderr,"*** PassKillFile: failed: %s",headerline);
+#endif
+                            return FALSE;
+                        }
+                    }
+                }
+            }
 	}
-	fclose(mfp);
+    fclose(mfp);
 #ifdef DEBUG
-	fprintf(stderr,"*** PassKillFile: passed: %s\n",messageFile);
+    fprintf(stderr,"*** PassKillFile: passed: %s\n",messageFile);
 #endif
-	return TRUE;					
+    return TRUE;					
 }
 
 static int checkValidMHead(struct MsgHeaderType *MessageHeader)
