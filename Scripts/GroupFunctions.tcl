@@ -255,18 +255,17 @@ snit::type group {
         }
         ::imap4::close $imapserverchannel
     }
-    method insertArticleListFromSpoolDir {articleList spool {pattern "."} 
-        {unreadp "0"}} {
+    method insertArticleListFromSpoolDir {articleList spool {pattern "."} {unreadp "0"}} {
         set firstMessage $options(-first)
         set lastMessage  $options(-last)
         set numMessages [expr double($lastMessage - $firstMessage + 1)]
         set spoolDirectory [$spool cget -spooldirectory]
         set groupPath [GroupName Path $options(-name)]
-        #      puts stderr "*** ${type}::insertArticleListFromSpoolDir: firstMessage = $firstMessage, lastMessage = $lastMessage"
-        #      puts stderr "*** ${type}::insertArticleListFromSpoolDir: numMessages = $numMessages, spoolDirectory = $spoolDirectory"
-        #      puts stderr "*** ${type}::insertArticleListFromSpoolDir: groupPath = $groupPath"
+        #puts stderr "*** ${type}::insertArticleListFromSpoolDir: firstMessage = $firstMessage, lastMessage = $lastMessage"
+        #puts stderr "*** ${type}::insertArticleListFromSpoolDir: numMessages = $numMessages, spoolDirectory = $spoolDirectory"
+        #puts stderr "*** ${type}::insertArticleListFromSpoolDir: groupPath = $groupPath"
         set command [join [concat $HeadListProg $spoolDirectory $groupPath "$pattern" $unreadp $firstMessage $lastMessage $ranges] { }]
-        #      puts stderr "*** ${type}::insertArticleListFromSpoolDir: command = $command"
+        #puts stderr "*** ${type}::insertArticleListFromSpoolDir: command = $command"
         set pipeCmd "|$command"
         if {[catch [list open "$pipeCmd" r] pipe]} {
             error "pipe failed: $pipeCmd: $pipe"
@@ -278,10 +277,10 @@ snit::type group {
             update
             set imsg 0
             while {[gets $pipe line] != -1} {
-                #	  puts stderr "*** ${type}::insertArticleListFromSpoolDir: line = '$line'"
+                #puts stderr "*** ${type}::insertArticleListFromSpoolDir: line = '$line'"
                 scan "$line" {%6d } artNumber
-                #	  puts stderr "*** ${type}::insertArticleListFromSpoolDir: artNumber = $artNumber"
-                eval [list $articleList insertArticleHeader] $line
+                #puts stderr "*** ${type}::insertArticleListFromSpoolDir: artNumber = $artNumber"
+                $articleList insertArticleHeader {*}$line
                 incr imsg
                 if {$imsg == 10} {
                     set line [string trim "$line"]
@@ -298,8 +297,10 @@ snit::type group {
             $spool setstatus "Geting Headers $numMessages messages"
         } else {
             while {[gets $pipe line] != -1} {
+                #puts stderr "*** ${type}::insertArticleListFromSpoolDir: line = '$line'"
                 scan "$line" {%6d } artNumber
-                eval [list $articleList insertArticleHeader] $line
+                #puts stderr "*** ${type}::insertArticleListFromSpoolDir: artNumber = $artNumber"
+                $articleList insertArticleHeader {*}$line
             }
         }
         catch {close $pipe}

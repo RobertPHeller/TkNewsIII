@@ -115,8 +115,7 @@ snit::macro ArticleListMethods {} {
         array unset nreads
         array unset article_number
     }
-    method insertArticleHeader {artnumber nread subject from date lines size 
-        _messageid _inreplyto} {
+    method insertArticleHeader {artnumber nread subject from date lines size _messageid _inreplyto} {
         #puts stderr "*** $self insertArticleHeader: $artnumber, $_messageid, $_inreplyto"
         if {[$articleList exists $_messageid]} {
             # Duplicate message id (message filed or sent multiple times?)

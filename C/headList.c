@@ -53,7 +53,8 @@ void GetRFC822Name(char *from_line,char *from_buffer,int from_buffer_size)
 	char *pmatch,*q;
 	int status;
 	static char errbuffer[512];
-
+    
+        /*fprintf(stderr,"*** GetRFC822Name(\"%s\",...)\n",from_line);*/
 	/* Initialize compiled regular expressions */
 	if (!rxinit)
 	{
@@ -78,14 +79,18 @@ void GetRFC822Name(char *from_line,char *from_buffer,int from_buffer_size)
 	/* Look for a '<...>' element (E-Mail address) */
 	if ((status = regexec(&rxcorner,from_line,5,matched,0)) == 0)
 	{
+                /*fprintf(stderr,"*** GetRFC822Name(): matched[1].rm_so is %d, matched[1].rm_eo is %d\n",matched[1].rm_so,matched[1].rm_eo);*/
 		/* Found the '<...>'. Grab the  text before or after it.
 		 * This will be the author's real name. */
 		pmatch = matched[1].rm_so + from_line;
-		plen = matched[1].rm_eo - matched[1].rm_so;
+                plen = matched[1].rm_eo - matched[1].rm_so;
+                /*fprintf(stderr,"*** GetRFC822Name(): plen = %d\n",plen);*/
 		if (plen <= 1)
 		{
+                        /*fprintf(stderr,"*** GetRFC822Name(): matched[3].rm_so is %d, matched[3].rm_eo is %d\n",matched[3].rm_so,matched[3].rm_eo);*/
 			pmatch = matched[3].rm_so + from_line;
-			plen = matched[3].rm_eo - matched[3].rm_so;
+                        plen = matched[3].rm_eo - matched[3].rm_so;
+                        /*fprintf(stderr,"*** GetRFC822Name(): plen = %d\n",plen);*/
 		}
 		/* Trim leading space */
 		while (isspace(*pmatch) && plen > 0)
@@ -94,16 +99,20 @@ void GetRFC822Name(char *from_line,char *from_buffer,int from_buffer_size)
 			plen--;
 		}
 		/* Trim trailing space */
-		q = pmatch+plen-1;
+                q = pmatch+plen-1;
 		while (isspace(*q) && plen > 0)
 		{
+                        fprintf(stderr,"*** GetRFC822Name(): *q is %c\n",*q);
 			q--;
 			plen--;
 		}
+                /*fprintf(stderr,"*** GetRFC822Name(): plen is %d\n",plen);*/
 		/* Copy name to from_buffer and return */
-		if (plen >= from_buffer_size) plen = from_buffer_size - 1;
+                if (plen >= from_buffer_size) plen = from_buffer_size - 1;
+                /*fprintf(stderr,"*** GetRFC822Name(): plen is %d\n",plen);*/
 		strncpy(from_buffer,pmatch,plen);
-		from_buffer[plen] = '\0';
+                from_buffer[plen] = '\0';
+                /*fprintf(stderr,"*** GetRFC822Name(): from_buffer is \"%s\"\n",from_buffer);*/
 		return;
 	} else if (status != REG_NOMATCH)
 	{
@@ -161,8 +170,10 @@ void GetRFC822Name(char *from_line,char *from_buffer,int from_buffer_size)
 	
 void print_bracequoted(const char *string)
 {
+    /*fprintf(stderr,"*** print_bracequoted(\"%s\")\n",string);*/
     const char *p = string;
     while (*p != '\0') {
+        /*if (*p == '\\') p++;*/
         if (*p == '{' || *p == '}') putchar('\\');
         putchar(*p++);
     }
@@ -176,6 +187,14 @@ void print_bracequoted(const char *string)
  *                                                                *
  ******************************************************************/
 
+static void mystrncpy(char *dest, const char *src, size_t n)
+{
+    while (*src != '\0' && n-- > 1)
+        *dest++ = *src++;
+    *dest = '\0';
+}
+
+
 void LoadArticleHead(char *spooldir, char *grouppath, int artnumber,
 		     regex_t *compPattern, char *nread)
 {
@@ -186,7 +205,7 @@ void LoadArticleHead(char *spooldir, char *grouppath, int artnumber,
     FILE *file;
     int len;
     
-    static char subject[256], fromline[256], from[22], date[256],
+    static char subject[256], fromline[256], from[256], date[256],
           matchsubj[256], messageid[256], inreplyto[256], key[64];
     int plen;
     char *pmatch1, *pmatch2, *p, *q;
@@ -220,18 +239,21 @@ void LoadArticleHead(char *spooldir, char *grouppath, int artnumber,
     from[0] = '\0';
     date[0] = '\0';
     lines = 0;
+    memset(hbuffer,0,sizeof(hbuffer));
     hbuffer[0] = '\n';
     hbuffer[1] = '\0';
-    len = sizeof(hbuffer);
+    len = sizeof(hbuffer)-strlen(hbuffer);
     /* Read lines, until end of header (empty line). */
     while ((p = fgets(linebuffer,4096,file)) != NULL)
     {
-        /*fprintf(stderr,"*** LoadArticleHead: p = %s",p);*/
+        /*fprintf(stderr,"*** LoadArticleHead: p = '%s'\n",p);*/
         if (*p == ' ' || *p == '\t') {
             q = strchr(hbuffer,'\n');
-            /*fprintf(stderr,"*** LoadArticleHead: len = %d, q = %s",len,q);*/
+            /*fprintf(stderr,"*** LoadArticleHead: len = %d, q = %p\n",len,q);*/
             if (q && len > 0) {
-                strncpy(q,p,len);
+                /*int alen = len - (q-hbuffer);
+                fprintf(stderr,"*** LoadArticleHead: alen = %d\n",alen);*/
+                mystrncpy(q,p,len);
                 len -= strlen(q);
                 if (len < 0) len = 0;
             }
@@ -312,7 +334,7 @@ void LoadArticleHead(char *spooldir, char *grouppath, int artnumber,
     /* Close file. */
     fclose(file);
     /* Extract author's real name. */
-    GetRFC822Name(fromline,from,20);
+    GetRFC822Name(fromline,from,sizeof(from)-1);
     for (p = subject, q = matchsubj; *p != '\0';p++,q++)
     {
         if (isalpha(*p)) *q = tolower(*p);

@@ -46,7 +46,7 @@ scriptlibdir = $(datadir)/$(PACKAGE)-$(VERSION)/scriptlib
 docdir = $(datadir)/$(PACKAGE)-$(VERSION)/documentation
 
 bin_SCRIPTS = TkNewsIII$(EXEEXT) Split_flatmessagefile$(EXEEXT)
-SUBDIRS = BuildScripts BuildData C Scripts Docs GpgME
+SUBDIRS = BuildScripts BuildData C Scripts Docs #GpgME
 #doc_DATA = refman.pdf
 
 LibraryScripts = BUILDSYMBOLS.tcl \
@@ -82,7 +82,6 @@ EXTRA_DIST = Rules.make  BUILDSYMBOLS.tcl.in bootstrap
 CLEANFILES = TkNewsIII Split_flatmessagefile
 TkNewsIII$(EXEEXT): Scripts/TkNewsIII.src $(TkNewsIIIDATA) \
 			$(LibraryGIFS) $(LibraryXBMS) \
-			GpgME/gpgme.la GpgME/pkgIndex.tcl \
 			html/index.html
 	-rm -f  TkNewsIII.kit
 	-rm -f  TkNewsIII$(EXEEXT)
@@ -90,7 +89,6 @@ TkNewsIII$(EXEEXT): Scripts/TkNewsIII.src $(TkNewsIIIDATA) \
 	$(TCLKIT) $(SDX) qwrap $(srcdir)/Scripts/TkNewsIII.src
 	$(TCLKIT) $(SDX) unwrap TkNewsIII.kit
 	-rm -f  TkNewsIII.kit
-	tar xjf $(top_srcdir)/BuildData/$(IMG_TARBZ) -C TkNewsIII.vfs/lib
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsIII \
 		lib $(SNITLIB)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsIII \
@@ -106,6 +104,12 @@ TkNewsIII$(EXEEXT): Scripts/TkNewsIII.src $(TkNewsIIIDATA) \
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsIII \
 		lib $(MIMELIB)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsIII \
+		lib $(VIRTCHBASELIB)
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsIII \
+		lib $(VIRTCHCORELIB)
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsIII \
+		lib $(VIRTCHTRANSLIB)
+	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsIII \
 		lib $(SASLLIB)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsIII \
 		lib $(BASE64LIB)
@@ -113,8 +117,6 @@ TkNewsIII$(EXEEXT): Scripts/TkNewsIII.src $(TkNewsIIIDATA) \
 		lib $(MD5LIB)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsIII \
 		lib $(OTPLIB)
-	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit TkNewsIII \
-	        lib/GpgME GpgME/.libs/gpgme.so GpgME/pkgIndex.tcl
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitDir.kit TkNewsIII \
 		lib $(TLSLIB)
 	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit -srcdir $(srcdir) TkNewsIII \
@@ -125,6 +127,10 @@ TkNewsIII$(EXEEXT): Scripts/TkNewsIII.src $(TkNewsIIIDATA) \
 		HTML html/*.html html/*.css html/*.png
 	$(TCLKIT) $(SDX) wrap TkNewsIII$(EXEEXT) -runtime $(TCLKITRUN)
 	-rm -rf  TkNewsIII.vfs
+
+#	tar xjf $(top_srcdir)/BuildData/$(IMG_TARBZ) -C TkNewsIII.vfs/lib
+#	$(TCLKIT) $(top_srcdir)/BuildScripts/AddKitFile.kit TkNewsIII \
+#	        lib/GpgME GpgME/.libs/gpgme.so GpgME/pkgIndex.tcl
 
 Split_flatmessagefile$(EXEEXT): Scripts/Split_flatmessagefile.src \
 			$(Split_flatmessagefileDATA)

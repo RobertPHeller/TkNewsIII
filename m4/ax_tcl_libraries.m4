@@ -93,6 +93,66 @@ fi
 AC_SUBST(MIMELIB)
 ])
 
+AC_DEFUN([AX_VIRTCHBASE],[
+AC_MSG_CHECKING(virtchannel_base dir)
+searchdirs=`echo 'puts $auto_path'|${TCLSH_PROG}`
+for dir in $searchdirs ; do
+  dirs="${dir}/virtchannel_base* ${dir}/tcllib*/virtchannel_base*"
+  for i in $dirs ; do
+    if test -d "$i" -a -f "$i/pkgIndex.tcl"; then
+      VIRTCHBASELIB=`cd $i; pwd`
+    fi
+  done
+done
+AC_ARG_WITH(virtchannel_baselib, [  --with-virtchannel_baselib=DIR          use virtchannel_base from DIR], VIRTCHBASELIB=$withval,)
+if test x$VIRTCHBASELIB != x -a -d $VIRTCHBASELIB; then
+   AC_MSG_RESULT([using virtchannel_base library in $VIRTCHBASELIB])
+else
+   AC_MSG_ERROR(Mime library directory not found)
+fi
+AC_SUBST(VIRTCHBASELIB)
+])
+
+AC_DEFUN([AX_VIRTCHCORE],[
+AC_MSG_CHECKING(virtchannel_core dir)
+searchdirs=`echo 'puts $auto_path'|${TCLSH_PROG}`
+for dir in $searchdirs ; do
+  dirs="${dir}/virtchannel_core* ${dir}/tcllib*/virtchannel_core*"
+  for i in $dirs ; do
+    if test -d "$i" -a -f "$i/pkgIndex.tcl"; then
+      VIRTCHCORELIB=`cd $i; pwd`
+    fi
+  done
+done
+AC_ARG_WITH(virtchannel_corelib, [  --with-virtchannel_corelib=DIR          use virtchannel_core from DIR], VIRTCHCORELIB=$withval,)
+if test x$VIRTCHCORELIB != x -a -d $VIRTCHCORELIB; then
+   AC_MSG_RESULT([using virtchannel_core library in $VIRTCHCORELIB])
+else
+   AC_MSG_ERROR(Mime library directory not found)
+fi
+AC_SUBST(VIRTCHCORELIB)
+])
+
+AC_DEFUN([AX_VIRTCHTRANS],[
+AC_MSG_CHECKING(virtchannel_transform dir)
+searchdirs=`echo 'puts $auto_path'|${TCLSH_PROG}`
+for dir in $searchdirs ; do
+  dirs="${dir}/virtchannel_transform* ${dir}/tcllib*/virtchannel_transform*"
+  for i in $dirs ; do
+    if test -d "$i" -a -f "$i/pkgIndex.tcl"; then
+      VIRTCHTRANSLIB=`cd $i; pwd`
+    fi
+  done
+done
+AC_ARG_WITH(virtchannel_transformlib, [  --with-virtchannel_transformlib=DIR          use virtchannel_transform from DIR], VIRTCHTRANSLIB=$withval,)
+if test x$VIRTCHTRANSLIB != x -a -d $VIRTCHTRANSLIB; then
+   AC_MSG_RESULT([using virtchannel_transform library in $VIRTCHTRANSLIB])
+else
+   AC_MSG_ERROR(Mime library directory not found)
+fi
+AC_SUBST(VIRTCHTRANSLIB)
+])
+
 AC_DEFUN([AX_HTML],[
 AC_MSG_CHECKING(html dir)
 searchdirs=`echo 'puts $auto_path'|${TCLSH_PROG}`
